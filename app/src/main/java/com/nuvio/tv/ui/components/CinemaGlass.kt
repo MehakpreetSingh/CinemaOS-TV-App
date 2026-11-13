@@ -19,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -292,8 +294,9 @@ fun GlassPillLabel(text: String, modifier: Modifier = Modifier) {
 }
 
 /**
- * Ambient page background: the current backdrop, blurred, ~60% opacity, 1s crossfade.
- * Modifier.blur only works on API 31+; below that only a dark scrim is drawn.
+ * Ambient page background (prototype "frost"): the focused title's art, heavily blurred and tinted
+ * with a colour derived from the image via Palette, crossfading over 600ms. Modifier.blur needs
+ * API 31+; below that only the dark base + vignette is drawn.
  */
 @Composable
 fun CinemaAmbientBackground(
@@ -306,26 +309,75 @@ fun CinemaAmbientBackground(
             val context = androidx.compose.ui.platform.LocalContext.current
             androidx.compose.animation.Crossfade(
                 targetState = imageUrl,
-                animationSpec = androidx.compose.animation.core.tween(1000),
+                animationSpec = androidx.compose.animation.core.tween(600),
                 label = "cinemaAmbient"
             ) { url ->
                 val model = androidx.compose.runtime.remember(url) {
                     coil3.request.ImageRequest.Builder(context)
                         .data(url)
                         .size(480, 270)
+                        .allowHardware(false)
                         .build()
                 }
-                coil3.compose.AsyncImage(
-                    model = model,
-                    contentDescription = null,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(60.dp)
-                        .alpha(0.6f)
+                var tint by androidx.compose.runtime.remember(url) {
+                    androidx.compose.runtime.mutableStateOf<Color?>(null)
+                }
+                val tintAnim by androidx.compose.animation.animateColorAsState(
+                    targetValue = tint ?: Color.Transparent,
+                    animationSpec = androidx.compose.animation.core.tween(600),
+                    label = "cinemaAmbientTint"
                 )
+                Box(Modifier.fillMaxSize()) {
+                    coil3.compose.AsyncImage(
+                        model = model,
+                        contentDescription = null,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(
+                            androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(1.4f) }
+                        ),
+                        onSuccess = { state ->
+                            val bmp = (state.result.image as? coil3.BitmapImage)?.bitmap
+                            if (bmp != null) {
+                                runCatching {
+                                    androidx.palette.graphics.Palette.from(bmp)
+                                        .maximumColorCount(12)
+                                        .generate { p ->
+                                            val rgb = p?.getVibrantColor(
+                                                p.getDominantColor(0xFF3F3F46.toInt())
+                                            ) ?: 0xFF3F3F46.toInt()
+                                            tint = Color(rgb)
+                                        }
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(60.dp)
+                            .alpha(0.85f)
+                    )
+                    Box(
+                        Modifier.fillMaxSize().background(
+                            androidx.compose.ui.graphics.Brush.linearGradient(
+                                listOf(
+                                    tintAnim.copy(alpha = if (tint != null) 0.55f else 0f),
+                                    tintAnim.copy(alpha = if (tint != null) 0.35f else 0f)
+                                )
+                            )
+                        )
+                    )
+                }
             }
         }
-        Box(Modifier.matchParentSize().background(NuvioPrimitives.zinc950.copy(alpha = 0.35f)))
+        // Vignette: darker toward the bottom so rows stay legible.
+        Box(
+            Modifier.matchParentSize().background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to NuvioPrimitives.zinc950.copy(alpha = 0.55f),
+                    0.35f to NuvioPrimitives.zinc950.copy(alpha = 0.25f),
+                    0.7f to NuvioPrimitives.zinc950.copy(alpha = 0.55f),
+                    1f to NuvioPrimitives.zinc950.copy(alpha = 0.88f)
+                )
+            )
+        )
     }
 }
