@@ -546,10 +546,8 @@ internal fun ModernRowSection(
         val textModifier = remember(rowTitleBottom) {
             Modifier.padding(start = 52.dp, bottom = rowTitleBottom)
         }
-        Text(
-            text = rowTitle,
-            style = rowTitleStyle.copy(textDirection = rowTitle.contentTextDirection()),
-            color = textColor,
+        com.nuvio.tv.ui.components.SectionHeader(
+            title = rowTitle,
             modifier = textModifier
         )
 

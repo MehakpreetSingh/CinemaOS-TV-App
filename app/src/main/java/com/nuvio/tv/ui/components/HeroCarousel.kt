@@ -26,7 +26,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.rememberUpdatedState
@@ -63,6 +65,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.nuvio.tv.R
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -84,7 +90,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.snapshotFlow
 
-private const val AUTO_ADVANCE_INTERVAL_MS = 10000L
+private const val AUTO_ADVANCE_INTERVAL_MS = 7000L
+private val HERO_HEIGHT = 440.dp
 private val YEAR_REGEX = Regex("""\b\d{4}\b""")
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -124,18 +131,21 @@ fun HeroCarousel(
         items.getOrNull(activeIndex)?.let { currentOnActiveItemChanged(it) }
     }
 
-    // Auto-advance when not focused — delay first advance to 20s so initial GPU load settles
-    LaunchedEffect(isFocused, items.size) {
+    // Auto-advance every ~7s; the active segment fills left to right while it waits.
+    val slideProgress = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(activeIndex, items.size) {
+        slideProgress.snapTo(0f)
         if (items.size <= 1) return@LaunchedEffect
-        delay(AUTO_ADVANCE_INTERVAL_MS * 2) // 20s before first advance
-        while (true) {
-            delay(AUTO_ADVANCE_INTERVAL_MS)
-            // Let a long description finish scrolling before the slide is replaced.
-            snapshotFlow { descriptionScrollHoldIndex == activeIndex }.first { !it }
-            if (!isFocused) {
-                activeIndex = (activeIndex + 1) % items.size
-            }
-        }
+        slideProgress.animateTo(
+            1f,
+            androidx.compose.animation.core.tween(
+                durationMillis = AUTO_ADVANCE_INTERVAL_MS.toInt(),
+                easing = androidx.compose.animation.core.LinearEasing
+            )
+        )
+        // Let a long description finish scrolling before the slide is replaced.
+        snapshotFlow { descriptionScrollHoldIndex == activeIndex }.first { !it }
+        activeIndex = (activeIndex + 1) % items.size
     }
 
     Box(
@@ -146,7 +156,7 @@ fun HeroCarousel(
                 else
                     Modifier.fillMaxWidth()
             )
-            .height(400.dp)
+            .height(HERO_HEIGHT)
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged {
                 isFocused = it.hasFocus || it.isFocused
@@ -204,6 +214,7 @@ fun HeroCarousel(
                 mdbListShowOnHero = mdbListShowOnHero,
                 mdbListRatingOrder = mdbListRatingOrder,
                 descriptionAutoScrollEnabled = descriptionAutoScrollEnabled,
+                heroFocused = isFocused,
                 onDescriptionScrollHoldChanged = { hold ->
                     // A slide can only clear its own hold, so the outgoing slide in the
                     // crossfade can't release the new one, and a slide without a
@@ -216,38 +227,40 @@ fun HeroCarousel(
             )
         }
 
-        // Indicator dots — optimized to minimize recompositions and layout passes
-        val focusRingBrush = NuvioTheme.focusRing.brush()
-        val dotColorInactive = remember { Color.White.copy(alpha = 0.3f) }
-        val dotShape = remember { RoundedCornerShape(3.dp) }
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = NuvioTheme.spacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
-        ) {
-            repeat(items.size) { index ->
-                val isActive = index == activeIndex
-                val useGradient = isActive
-                val dotColor = when {
-                    isActive -> null // use gradient brush
-                    else -> dotColorInactive
-                }
-                val dotWidth = when {
-                    isActive -> NuvioTheme.spacing.xxl
-                    else -> NuvioTheme.spacing.md
-                }
-                val dotHeight = if (isActive) 6.dp else NuvioTheme.spacing.xs
-                
-                Box(
-                    modifier = Modifier
-                        .size(width = dotWidth, height = dotHeight)
-                        .clip(dotShape)
-                        .then(
-                            if (useGradient) Modifier.background(focusRingBrush)
-                            else Modifier.background(dotColor!!)
+        // Segmented progress bars (CinemaOS): track white@20%, active fill animates over the interval.
+        if (items.size > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = NuvioTheme.spacing.xxxl, bottom = NuvioTheme.spacing.lg)
+                    .fillMaxWidth(0.34f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                repeat(items.size) { index ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.2f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    val frac = when {
+                                        index < activeIndex -> 1f
+                                        index == activeIndex -> slideProgress.value
+                                        else -> 0f
+                                    }
+                                    scaleX = frac
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                                }
+                                .background(Color.White)
                         )
-                )
+                    }
+                }
             }
         }
     }
@@ -262,6 +275,7 @@ private fun HeroCarouselSlide(
     mdbListShowOnHero: Boolean = false,
     mdbListRatingOrder: List<String> = com.nuvio.tv.domain.model.MDBListSettings.DEFAULT_RATING_ORDER,
     descriptionAutoScrollEnabled: Boolean = false,
+    heroFocused: Boolean = false,
     onDescriptionScrollHoldChanged: (Boolean) -> Unit = {}
 ) {
     val highlighterEnabled = LocalRecompositionHighlighterEnabled.current
@@ -325,10 +339,35 @@ private fun HeroCarouselSlide(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = NuvioTheme.spacing.xxxl, bottom = NuvioTheme.spacing.xxxl, end = NuvioTheme.spacing.xxxl)
-                .fillMaxWidth(0.42f),
-            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
+                .padding(start = NuvioTheme.spacing.xxxl, bottom = 44.dp, end = NuvioTheme.spacing.xxxl)
+                .fillMaxWidth(0.48f),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Eyebrow: dot + TYPE . GENRE . YEAR
+            val eyebrowText = remember(contentTypeText, primaryGenreText, releaseYear) {
+                listOfNotNull(contentTypeText, primaryGenreText, releaseYear).joinToString("  \u2022  ")
+            }
+            if (eyebrowText.isNotBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
+                    Text(
+                        text = eyebrowText.uppercase(),
+                        style = NuvioTheme.textStyles.eyebrow,
+                        color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
             if (showLogo) {
                 AsyncImage(
                     model = logoModel,
@@ -336,7 +375,7 @@ private fun HeroCarouselSlide(
                     onError = { logoLoadFailed = true },
                     modifier = Modifier
                         .height(100.dp)
-                        .widthIn(min = 100.dp, max = 220.dp)
+                        .widthIn(min = 100.dp, max = 320.dp)
                         .fillMaxWidth(),
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.CenterStart
@@ -344,74 +383,49 @@ private fun HeroCarouselSlide(
             } else {
                 Text(
                     text = item.name,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = NuvioTheme.colors.TextPrimary,
+                    style = MaterialTheme.typography.headlineLarge.copy(
+                        fontSize = 40.sp,
+                        lineHeight = 42.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-1).sp
+                    ),
+                    color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
-            if (leadingMetaText.isNotBlank() || trailingMetadata.isNotEmpty() || ratingText != null) {
+            // Meta: yellow star + rating . runtime . genre glass chips
+            val genreChips = remember(context, item.genres) {
+                item.genres.filter { it.isNotBlank() }.take(3).map { localizedGenreLabel(context, it) }
+            }
+            if (ratingText != null || runtimeText != null || genreChips.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    val hasTrailingMeta = trailingMetadata.isNotEmpty() || ratingText != null
-                    if (leadingMetaText.isNotBlank()) {
-                        Text(
-                            text = leadingMetaText,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = NuvioTheme.colors.TextSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = if (hasTrailingMeta) {
-                                Modifier.weight(1f, fill = false)
-                            } else {
-                                Modifier
-                            }
-                        )
-                    }
-                    if (hasTrailingMeta) {
-                        if (leadingMetaText.isNotBlank()) HeroCarouselMetaDivider()
+                    if (ratingText != null && !(mdbListShowOnHero && item.mdbListRatings != null && !item.mdbListRatings.isEmpty())) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            trailingMetadata.forEachIndexed { index, value ->
-                                if (index > 0) HeroCarouselMetaDivider()
-                                Text(
-                                    text = value,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = NuvioTheme.colors.TextSecondary,
-                                    maxLines = 1
-                                )
-                            }
-                            if (ratingText != null) {
-                                val mdbRatings = item.mdbListRatings
-                                if (mdbListShowOnHero && mdbRatings != null && !mdbRatings.isEmpty()) {
-                                } else {
-                                    if (trailingMetadata.isNotEmpty()) HeroCarouselMetaDivider()
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
-                                    ) {
-                                        ImdbRatingSourceLabel(
-                                            logoModifier = Modifier.size(NuvioTheme.spacing.xl),
-                                            textStyle = MaterialTheme.typography.labelMedium,
-                                            textColor = NuvioTheme.colors.TextSecondary
-                                        )
-                                        Text(
-                                            text = ratingText,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = NuvioTheme.colors.TextSecondary,
-                                            maxLines = 1
-                                        )
-                                    }
-                                }
-                            }
+                            Text("\u2605", style = MaterialTheme.typography.labelMedium, color = CinemaGlass.Star)
+                            Text(
+                                text = ratingText,
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
                         }
                     }
+                    if (runtimeText != null) {
+                        Text(
+                            text = runtimeText,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.8f),
+                            maxLines = 1
+                        )
+                    }
+                    genreChips.forEach { GlassChip(text = it) }
                 }
             }
 
@@ -429,11 +443,21 @@ private fun HeroCarouselSlide(
                     style = MaterialTheme.typography.bodyMedium.copy(
                         textDirection = description.contentTextDirection()
                     ),
-                    color = NuvioTheme.colors.TextPrimary,
-                    maxLines = 4,
+                    color = Color.White.copy(alpha = 0.8f),
+                    maxLines = 3,
                     autoScrollEnabled = descriptionAutoScrollEnabled,
                     onScrollHoldChanged = onDescriptionScrollHoldChanged
                 )
+            }
+
+            // Visual CTAs; the whole hero is the focusable target (Enter opens the title).
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                WhitePillLabel(text = stringResource(R.string.hero_play), highlighted = heroFocused)
+                GlassPillLabel(text = stringResource(R.string.hero_more_info))
             }
         }
     }
@@ -462,7 +486,7 @@ internal fun HeroCarouselBackdrop(
         with(density) { configuration.screenWidthDp.dp.roundToPx() }.coerceAtLeast(1)
     }
     val requestHeightPx = remember(configuration.screenHeightDp, density, fullPage) {
-        val height = if (fullPage) configuration.screenHeightDp.dp else 400.dp
+        val height = if (fullPage) configuration.screenHeightDp.dp else HERO_HEIGHT
         with(density) { height.roundToPx() }.coerceAtLeast(1)
     }
     val backdropUrl = item.backdropUrl
@@ -487,7 +511,7 @@ internal fun HeroCarouselBackdrop(
             }
             .drawWithCache {
             val bottomStartFraction = if (fullPage) 0.55f else 0.30f
-            val leftEndFraction = if (fullPage) 0.66f else 0.72f
+            val leftEndFraction = if (fullPage) 0.85f else 0.90f
             val bottomStartY = size.height * bottomStartFraction
             val leftEndX = size.width * leftEndFraction
             val bottomGradient = Brush.verticalGradient(
@@ -509,24 +533,13 @@ internal fun HeroCarouselBackdrop(
                 startY = bottomStartY,
                 endY = size.height
             )
+            // CinemaOS hero scrim: left->right black 85% / 40% / 0.
             val leftGradient = Brush.horizontalGradient(
-                colorStops = if (fullPage) {
-                    arrayOf(
-                        0.0f to bgColor.copy(alpha = 0.98f),
-                        0.2424f to bgColor.copy(alpha = 0.88f),
-                        0.5152f to bgColor.copy(alpha = 0.56f),
-                        0.7879f to bgColor.copy(alpha = 0.20f),
-                        1.0f to Color.Transparent
-                    )
-                } else {
-                    arrayOf(
-                        0.0f to bgColor.copy(alpha = 0.98f),
-                        0.2222f to bgColor.copy(alpha = 0.88f),
-                        0.4722f to bgColor.copy(alpha = 0.56f),
-                        0.7778f to bgColor.copy(alpha = 0.20f),
-                        1.0f to Color.Transparent
-                    )
-                },
+                colorStops = arrayOf(
+                    0.0f to Color.Black.copy(alpha = 0.85f),
+                    0.5f to Color.Black.copy(alpha = 0.40f),
+                    1.0f to Color.Transparent
+                ),
                 startX = 0f,
                 endX = leftEndX
             )

@@ -1186,7 +1186,22 @@ open class MainActivity : ComponentActivity() {
                         }
                         Box(modifier = Modifier.fillMaxSize()) {
                             CompositionLocalProvider(LocalNavViewModelStoreOwner provides navViewModelStoreOwner) {
-                                if (modernSidebarEnabled) {
+                                if (USE_CINEMA_TOP_BAR) {
+                                    CinemaTopBarScaffold(
+                                        longPressBackHeld = longPressBackHeld,
+                                        navController = navController,
+                                        startDestination = startDestination,
+                                        currentRoute = currentRoute,
+                                        rootRoutes = rootRoutes,
+                                        drawerItems = drawerItems,
+                                        selectedDrawerRoute = selectedDrawerRoute,
+                                        activeProfileName = activeProfile?.name ?: "",
+                                        showProfileSelector = profiles.size > 1,
+                                        onSwitchProfile = handleSwitchProfile,
+                                        onNavigate = { optimisticRoute = it },
+                                        onExitApp = handleExitApp
+                                    )
+                                } else if (modernSidebarEnabled) {
                                     ModernSidebarScaffold(
                                         longPressBackHeld = longPressBackHeld,
                                         navController = navController,
@@ -1841,6 +1856,91 @@ private fun LegacySidebarButton(
         }
     }
 }
+}
+
+/** CinemaOS default navigation: floating glass pill top bar. Set false to fall back to the sidebar modes. */
+private const val USE_CINEMA_TOP_BAR = true
+
+@Composable
+private fun CinemaTopBarScaffold(
+    longPressBackHeld: MutableState<Boolean>,
+    navController: NavHostController,
+    startDestination: String,
+    currentRoute: String?,
+    rootRoutes: Set<String>,
+    drawerItems: List<DrawerItem>,
+    selectedDrawerRoute: String?,
+    activeProfileName: String,
+    showProfileSelector: Boolean,
+    onSwitchProfile: () -> Unit,
+    onNavigate: (String) -> Unit,
+    onExitApp: () -> Unit
+) {
+    val showBar = currentRoute in rootRoutes
+    val focusRequesters = rememberDrawerItemFocusRequesters(drawerItems)
+    val contentFocusRequester = remember { FocusRequester() }
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    var barHasFocus by remember { mutableStateOf(false) }
+
+    // Back from content moves focus to the bar; Back on the bar exits the app.
+    BackHandler(enabled = showBar && !barHasFocus) {
+        val target = selectedDrawerRoute ?: drawerItems.firstOrNull()?.route
+        target?.let { runCatching { focusRequesters[it]?.requestFocus() } }
+    }
+    BackHandler(enabled = showBar && barHasFocus) {
+        if (longPressBackHeld.value) return@BackHandler
+        onExitApp()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onPreviewKeyEvent { keyEvent ->
+                if (longPressBackHeld.value && keyEvent.key == Key.Back) {
+                    if (keyEvent.type == KeyEventType.KeyUp) longPressBackHeld.value = false
+                    return@onPreviewKeyEvent true
+                }
+                false
+            }
+    ) {
+        // Home is full-bleed under the floating bar; other root screens start below it.
+        val topInset = if (showBar && currentRoute != Screen.Home.route) 80.dp else 0.dp
+        Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
+            CompositionLocalProvider(
+                LocalSidebarExpanded provides false,
+                LocalContentFocusRequester provides contentFocusRequester
+            ) {
+                NuvioNavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    hideBuiltInHeaders = false
+                )
+            }
+        }
+
+        if (showBar) {
+            com.nuvio.tv.ui.components.CinemaTopBar(
+                items = drawerItems.map { com.nuvio.tv.ui.components.CinemaTopBarItem(it.route, it.label) },
+                selectedRoute = selectedDrawerRoute,
+                focusRequesters = focusRequesters,
+                onItemClick = { targetRoute ->
+                    keyboardController?.hide()
+                    onNavigate(targetRoute)
+                    navigateToDrawerRoute(
+                        navController = navController,
+                        currentRoute = currentRoute,
+                        targetRoute = targetRoute
+                    )
+                },
+                onBarFocusChanged = { barHasFocus = it },
+                profileName = activeProfileName.takeIf { showProfileSelector && it.isNotEmpty() },
+                onProfileClick = if (showProfileSelector) onSwitchProfile else null,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 12.dp)
+            )
+        }
+    }
 }
 
 @Composable

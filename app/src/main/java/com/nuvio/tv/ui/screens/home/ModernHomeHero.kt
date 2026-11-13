@@ -223,24 +223,13 @@ internal fun ModernHeroGradientLayer(
             }
             .drawWithCache {
                 val fullScreen = isFullScreen()
-                val horizontalFadeEndX = size.width * if (fullScreen) 0.65f else 0.45f
-                val colorStops = if (fullScreen) {
-                    arrayOf(
-                        0.0f to bgColor,
-                        0.22f to bgColor.copy(alpha = 0.90f),
-                        0.46f to bgColor.copy(alpha = 0.80f),
-                        0.76f to bgColor.copy(alpha = 0.42f),
-                        1.0f to Color.Transparent
-                    )
-                } else {
-                    arrayOf(
-                        0.0f to bgColor,
-                        0.22f to bgColor.copy(alpha = 0.86f),
-                        0.46f to bgColor.copy(alpha = 0.56f),
-                        0.76f to bgColor.copy(alpha = 0.16f),
-                        1.0f to Color.Transparent
-                    )
-                }
+                val horizontalFadeEndX = size.width * if (fullScreen) 0.85f else 0.60f
+                // CinemaOS scrim: black 85% -> 40% (mid) -> transparent.
+                val colorStops = arrayOf(
+                    0.0f to Color.Black.copy(alpha = 0.85f),
+                    0.5f to Color.Black.copy(alpha = 0.40f),
+                    1.0f to Color.Transparent
+                )
                 val horizontalGradient = if (isRtl) {
                     Brush.horizontalGradient(
                         colorStops = colorStops,
@@ -412,6 +401,21 @@ private fun HeroTitleContent(
     ) {
         var logoLoadFailed by remember(preview.logo) { mutableStateOf(false) }
         val showLogo = !preview.logo.isNullOrBlank() && !logoLoadFailed
+        preview.contentTypeText?.takeIf { it.isNotBlank() }?.let { typeText ->
+            Row(
+                modifier = Modifier.graphicsLayer { alpha = metaAlpha },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(modifier = Modifier.size(6.dp).clip(RoundedCornerShape(50)).background(Color.White))
+                Text(
+                    text = typeText.uppercase(),
+                    style = NuvioTheme.textStyles.eyebrow,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1
+                )
+            }
+        }
         if (showLogo) {
             AsyncImage(
                 model = logoModel,

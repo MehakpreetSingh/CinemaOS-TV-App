@@ -56,6 +56,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -383,6 +384,10 @@ fun ContentCard(
                 focusedContainerColor = Color.Transparent
             ),
             border = CardDefaults.border(
+                border = Border(
+                    border = BorderStroke(1.dp, CinemaGlass.BorderSubtle),
+                    shape = cardShape
+                ),
                 focusedBorder = Border(
                     border = NuvioTheme.focusRing.border(posterCardStyle.focusedBorderWidth),
                     shape = cardShape
@@ -714,18 +719,13 @@ fun ContentCard(
                     FocusMarqueeText(
                         text = item.name,
                         focused = isFocused,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = NuvioTheme.colors.TextPrimary,
                     )
-                    item.releaseInfo?.let { info ->
-                        Spacer(modifier = Modifier.height(2.dp))
-                        FocusMarqueeText(
-                            text = info,
-                            focused = isFocused,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = NuvioTheme.extendedColors.textSecondary,
-                        )
-                    }
+                    CinemaCardMetaRow(item = item, showRating = showImdbRatings)
                     if (effectiveExpandEnabled) {
                         Spacer(modifier = Modifier.height(15.dp))
                     }
@@ -764,4 +764,44 @@ private fun isSelectKey(keyCode: Int): Boolean {
     return keyCode == AndroidKeyEvent.KEYCODE_DPAD_CENTER ||
         keyCode == AndroidKeyEvent.KEYCODE_ENTER ||
         keyCode == AndroidKeyEvent.KEYCODE_NUMPAD_ENTER
+}
+
+/** CinemaOS card meta line: MOVIE/SERIES pill + year + star rating. */
+@Composable
+private fun CinemaCardMetaRow(item: MetaPreview, showRating: Boolean) {
+    val year = remember(item.releaseInfo) {
+        item.releaseInfo?.let { YEAR_REGEX.find(it)?.value }
+    }
+    val isSeries = item.type == ContentType.SERIES || item.apiType.equals("series", ignoreCase = true)
+    val typeLabel = if (isSeries) "Series" else "Movie"
+    val rating = item.imdbRating?.takeIf { showRating && it > 0f }
+    if (year == null && rating == null && item.apiType.isBlank()) return
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        TypePill(text = typeLabel)
+        if (year != null) {
+            Text(
+                text = year,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = NuvioTheme.extendedColors.textSecondary,
+                maxLines = 1
+            )
+        }
+        if (rating != null) {
+            Text(
+                text = "\u2605",
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = CinemaGlass.Star
+            )
+            Text(
+                text = String.format(java.util.Locale.US, "%.1f", rating),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                color = NuvioTheme.extendedColors.textSecondary,
+                maxLines = 1
+            )
+        }
+    }
 }

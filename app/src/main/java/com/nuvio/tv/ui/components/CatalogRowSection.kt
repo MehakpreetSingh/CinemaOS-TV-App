@@ -293,27 +293,12 @@ fun CatalogRowSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
-                Text(
-                    text = catalogTitle.ifBlank { " " },
-                    style = MaterialTheme.typography.headlineMedium.copy(
-                        textDirection = catalogTitle.contentTextDirection()
-                    ),
-                    color = if (catalogTitle.isBlank()) Color.Transparent else NuvioTheme.colors.TextPrimary,
-                    maxLines = 3,
-                    overflow = TextOverflow.Clip
-                )
-                if (showAddonName) {
-                    val addonText = if (catalogTitle.isBlank()) " " else stringResource(R.string.catalog_from_addon, catalogRow.addonName)
-                    Text(
-                        text = addonText,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            textDirection = addonText.contentTextDirection()
-                        ),
-                        color = if (catalogTitle.isBlank()) Color.Transparent else NuvioTheme.colors.TextTertiary
-                    )
-                }
-            }
+            SectionHeader(
+                title = catalogTitle.ifBlank { " " },
+                eyebrow = if (showAddonName && catalogTitle.isNotBlank()) {
+                    stringResource(R.string.catalog_from_addon, catalogRow.addonName)
+                } else null
+            )
         }
 
         val density = LocalDensity.current
