@@ -543,7 +543,11 @@ internal fun ModernRowSection(
         val rowTitleStyle = remember(titleMediumStyle) {
             titleMediumStyle.copy(fontWeight = FontWeight.SemiBold)
         }
-        val rowTitle = row.title
+        val rowTitle = when (row.key) {
+            CINEMA_TOP10_ROW_PREFIX + "movie" -> stringResource(R.string.home_top10_movies_today)
+            CINEMA_TOP10_ROW_PREFIX + "series" -> stringResource(R.string.home_top10_series_today)
+            else -> row.title
+        }
         val textColor = NuvioTheme.colors.TextPrimary
         val textModifier = remember(rowTitleBottom) {
             Modifier.padding(start = 52.dp, bottom = rowTitleBottom)
@@ -1097,7 +1101,7 @@ private fun ModernCarouselCard(
     onTrailerEnded: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val cardShape = remember(cardCornerRadius) { RoundedCornerShape(cardCornerRadius) }
+    val cardShape = remember { RoundedCornerShape(12.dp) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -1378,6 +1382,7 @@ private fun ModernCarouselCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(cardShape)
+                    .border(BorderStroke(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle), cardShape)
                     .nuvioCardDepth(
                         shape = cardShape,
                         surface = CardDepthSurface.POSTERS,
@@ -1539,7 +1544,10 @@ private fun ModernCarouselCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                item.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                val metaPreview = item.metaPreview
+                if (metaPreview != null) {
+                    com.nuvio.tv.ui.components.CinemaCardMetaRow(item = metaPreview, showRating = true)
+                } else item.subtitle?.takeIf { it.isNotBlank() }?.let { subtitle ->
                     Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxs))
                     Text(
                         text = subtitle,
@@ -1616,25 +1624,40 @@ private class AnimatedWidthNode(var width: State<Dp>) : LayoutModifierNode, Modi
         measurable.maxIntrinsicHeight(width)
 }
 
-/** Big outlined "ghost" rank numeral (white outline, transparent fill) shown left of a Top 10 poster. */
+/** Big outlined "ghost" rank numeral: white outline over a subtle white-to-transparent vertical fill. */
 @Composable
 private fun CinemaTop10Numeral(rank: Int) {
-    androidx.tv.material3.Text(
-        text = rank.toString(),
-        style = androidx.compose.ui.text.TextStyle(
-            fontSize = 132.sp,
-            fontWeight = FontWeight.Black,
-            letterSpacing = (-6).sp,
-            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
-            drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
-                width = 5f,
-                join = androidx.compose.ui.graphics.StrokeJoin.Round
-            )
-        ),
-        maxLines = 1,
-        softWrap = false,
+    val base = androidx.compose.ui.text.TextStyle(
+        fontSize = 132.sp,
+        fontWeight = FontWeight.Black,
+        letterSpacing = (-6).sp
+    )
+    Box(
         modifier = Modifier
             .padding(end = 4.dp, bottom = 8.dp)
             .widthIn(min = 70.dp)
-    )
+    ) {
+        androidx.tv.material3.Text(
+            text = rank.toString(),
+            style = base.copy(
+                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.30f), Color.Transparent)
+                )
+            ),
+            maxLines = 1,
+            softWrap = false
+        )
+        androidx.tv.material3.Text(
+            text = rank.toString(),
+            style = base.copy(
+                color = Color.White.copy(alpha = 0.85f),
+                drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 5f,
+                    join = androidx.compose.ui.graphics.StrokeJoin.Round
+                )
+            ),
+            maxLines = 1,
+            softWrap = false
+        )
+    }
 }

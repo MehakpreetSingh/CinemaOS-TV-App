@@ -768,7 +768,7 @@ private fun isSelectKey(keyCode: Int): Boolean {
 
 /** CinemaOS card meta line: MOVIE/SERIES pill + year + star rating. */
 @Composable
-private fun CinemaCardMetaRow(item: MetaPreview, showRating: Boolean) {
+internal fun CinemaCardMetaRow(item: MetaPreview, showRating: Boolean) {
     val year = remember(item.releaseInfo) {
         item.releaseInfo?.let { YEAR_REGEX.find(it)?.value }
     }
