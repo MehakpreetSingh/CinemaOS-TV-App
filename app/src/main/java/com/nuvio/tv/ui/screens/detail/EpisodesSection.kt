@@ -354,8 +354,9 @@ fun SeasonTabs(
                     },
                 shape = CardDefaults.shape(shape = tabShape),
                 colors = CardDefaults.colors(
-                    containerColor = if (isSelected) NuvioTheme.colors.SurfaceVariant else NuvioTheme.colors.BackgroundCard,
-                    focusedContainerColor = NuvioTheme.colors.Secondary
+                    containerColor = if (isSelected) androidx.compose.ui.graphics.Color.White
+                    else androidx.compose.ui.graphics.Color(0xFF3F3F46).copy(alpha = 0.7f),
+                    focusedContainerColor = androidx.compose.ui.graphics.Color.White
                 ),
                 border = tabBorder,
                 scale = tabScale
@@ -364,11 +365,13 @@ fun SeasonTabs(
                     text = if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
                     style = tabTextStyle,
                     color = when {
-                        isFocused -> NuvioTheme.colors.OnSecondary
-                        isSelected -> NuvioTheme.colors.TextPrimary
-                        else -> textSecondary
+                        isFocused || isSelected -> androidx.compose.ui.graphics.Color(0xFF09090B)
+                        else -> androidx.compose.ui.graphics.Color(0xFFD4D4D8)
                     },
-                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 20.dp)
+                    modifier = Modifier.padding(
+                        vertical = com.nuvio.tv.ui.components.cdp(6),
+                        horizontal = com.nuvio.tv.ui.components.cdp(18)
+                    )
                 )
             }
         }

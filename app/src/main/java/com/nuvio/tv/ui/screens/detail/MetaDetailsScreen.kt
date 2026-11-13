@@ -2299,6 +2299,12 @@ private fun MetaDetailsContent(
             .background(backgroundColor)
             .onPreviewKeyEvent { randomEpisodePlaybackPending }
     ) {
+        // CinemaOS: tinted, blurred ambient background behind the backdrop.
+        com.nuvio.tv.ui.components.CinemaAmbientBackground(
+            imageUrl = meta.backdropUrl ?: meta.poster,
+            modifier = Modifier.fillMaxSize()
+        )
+
         // Sticky background — backdrop or trailer
         BackdropLayer(
             backdropRequest = backdropRequest,

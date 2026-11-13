@@ -59,13 +59,13 @@ internal fun DetailFactsPanel(meta: Meta, modifier: Modifier = Modifier) {
         }
     }
     if (facts.isEmpty()) return
-    val shape = RoundedCornerShape(16.dp)
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 52.dp, end = 52.dp, top = 32.dp, bottom = 32.dp)
-            .background(Color.Black.copy(alpha = 0.30f), shape)
-            .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), shape)
+            .background(Color(0xFF18181B).copy(alpha = 0.62f), shape)
+            .border(BorderStroke(1.dp, Color.White.copy(alpha = 0.12f)), shape)
             .padding(horizontal = 24.dp, vertical = 20.dp)
     ) {
         val rows = facts.chunked(4)
