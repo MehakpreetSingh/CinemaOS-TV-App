@@ -399,28 +399,11 @@ internal fun SettingsRailButton(
                 this.selected = isSelected
             },
         colors = CardDefaults.colors(
-            containerColor = when {
-                zen -> Color.Transparent
-                showSelected -> NuvioTheme.colors.BackgroundCard
-                else -> NuvioTheme.colors.Background
-            },
-            focusedContainerColor = if (zen) settingsFocusFillColor() else NuvioTheme.colors.BackgroundCard
+            containerColor = if (showSelected) Color.White else Color.Transparent,
+            focusedContainerColor = Color.White
         ),
-        border = if (zen) {
-            CardDefaults.border(border = Border.None, focusedBorder = Border.None)
-        } else {
-            CardDefaults.border(
-                border = if (showSelected) Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.hairline),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None,
-                focusedBorder = Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                )
-            )
-        },
-        shape = CardDefaults.shape(railShape),
+        border = CardDefaults.border(border = Border.None, focusedBorder = Border.None),
+        shape = CardDefaults.shape(RoundedCornerShape(SettingsPillRadius)),
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
     ) {
         Box(
@@ -447,7 +430,7 @@ internal fun SettingsRailButton(
                                 .height(16.dp)
                                 .clip(RoundedCornerShape(SettingsPillRadius))
                                 .background(
-                                    if (showSelected) NuvioTheme.colors.Secondary else Color.Transparent
+                                    Color.Transparent
                                 )
                         )
                         Spacer(modifier = Modifier.width(NuvioTheme.spacing.md))
@@ -459,14 +442,14 @@ internal fun SettingsRailButton(
                             modifier = Modifier.size(18.dp),
                             contentScale = ContentScale.Fit,
                             colorFilter = ColorFilter.tint(
-                                if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary
+                                if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary
                             )
                         )
                     } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                            tint = if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -482,7 +465,7 @@ internal fun SettingsRailButton(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
                         ),
-                        color = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                        color = if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary,
                     )
                 }
 
@@ -490,7 +473,7 @@ internal fun SettingsRailButton(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = NuvioTheme.colors.TextTertiary,
+                        tint = if (isSelected || isFocused) Color.Black.copy(alpha = 0.6f) else NuvioTheme.colors.TextTertiary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -523,8 +506,8 @@ internal fun SettingsTopBarTab(
     val showSelected = isSelected && !suppressSelectedVisual
     val contentColor by animateColorAsState(
         targetValue = when {
-            isFocused -> NuvioTheme.colors.OnSecondary
-            showSelected -> NuvioTheme.colors.TextPrimary
+            isFocused -> Color.Black
+            showSelected -> if (glideIndicator) NuvioTheme.colors.TextPrimary else Color.Black
             else -> NuvioTheme.colors.TextSecondary
         },
         animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
@@ -554,14 +537,14 @@ internal fun SettingsTopBarTab(
             },
         colors = CardDefaults.colors(
             containerColor = if (showSelected) {
-                NuvioTheme.colors.Secondary.copy(alpha = 0.18f)
+                if (glideIndicator) Color.White.copy(alpha = 0.15f) else Color.White
             } else {
                 Color.Transparent
             },
             focusedContainerColor = if (glideIndicator) {
                 Color.Transparent
             } else {
-                NuvioTheme.colors.Secondary
+                Color.White
             }
         ),
         border = CardDefaults.border(border = Border.None, focusedBorder = Border.None),
@@ -679,9 +662,8 @@ internal fun SettingsGroupCard(
             if (!title.isNullOrBlank()) {
                 Text(
                     text = title.uppercase(),
-                    style = MaterialTheme.typography.labelMedium,
-                    letterSpacing = 1.2.sp,
-                    color = NuvioTheme.colors.TextTertiary,
+                    style = NuvioTheme.textStyles.eyebrow,
+                    color = Color.White.copy(alpha = 0.5f),
                     modifier = Modifier.padding(start = NuvioTheme.spacing.lg)
                 )
             }
@@ -697,7 +679,8 @@ internal fun SettingsGroupCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(settingsGroupShape())
-                    .background(NuvioTheme.colors.BackgroundCard.copy(alpha = 0.55f))
+                    .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900)
+                    .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, settingsGroupShape())
                     .padding(NuvioTheme.spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxs)
             ) {
@@ -708,20 +691,16 @@ internal fun SettingsGroupCard(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(settingsGroupShape())
-                .background(NuvioTheme.colors.BackgroundCard)
-                .border(
-                    width = NuvioTheme.spacing.hairline,
-                    color = NuvioTheme.colors.Border,
-                    shape = settingsGroupShape()
-                )
+                .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900)
+                .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, settingsGroupShape())
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (!title.isNullOrBlank()) {
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = NuvioTheme.colors.TextPrimary
+                    text = title.uppercase(),
+                    style = NuvioTheme.textStyles.eyebrow,
+                    color = Color.White.copy(alpha = 0.5f)
                 )
             }
             if (!subtitle.isNullOrBlank()) {
@@ -1236,41 +1215,16 @@ internal fun SettingsChoiceChip(
             }
         },
         colors = CardDefaults.colors(
-            containerColor = when {
-                zen && selected -> NuvioTheme.colors.Secondary.copy(alpha = 0.18f)
-                zen -> Color.Transparent
-                selected -> NuvioTheme.colors.FocusRing.copy(alpha = 0.2f)
-                else -> NuvioTheme.colors.Background
-            },
-            focusedContainerColor = when {
-                zen -> settingsFocusFillColor()
-                selected -> NuvioTheme.colors.FocusRing.copy(alpha = 0.2f)
-                else -> NuvioTheme.colors.Background
-            }
+            containerColor = if (selected) Color.White else com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900,
+            focusedContainerColor = Color.White
         ),
-        border = if (zen) {
-            CardDefaults.border(
-                border = if (selected) Border(
-                    border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Secondary.copy(alpha = 0.6f)),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None,
-                focusedBorder = if (selected) Border(
-                    border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Secondary.copy(alpha = 0.6f)),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None
-            )
-        } else {
-            CardDefaults.border(
-                border = if (selected) Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.hairline),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None,
-                focusedBorder = Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.hairline),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                )
-            )
-        },
+        border = CardDefaults.border(
+            border = if (selected) Border.None else Border(
+                border = BorderStroke(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle),
+                shape = RoundedCornerShape(SettingsPillRadius)
+            ),
+            focusedBorder = Border.None
+        ),
         shape = CardDefaults.shape(RoundedCornerShape(SettingsPillRadius)),
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
     ) {
@@ -1279,7 +1233,7 @@ internal fun SettingsChoiceChip(
             style = MaterialTheme.typography.labelMedium.copy(
                 textDirection = label.contentTextDirection()
             ),
-            color = if (selected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+            color = if (selected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary,
             modifier = Modifier.padding(horizontal = NuvioTheme.spacing.lg, vertical = 10.dp)
         )
     }
