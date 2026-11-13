@@ -125,21 +125,21 @@ internal fun StreamItem(
                 } else false
             } else Modifier),
         colors = CardDefaults.colors(
-            containerColor = NuvioTheme.colors.BackgroundElevated,
-            focusedContainerColor = NuvioTheme.colors.BackgroundElevated
+            containerColor = com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900,
+            focusedContainerColor = com.nuvio.tv.ui.theme.NuvioPrimitives.zinc800
         ),
-        shape = CardDefaults.shape(shape = RoundedCornerShape(NuvioTheme.radii.md)),
+        shape = CardDefaults.shape(shape = RoundedCornerShape(12.dp)),
         border = CardDefaults.border(
             border = Border(
                 border = BorderStroke(
-                    NuvioTheme.spacing.hairline,
-                    if (isCurrentStream) NuvioTheme.colors.Primary.copy(alpha = 0.65f) else Color.Transparent
+                    1.dp,
+                    if (isCurrentStream) Color.White.copy(alpha = 0.5f) else com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle
                 ),
-                shape = RoundedCornerShape(NuvioTheme.radii.md)
+                shape = RoundedCornerShape(12.dp)
             ),
             focusedBorder = Border(
-                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                shape = RoundedCornerShape(NuvioTheme.radii.md)
+                border = BorderStroke(2.dp, com.nuvio.tv.ui.components.CinemaGlass.FocusRing),
+                shape = RoundedCornerShape(12.dp)
             )
         ),
         scale = CardDefaults.scale(focusedScale = 1.04f)
@@ -179,18 +179,7 @@ internal fun StreamItem(
                         )
 
                         if (isCurrentStream) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(999.dp))
-                                    .background(NuvioTheme.colors.Primary.copy(alpha = 0.2f))
-                                    .padding(horizontal = NuvioTheme.spacing.sm, vertical = NuvioTheme.spacing.xs)
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.sources_playing),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = NuvioTheme.colors.Primary
-                                )
-                            }
+                            com.nuvio.tv.ui.components.GlassChip(text = stringResource(R.string.sources_playing))
                         }
                     }
                 }
@@ -237,15 +226,7 @@ internal fun StreamItem(
 
                     Spacer(modifier = Modifier.height(NuvioTheme.spacing.xs))
 
-                    Text(
-                        text = stream.addonName,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            textDirection = stream.addonName.contentTextDirection()
-                        ),
-                        color = NuvioTheme.extendedColors.textTertiary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    com.nuvio.tv.ui.components.GlassChip(text = stream.addonName)
                 }
             }
         }

@@ -158,10 +158,10 @@ private fun StreamFileSizeBadge(bytes: Long) {
     Box(
         modifier = Modifier
             .height(20.dp)
-            .clip(BadgeChipShape)
-            .background(Color(0xFF0A0C0C), BadgeChipShape)
-            .border(NuvioTheme.spacing.hairline, Color(0xFF0A0C0C), BadgeChipShape)
-            .padding(horizontal = 6.dp),
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(CinemaGlass.Fill, androidx.compose.foundation.shape.CircleShape)
+            .border(1.dp, CinemaGlass.Border, androidx.compose.foundation.shape.CircleShape)
+            .padding(horizontal = 8.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
