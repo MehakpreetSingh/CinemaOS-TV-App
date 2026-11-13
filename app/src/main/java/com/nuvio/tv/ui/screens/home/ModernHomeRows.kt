@@ -20,6 +20,8 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -260,6 +262,7 @@ private fun ModernCatalogRowItem(
     onBackdropInteraction: () -> Unit,
     onExpandedCatalogFocusKeyChange: (String?) -> Unit,
     enrichedPreviews: State<StableMap<String, MetaPreview>>,
+    expandedTag: String? = null,
     modifier: Modifier = Modifier
 ) {
     val focusKey = when (payload) {
@@ -399,6 +402,7 @@ private fun ModernCatalogRowItem(
         isWatched = isWatched,
         enrichedLogoUrl = enrichedLogoUrl,
         enrichedBackdropUrl = enrichedBackdropUrl,
+        expandedTag = expandedTag,
         focusRequester = requester,
         onFocused = {
             focusEventId += 1
@@ -549,12 +553,20 @@ internal fun ModernRowSection(
             else -> row.title
         }
         val textColor = NuvioTheme.colors.TextPrimary
-        val textModifier = remember(rowTitleBottom) {
-            Modifier.padding(start = 52.dp, bottom = rowTitleBottom)
-        }
-        com.nuvio.tv.ui.components.SectionHeader(
-            title = rowTitle,
-            modifier = textModifier
+        val titleStartPadding = com.nuvio.tv.ui.components.cdp(80)
+        val titleFontSize = com.nuvio.tv.ui.components.csp(30)
+        androidx.tv.material3.Text(
+            text = rowTitle,
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                fontSize = titleFontSize,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.15.sp,
+                color = Color(0xFFF4F4F5)
+            ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(start = titleStartPadding, bottom = rowTitleBottom)
         )
 
         val rowListState = rowListStates.getOrPut(row.key) {
@@ -654,7 +666,7 @@ internal fun ModernRowSection(
         }
 
         val density = LocalDensity.current
-        val rowStartPadding = 52.dp
+        val rowStartPadding = com.nuvio.tv.ui.components.cdp(80)
         val context = LocalContext.current
         val imageLoader = context.imageLoader
 
@@ -921,7 +933,7 @@ internal fun ModernRowSection(
                     }
                     .focusGroup(),
                 contentPadding = PaddingValues(horizontal = rowStartPadding),
-                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+                horizontalArrangement = Arrangement.spacedBy(com.nuvio.tv.ui.components.cdp(20))
             ) {
                 itemsIndexed(
                     items = row.items.list,
@@ -1024,6 +1036,9 @@ internal fun ModernRowSection(
                                 } else Modifier
                             ) {
                             if (isTop10Row) CinemaTop10Numeral(rank = index + 1)
+                            val top10Tag = if (isTop10Row) {
+                                "#${index + 1} in " + (if (row.key.endsWith("series")) "Series" else "Movies") + " Today"
+                            } else null
                             ModernCatalogRowItem(
                                 item = item,
                                 payload = payload,
@@ -1060,7 +1075,8 @@ internal fun ModernRowSection(
                                 onLongPress = onLongPress,
                                 onBackdropInteraction = onBackdropInteraction,
                                 onExpandedCatalogFocusKeyChange = onExpandedCatalogFocusKeyChange,
-                                enrichedPreviews = enrichedPreviews
+                                enrichedPreviews = enrichedPreviews,
+                                expandedTag = top10Tag
                             )
                             } // Row
                         }
@@ -1092,6 +1108,7 @@ private fun ModernCarouselCard(
     isWatched: Boolean,
     enrichedLogoUrl: String? = null,
     enrichedBackdropUrl: String? = null,
+    expandedTag: String? = null,
     focusRequester: FocusRequester,
     onFocused: () -> Unit,
     onFocusStateChanged: (Boolean) -> Unit = {},
@@ -1271,7 +1288,7 @@ private fun ModernCarouselCard(
     // requests efficiently without needing scroll-aware request swapping.
     val hasImage = !imageUrl.isNullOrBlank()
     val hasLandscapeLogo =
-        (useLandscapeOverlayTreatment || isBackdropExpanded) &&
+        useLandscapeOverlayTreatment &&
             !isCollectionFolder &&
             !effectiveLogoUrl.isNullOrBlank() &&
             !landscapeLogoLoadFailed &&
@@ -1280,7 +1297,7 @@ private fun ModernCarouselCard(
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
     val backgroundCardColor = NuvioTheme.colors.BackgroundCard
-    val focusRingBorder = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs)
+    val focusRingBorder = BorderStroke(com.nuvio.tv.ui.components.cdp(3), Color.White)
     val titleMedium = MaterialTheme.typography.titleMedium
     val backgroundPainter = remember(backgroundCardColor) { ColorPainter(backgroundCardColor) }
     val focusedBorder = remember(cardShape, focusRingBorder) {
@@ -1489,7 +1506,64 @@ private fun ModernCarouselCard(
                     }
                 }
 
-                if (hasLandscapeLogo) {
+                if (isBackdropExpanded && !useLandscapeOverlayTreatment && !isCollectionFolder) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(cardHeight * 0.55f)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                                )
+                            )
+                    )
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(
+                                start = com.nuvio.tv.ui.components.cdp(20),
+                                end = com.nuvio.tv.ui.components.cdp(20),
+                                bottom = com.nuvio.tv.ui.components.cdp(16)
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(com.nuvio.tv.ui.components.cdp(8))
+                    ) {
+                        Text(
+                            text = item.title,
+                            style = androidx.compose.ui.text.TextStyle(
+                                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                                fontSize = com.nuvio.tv.ui.components.csp(26),
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val tagText = expandedTag
+                            ?: if (item.heroPreview.isSeries) "Series" else "Movie"
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(com.nuvio.tv.ui.components.cdp(6)))
+                                .background(Color.White.copy(alpha = 0.2f))
+                                .padding(
+                                    horizontal = com.nuvio.tv.ui.components.cdp(9),
+                                    vertical = com.nuvio.tv.ui.components.cdp(3)
+                                )
+                        ) {
+                            Text(
+                                text = tagText.uppercase(),
+                                style = androidx.compose.ui.text.TextStyle(
+                                    fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                                    fontSize = com.nuvio.tv.ui.components.csp(13),
+                                    fontWeight = FontWeight.SemiBold,
+                                    letterSpacing = com.nuvio.tv.ui.components.csp(1.3)
+                                ),
+                                color = Color.White,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                } else if (hasLandscapeLogo) {
                     AsyncImage(
                         model = logoModel,
                         contentDescription = item.title,
@@ -1624,35 +1698,43 @@ private class AnimatedWidthNode(var width: State<Dp>) : LayoutModifierNode, Modi
         measurable.maxIntrinsicHeight(width)
 }
 
-/** Big outlined "ghost" rank numeral: white outline over a subtle white-to-transparent vertical fill. */
+/**
+ * Prototype Top 10 numeral: huge Space Grotesk bold digit, light-grey outline, near-transparent
+ * fill. Its box is narrower than the glyph, so the digit overflows to the right and is covered by
+ * the poster that follows it in the row ("tucked behind the poster").
+ */
 @Composable
 private fun CinemaTop10Numeral(rank: Int) {
+    val scale = com.nuvio.tv.ui.components.cinemaScale()
+    val boxWidth = com.nuvio.tv.ui.components.cdp(if (rank >= 10) 218 else 96)
+    val fontSize = com.nuvio.tv.ui.components.csp(270)
+    val strokePx = with(LocalDensity.current) { com.nuvio.tv.ui.components.cdp(3).toPx() }
     val base = androidx.compose.ui.text.TextStyle(
-        fontSize = 132.sp,
-        fontWeight = FontWeight.Black,
-        letterSpacing = (-6).sp
+        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+        fontSize = fontSize,
+        lineHeight = fontSize,
+        fontWeight = FontWeight.Bold,
+        letterSpacing = com.nuvio.tv.ui.components.csp(-16)
     )
     Box(
         modifier = Modifier
-            .padding(end = 4.dp, bottom = 8.dp)
-            .widthIn(min = 70.dp)
+            .width(boxWidth)
+            .height(com.nuvio.tv.ui.components.cdp(300))
+            .wrapContentSize(Alignment.TopStart, unbounded = true)
+            .offset(y = com.nuvio.tv.ui.components.cdp(-34))
     ) {
         androidx.tv.material3.Text(
             text = rank.toString(),
-            style = base.copy(
-                brush = androidx.compose.ui.graphics.Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.30f), Color.Transparent)
-                )
-            ),
+            style = base.copy(color = Color(0xFF09090B).copy(alpha = 0.35f)),
             maxLines = 1,
             softWrap = false
         )
         androidx.tv.material3.Text(
             text = rank.toString(),
             style = base.copy(
-                color = Color.White.copy(alpha = 0.85f),
+                color = Color(0xFFE4E4E7).copy(alpha = 0.75f),
                 drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = 5f,
+                    width = strokePx,
                     join = androidx.compose.ui.graphics.StrokeJoin.Round
                 )
             ),

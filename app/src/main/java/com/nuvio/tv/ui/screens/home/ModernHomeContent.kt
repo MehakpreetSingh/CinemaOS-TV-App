@@ -163,9 +163,8 @@ fun ModernHomeContent(
         useLandscapePosters &&
             effectiveAutoplayEnabled &&
             trailerPlaybackTarget == FocusedPosterTrailerPlaybackTarget.EXPANDED_CARD
-    val effectiveExpandEnabled =
-        (uiState.focusedPosterBackdropExpandEnabled && !useLandscapePosters) ||
-            landscapeExpandedCardMode
+    // CinemaOS: the focused poster always expands into a landscape card (prototype behaviour).
+    val effectiveExpandEnabled = !useLandscapePosters || landscapeExpandedCardMode
     val shouldActivateFocusedPosterFlow =
         effectiveExpandEnabled ||
             (effectiveAutoplayEnabled &&
@@ -345,7 +344,7 @@ fun ModernHomeContent(
             if (verticalRowListState.isScrollInProgress) return@LaunchedEffect
             val selection = focusedCatalogSelection.value ?: return@LaunchedEffect
             if (selection.payload !is ModernPayload.Catalog) return@LaunchedEffect
-            val expansionDelayMs = (uiState.focusedPosterBackdropExpandDelaySeconds.coerceAtLeast(0) * 1000L).coerceAtLeast(150L)
+            val expansionDelayMs = 150L
             delay(expansionDelayMs)
             if (!lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) return@LaunchedEffect
             if (shouldActivateFocusedPosterFlow &&
@@ -682,8 +681,9 @@ fun ModernHomeContent(
     val portraitBaseHeight = uiState.posterCardHeightDp.dp
     val portraitModernPosterScale = 1.08f
     val landscapeModernPosterScale = 1.34f
-    val portraitCatalogCardWidth = portraitBaseWidth * 0.84f * portraitModernPosterScale
-    val portraitCatalogCardHeight = portraitBaseHeight * 0.84f * portraitModernPosterScale
+    // CinemaOS prototype sizes (1920x1080 stage, scaled to this TV): 200x300 posters, 400x225 continue cards.
+    val portraitCatalogCardWidth = com.nuvio.tv.ui.components.cdp(200)
+    val portraitCatalogCardHeight = com.nuvio.tv.ui.components.cdp(300)
     val landscapeCatalogCardWidth = portraitBaseWidth * 1.24f * landscapeModernPosterScale
     val landscapeCatalogCardHeight = landscapeCatalogCardWidth / 1.77f
     // Poster style reuses the portrait catalog dimensions so its artwork matches the catalogs below it.
@@ -692,12 +692,12 @@ fun ModernHomeContent(
     val continueWatchingCardWidth = when (continueWatchingStyle) {
         ContinueWatchingCardStyle.POSTER -> portraitCatalogCardWidth
         // Wide still scales with the poster width setting so it matches the rest of the row.
-        ContinueWatchingCardStyle.WIDE -> portraitBaseWidth * 2.1f
-        ContinueWatchingCardStyle.CARD -> portraitBaseWidth * 1.24f * continueWatchingScale
+        ContinueWatchingCardStyle.WIDE -> com.nuvio.tv.ui.components.cdp(400)
+        ContinueWatchingCardStyle.CARD -> com.nuvio.tv.ui.components.cdp(400)
     }
     val continueWatchingCardHeight = when (continueWatchingStyle) {
         ContinueWatchingCardStyle.POSTER -> portraitCatalogCardHeight
-        ContinueWatchingCardStyle.WIDE -> continueWatchingCardWidth * WIDE_CARD_HEIGHT_RATIO
+        ContinueWatchingCardStyle.WIDE -> continueWatchingCardWidth / 1.77f
         ContinueWatchingCardStyle.CARD -> continueWatchingCardWidth / 1.77f
     }
 
@@ -707,7 +707,7 @@ fun ModernHomeContent(
 
     Box(modifier = Modifier.fillMaxSize().background(NuvioTheme.colors.Background)) {
             val posterCardCornerRadius = remember(uiState.posterCardCornerRadiusDp) { uiState.posterCardCornerRadiusDp.dp }
-            val rowHorizontalPadding = 52.dp
+            val rowHorizontalPadding = com.nuvio.tv.ui.components.cdp(80)
 
             val activeCarouselItemState = remember(carouselRows, rowByKey) {
                 derivedStateOf {
@@ -1153,6 +1153,21 @@ fun ModernHomeContent(
                     }
                 },
                 descriptionAutoScrollEnabled = uiState.heroDescriptionAutoScrollEnabled,
+                badgeProvider = {
+                    val rowKey = activeRowKey.value
+                    val idx = activeItemIndex.intValue
+                    when {
+                        rowKey == null -> null
+                        rowKey.startsWith(CINEMA_TOP10_ROW_PREFIX) ->
+                            "#${idx + 1} in Top 10 " +
+                                (if (rowKey.endsWith("series")) "Series" else "Movies") + " Today"
+                        rowKey == MODERN_CONTINUE_WATCHING_ROW_KEY ->
+                            heroSceneStateLambda().preview?.secondaryHighlightText
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { "Continue \u2022 " + it.lowercase().replaceFirstChar { c -> c.uppercase() } }
+                        else -> null
+                    }
+                },
                 modifier = heroMetadataModifier
             )
 
@@ -1235,7 +1250,7 @@ fun ModernHomeContent(
                 trailerPreviewAudioUrls = stableTrailerPreviewAudioUrls,
                 useLandscapePosters = useLandscapePosters,
                 alwaysShowLandscapeClearlogo = alwaysShowLandscapeClearlogo,
-                showLabels = uiState.posterLabelsEnabled,
+                showLabels = false,
                 posterCardCornerRadius = posterCardCornerRadius,
                 focusedPosterBackdropTrailerMuted = uiState.focusedPosterBackdropTrailerMuted,
                 effectiveExpandEnabled = effectiveExpandEnabled,
