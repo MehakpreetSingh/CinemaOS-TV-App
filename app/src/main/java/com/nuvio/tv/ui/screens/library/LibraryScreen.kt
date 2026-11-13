@@ -1190,15 +1190,33 @@ private fun LibrarySelectorsRow(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        // CinemaOS: type filter as pills (All / Movies / Series ...), prototype "lpills".
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(com.nuvio.tv.ui.components.cdp(12))
+        ) {
+            typeTabs.forEachIndexed { index, tab ->
+                val label = if (tab.key == LibraryTypeTab.ALL_KEY) tab.label else {
+                    val countPart = tab.label.substringAfterLast("(", "").removeSuffix(")")
+                    val localizedName = localizedTypeLabel(tab.key)
+                    if (countPart.isNotBlank()) "$localizedName ($countPart)" else localizedName
+                }
+                LibraryFilterPill(
+                    label = label,
+                    selected = tab.key == selectedTypeTab?.key,
+                    onClick = { onSelectType(tab) },
+                    modifier = (if (index == 0) Modifier.focusRequester(primaryFocusRequester) else Modifier)
+                        .focusProperties { up = upFocusRequester }
+                )
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
         ) {
             if (sourceMode != LibrarySourceMode.LOCAL) {
                 LibraryDropdownPicker(
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(primaryFocusRequester),
+                    modifier = Modifier.weight(1f),
                     upFocusRequester = upFocusRequester,
                     title = stringResource(R.string.library_filter_list),
                     value = selectedListLabel,
@@ -1209,33 +1227,6 @@ private fun LibrarySelectorsRow(
                     onSelect = { onSelectList(it.value) }
                 )
             }
-
-            LibraryDropdownPicker(
-                modifier = if (sourceMode != LibrarySourceMode.LOCAL) {
-                    Modifier.weight(1f)
-                } else {
-                    Modifier
-                        .weight(1f)
-                        .focusRequester(primaryFocusRequester)
-                },
-                upFocusRequester = upFocusRequester,
-                title = stringResource(R.string.library_filter_type),
-                value = selectedTypeLabel,
-                selectedValue = selectedTypeTab?.key,
-                expanded = expandedPicker == "type",
-                options = typeTabs.map {
-                    val label = if (it.key == LibraryTypeTab.ALL_KEY) it.label else {
-                        val countPart = it.label.substringAfterLast("(", "").removeSuffix(")")
-                        val localizedName = localizedTypeLabel(it.key)
-                        if (countPart.isNotBlank()) "$localizedName ($countPart)" else localizedName
-                    }
-                    LibraryOption(label, it.key)
-                },
-                onExpandedChange = { onExpandedChange("type", it) },
-                onSelect = { option ->
-                    typeTabs.firstOrNull { it.key == option.value }?.let(onSelectType)
-                }
-            )
 
             if (sortOptions.isNotEmpty()) {
                 LibraryDropdownPicker(
@@ -1314,6 +1305,46 @@ private fun LibrarySelectorsRow(
     }
 }
 
+/** Prototype filter pill: white@10% idle, white@22% selected, white with black text when focused. */
+@OptIn(ExperimentalTvMaterial3Api::class)
+@Composable
+private fun LibraryFilterPill(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.tv.material3.Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(androidx.compose.foundation.shape.CircleShape),
+        colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+            containerColor = if (selected) androidx.compose.ui.graphics.Color.White.copy(alpha = 0.22f)
+            else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.10f),
+            contentColor = if (selected) androidx.compose.ui.graphics.Color.White else androidx.compose.ui.graphics.Color(0xFFD4D4D8),
+            focusedContainerColor = androidx.compose.ui.graphics.Color.White,
+            focusedContentColor = androidx.compose.ui.graphics.Color(0xFF09090B),
+            pressedContainerColor = androidx.compose.ui.graphics.Color.White,
+            pressedContentColor = androidx.compose.ui.graphics.Color(0xFF09090B)
+        ),
+        scale = androidx.tv.material3.ClickableSurfaceDefaults.scale(scale = 1f, focusedScale = 1f)
+    ) {
+        Text(
+            text = label,
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                fontSize = com.nuvio.tv.ui.components.csp(21),
+                fontWeight = FontWeight.Medium
+            ),
+            maxLines = 1,
+            modifier = Modifier.padding(
+                horizontal = com.nuvio.tv.ui.components.cdp(28),
+                vertical = com.nuvio.tv.ui.components.cdp(11)
+            )
+        )
+    }
+}
+
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun LibraryDropdownPicker(
@@ -1374,19 +1405,10 @@ private fun LibraryDropdownPicker(
                 .onFocusChanged { isFocused = it.isFocused },
             shape = CardDefaults.shape(shape = RoundedCornerShape(14.dp)),
             colors = CardDefaults.colors(
-                containerColor = NuvioTheme.colors.BackgroundCard,
-                focusedContainerColor = NuvioTheme.colors.FocusBackground
+                containerColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.10f),
+                focusedContainerColor = androidx.compose.ui.graphics.Color.White
             ),
-            border = CardDefaults.border(
-                border = androidx.tv.material3.Border(
-                    border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border),
-                    shape = RoundedCornerShape(14.dp)
-                ),
-                focusedBorder = androidx.tv.material3.Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(14.dp)
-                )
-            ),
+            border = CardDefaults.border(),
             scale = CardDefaults.scale(
                 focusedScale = 1.0f,
                 pressedScale = 1.0f
@@ -1401,7 +1423,7 @@ private fun LibraryDropdownPicker(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelSmall,
-                    color = NuvioTheme.colors.TextTertiary
+                    color = if (isFocused) androidx.compose.ui.graphics.Color(0xFF52525B) else NuvioTheme.colors.TextTertiary
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1411,14 +1433,14 @@ private fun LibraryDropdownPicker(
                     Text(
                         text = value,
                         style = MaterialTheme.typography.titleMedium,
-                        color = NuvioTheme.colors.TextPrimary,
+                        color = if (isFocused) androidx.compose.ui.graphics.Color(0xFF09090B) else NuvioTheme.colors.TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Icon(
                         imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                         contentDescription = if (expanded) stringResource(R.string.cd_collapse, title) else stringResource(R.string.cd_expand, title),
-                        tint = if (isFocused) NuvioTheme.colors.FocusRing else NuvioTheme.colors.TextSecondary
+                        tint = if (isFocused) androidx.compose.ui.graphics.Color(0xFF09090B) else NuvioTheme.colors.TextSecondary
                     )
                 }
             }
