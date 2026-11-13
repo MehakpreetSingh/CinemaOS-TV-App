@@ -3058,6 +3058,10 @@ private fun MetaDetailsContent(
                     }
                 }
             }
+
+            item(key = "facts_panel", contentType = "facts_panel") {
+                DetailFactsPanel(meta = meta)
+            }
         }
         }
 

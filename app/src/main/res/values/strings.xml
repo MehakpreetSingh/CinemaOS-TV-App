@@ -3478,4 +3478,13 @@
     <string name="stream_resume_from_percent">Resume from %1$d%%</string>
     <string name="home_top10_movies_today">Top 10 Movies Today</string>
     <string name="home_top10_series_today">Top 10 Series Today</string>
+    <string name="detail_fact_released">Released</string>
+    <string name="detail_fact_runtime">Runtime</string>
+    <string name="detail_fact_status">Status</string>
+    <string name="detail_fact_rating">Rated</string>
+    <string name="detail_fact_country">Country</string>
+    <string name="detail_fact_language">Language</string>
+    <string name="detail_fact_director">Director</string>
+    <string name="detail_fact_writer">Writer</string>
+    <string name="detail_fact_awards">Awards</string>
 </resources>
