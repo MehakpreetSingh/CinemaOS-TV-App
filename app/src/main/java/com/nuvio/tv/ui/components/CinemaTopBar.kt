@@ -88,7 +88,7 @@ fun CinemaTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp)
+            .height(cdp(100))
             .background(
                 Brush.verticalGradient(
                     0f to Color(0xC709090B),
@@ -97,18 +97,18 @@ fun CinemaTopBar(
                 )
             )
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
-            .padding(horizontal = 80.dp)
+            .padding(horizontal = cdp(80))
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             painter = painterResource(R.drawable.ic_cinema_clapper),
             contentDescription = null,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(cdp(30))
         )
-        Spacer(Modifier.width(52.dp))
+        Spacer(Modifier.width(cdp(52)))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(cdp(8)),
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
@@ -136,16 +136,16 @@ fun CinemaTopBar(
             imageVector = Icons.Filled.Settings,
             contentDescription = null,
             tint = Color(0xFFA1A1AA).copy(alpha = 0.8f),
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(cdp(24))
         )
-        Spacer(Modifier.width(22.dp))
+        Spacer(Modifier.width(cdp(22)))
         Text(
             text = clock,
             style = TextStyle(
                 fontFamily = SpaceGroteskFamily,
-                fontSize = 20.sp,
+                fontSize = csp(20),
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.8.sp,
+                letterSpacing = csp(0.8),
                 color = Color(0xFFA1A1AA)
             )
         )
@@ -165,7 +165,7 @@ private fun CinemaTopBarPill(
         onClick = onClick,
         modifier = modifier
             .then(
-                if (selected) Modifier.shadow(10.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                if (selected) Modifier.shadow(cdp(10), CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
                 else Modifier
             )
             .semantics {
@@ -185,8 +185,8 @@ private fun CinemaTopBarPill(
         border = ClickableSurfaceDefaults.border(
             focusedBorder = if (selected) {
                 androidx.tv.material3.Border(
-                    BorderStroke(3.dp, Color.White.copy(alpha = 0.28f)),
-                    0.dp,
+                    BorderStroke(cdp(3), Color.White.copy(alpha = 0.28f)),
+                    cdp(0),
                     CircleShape
                 )
             } else {
@@ -197,24 +197,24 @@ private fun CinemaTopBarPill(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 9.dp),
+                .padding(horizontal = cdp(24), vertical = cdp(9)),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp)
+            horizontalArrangement = Arrangement.spacedBy(cdp(9))
         ) {
             if (showSearchIcon) {
                 Icon(
                     imageVector = Icons.Filled.Search,
                     contentDescription = null,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(cdp(19))
                 )
             }
             Text(
                 text = label,
                 style = TextStyle(
                     fontFamily = SpaceGroteskFamily,
-                    fontSize = 20.sp,
+                    fontSize = csp(20),
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    letterSpacing = 0.4.sp
+                    letterSpacing = csp(0.4)
                 ),
                 maxLines = 1
             )

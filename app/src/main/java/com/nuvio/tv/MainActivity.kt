@@ -1910,7 +1910,7 @@ private fun CinemaTopBarScaffold(
             }
     ) {
         // Home is full-bleed under the floating bar; other root screens start below it.
-        val topInset = if (showBar && currentRoute != Screen.Home.route) 84.dp else 0.dp
+        val topInset = if (showBar && currentRoute != Screen.Home.route) com.nuvio.tv.ui.components.cdp(92) else 0.dp
         Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
