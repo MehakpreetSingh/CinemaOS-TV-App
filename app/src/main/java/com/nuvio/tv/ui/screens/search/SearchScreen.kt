@@ -1387,7 +1387,7 @@ private fun SearchInputField(
                 }
             ),
             singleLine = true,
-            shape = RoundedCornerShape(NuvioTheme.radii.md),
+            shape = RoundedCornerShape(24.dp),
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_placeholder),
@@ -1398,10 +1398,10 @@ private fun SearchInputField(
                 textDirection = TextDirection.Content
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = NuvioTheme.colors.BackgroundCard,
-                unfocusedContainerColor = NuvioTheme.colors.BackgroundCard,
-                focusedIndicatorColor = NuvioTheme.colors.FocusRing,
-                unfocusedIndicatorColor = NuvioTheme.colors.Border,
+                focusedContainerColor = com.nuvio.tv.ui.components.CinemaGlass.FillStrong,
+                unfocusedContainerColor = com.nuvio.tv.ui.components.CinemaGlass.Fill,
+                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 focusedTextColor = NuvioTheme.colors.TextPrimary,
                 unfocusedTextColor = NuvioTheme.colors.TextPrimary,
                 cursorColor = NuvioTheme.colors.FocusRing

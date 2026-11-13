@@ -727,14 +727,14 @@ private fun MetaInfoRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (meta.genres.isNotEmpty()) {
-                Text(
-                    text = genresText,
+                Row(
                     modifier = Modifier.weight(1f, fill = false),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = NuvioTheme.extendedColors.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
+                ) {
+                    meta.genres.take(3).forEach { genre ->
+                        com.nuvio.tv.ui.components.GlassChip(text = localizedGenreLabel(context, genre))
+                    }
+                }
                 if (yearText != null || shouldShowImdbRating || shouldShowTmdbRating) {
                     MetaInfoDivider()
                 }
@@ -756,10 +756,10 @@ private fun MetaInfoRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
                 ) {
-                    ImdbRatingSourceLabel(
-                        logoModifier = Modifier.size(30.dp),
-                        textStyle = MaterialTheme.typography.labelLarge,
-                        textColor = NuvioTheme.extendedColors.textSecondary
+                    Text(
+                        text = "\u2605",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = com.nuvio.tv.ui.components.CinemaGlass.Star
                     )
                     val ratingText = remember(rating) { String.format("%.1f", rating) }
                     Text(
@@ -767,6 +767,7 @@ private fun MetaInfoRow(
                         style = MaterialTheme.typography.labelLarge,
                         color = NuvioTheme.extendedColors.textSecondary
                     )
+                    com.nuvio.tv.ui.components.GlassChip(text = "IMDb")
                 }
             }
 

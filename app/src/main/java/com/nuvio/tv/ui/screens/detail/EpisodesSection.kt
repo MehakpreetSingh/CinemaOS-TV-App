@@ -137,11 +137,11 @@ fun SeasonTabs(
         regularSeasons + specials
     }
 
-    val tabShape = remember { RoundedCornerShape(20.dp) }
+    val tabShape = remember { RoundedCornerShape(percent = 50) }
     val tabBorder = CardDefaults.border(
         focusedBorder = Border(
             border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-            shape = RoundedCornerShape(20.dp)
+            shape = RoundedCornerShape(percent = 50)
         )
     )
     val tabScale = CardDefaults.scale(focusedScale = 1.0f)
@@ -677,13 +677,14 @@ private fun EpisodeCard(
     val isUnavailable = remember(episode.available) { episode.available == false }
     val cardBgColor = NuvioTheme.colors.BackgroundCard
     val isFocusedState = remember { mutableStateOf(false) }
-    val cardCornerRadius = remember(cardMetrics.cornerRadius, density) {
-        with(density) { cardMetrics.cornerRadius.toPx() }
+    // CinemaOS episode cards: 12dp radius.
+    val cardCornerRadius = remember(density) {
+        with(density) { 12.dp.toPx() }
     }
     var isFocused by isFocusedState
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
-    val shape = remember(cardMetrics.cornerRadius) { RoundedCornerShape(cardMetrics.cornerRadius) }
+    val shape = remember { RoundedCornerShape(12.dp) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val thumbnailWidthPx = remember(cardMetrics.cardWidth, density) {
         with(density) { cardMetrics.cardWidth.roundToPx() }
