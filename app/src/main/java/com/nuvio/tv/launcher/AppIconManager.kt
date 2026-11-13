@@ -23,12 +23,7 @@ class AppIconManager @Inject constructor(
     @param:ApplicationContext private val context: Context
 ) {
     private val launcherClasses = mapOf(
-        AppIconOption.ORIGINAL to "com.nuvio.tv.launcher.AppIconDefault",
-        AppIconOption.ARCTIC_BLUE to "com.nuvio.tv.launcher.AppIconArcticBlue",
-        AppIconOption.EMERALD to "com.nuvio.tv.launcher.AppIconEmerald",
-        AppIconOption.ROSE_GOLD to "com.nuvio.tv.launcher.AppIconRoseGold",
-        AppIconOption.COPPER to "com.nuvio.tv.launcher.AppIconCopper",
-        AppIconOption.GRAPHITE to "com.nuvio.tv.launcher.AppIconGraphite"
+        AppIconOption.ORIGINAL to "com.nuvio.tv.launcher.AppIconDefault"
     )
 
     private val _state = MutableStateFlow(AppIconSettingsState())
