@@ -29,16 +29,11 @@ jobs:
 
       - name: Prepare CI signing config
         run: |
-          keytool -genkeypair -v \
-            -keystore "$RUNNER_TEMP/ci-debug.jks" \
-            -storepass android -alias androiddebugkey -keypass android \
-            -dname "CN=Android Debug,O=Android,C=US" \
-            -keyalg RSA -keysize 2048 -validity 10000
           {
-            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/ci-debug.jks"
-            echo "NUVIO_RELEASE_KEY_ALIAS=androiddebugkey"
-            echo "NUVIO_RELEASE_KEY_PASSWORD=android"
-            echo "NUVIO_RELEASE_STORE_PASSWORD=android"
+            echo "NUVIO_RELEASE_STORE_FILE=$GITHUB_WORKSPACE/ci/cinemaos-debug.jks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=cinemaos"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=cinemaosdebug"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=cinemaosdebug"
           } >> "$GITHUB_ENV"
 
       - name: Build fullDebug APK
