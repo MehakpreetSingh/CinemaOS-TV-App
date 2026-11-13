@@ -51,7 +51,7 @@ object NuvioRadii {
         lg = 14.dp,
         xl = 16.dp,
         xxl = 20.dp,
-        panel = 28.dp,
+        panel = 16.dp,
         full = 999.dp
     )
 }
@@ -59,19 +59,19 @@ object NuvioRadii {
 object NuvioShapes {
     val tokens = NuvioShapeTokens(
         posterCard = RoundedCornerShape(NuvioRadii.tokens.md),
-        backdropCard = RoundedCornerShape(NuvioRadii.tokens.xl),
-        collectionCard = RoundedCornerShape(NuvioRadii.tokens.xl),
-        button = RoundedCornerShape(NuvioRadii.tokens.md),
-        iconButton = RoundedCornerShape(NuvioRadii.tokens.md),
+        backdropCard = RoundedCornerShape(NuvioRadii.tokens.md),
+        collectionCard = RoundedCornerShape(NuvioRadii.tokens.md),
+        button = RoundedCornerShape(NuvioRadii.tokens.full),
+        iconButton = RoundedCornerShape(NuvioRadii.tokens.full),
         chip = RoundedCornerShape(NuvioRadii.tokens.full),
         badge = RoundedCornerShape(NuvioRadii.tokens.xs),
         dialog = RoundedCornerShape(NuvioRadii.tokens.xl),
-        sidePanel = RoundedCornerShape(NuvioRadii.tokens.xxl),
+        sidePanel = RoundedCornerShape(NuvioRadii.tokens.panel),
         sidebar = RoundedCornerShape(30.dp),
         navItem = RoundedCornerShape(NuvioRadii.tokens.full),
         progress = RoundedCornerShape(NuvioRadii.tokens.xxs),
         slider = RoundedCornerShape(NuvioRadii.tokens.full),
-        field = RoundedCornerShape(NuvioRadii.tokens.md),
+        field = RoundedCornerShape(24.dp),
         menu = RoundedCornerShape(NuvioRadii.tokens.lg),
         circle = CircleShape
     )

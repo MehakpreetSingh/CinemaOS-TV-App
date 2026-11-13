@@ -118,19 +118,19 @@ class NuvioColorScheme(
     val Menu = if (pureBlackSurfaces) pureBlack else palette.menu
     val Modal = if (pureBlackSurfaces) pureBlack else palette.modal
     val PlayerOverlay = palette.playerOverlay
-    val Divider = NuvioPrimitives.neutral750
+    val Divider = palette.divider
 
-    val Primary = NuvioPrimitives.neutral500
-    val PrimaryVariant = NuvioPrimitives.neutral650
-    val OnPrimary = NuvioPrimitives.white
+    val Primary = palette.primary
+    val PrimaryVariant = palette.primaryVariant
+    val OnPrimary = palette.onPrimary
     val Secondary = palette.secondary
     val SecondaryVariant = palette.secondaryVariant
     val OnSecondary = palette.onSecondary
     val OnSecondaryVariant = palette.onSecondaryVariant
 
     val TextPrimary = NuvioPrimitives.white
-    val TextSecondary = NuvioPrimitives.neutral400
-    val TextTertiary = NuvioPrimitives.neutral600
+    val TextSecondary = palette.textSecondary
+    val TextTertiary = palette.textTertiary
     val TextDisabled = NuvioPrimitives.neutral700
     val TextInverse = NuvioPrimitives.neutral925
 
@@ -139,20 +139,20 @@ class NuvioColorScheme(
     val FocusContent = NuvioPrimitives.white
     val FocusScrim = NuvioPrimitives.black.copy(alpha = 0.32f)
 
-    val Rating = NuvioPrimitives.rating
+    val Rating = palette.rating
     val Error = NuvioPrimitives.error
     val Warning = NuvioPrimitives.warning
     val Success = NuvioPrimitives.success
-    val Info = NuvioPrimitives.info
+    val Info = palette.info
     val Watched = NuvioPrimitives.success
     val Unwatched = NuvioPrimitives.neutral600
     val Cached = NuvioPrimitives.blue300
     val Torrent = NuvioPrimitives.torrent
     val Premium = NuvioPrimitives.premium
 
-    val Border = NuvioPrimitives.neutral750
+    val Border = palette.border
     val BorderFocused = FocusRing
-    val BorderMuted = NuvioPrimitives.neutral750.copy(alpha = 0.58f)
+    val BorderMuted = palette.border.copy(alpha = palette.border.alpha * 0.58f)
 
     val Scrim = NuvioPrimitives.black.copy(alpha = 0.62f)
     val ImageScrim = NuvioPrimitives.black.copy(alpha = 0.58f)

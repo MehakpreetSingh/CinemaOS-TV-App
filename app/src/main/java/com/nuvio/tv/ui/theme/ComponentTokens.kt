@@ -90,23 +90,23 @@ object NuvioComponents {
             cornerRadius = 12.dp,
             contentPadding = 8.dp,
             focusedBorderWidth = 2.dp,
-            focusedScale = 1.02f
+            focusedScale = 1.05f
         ),
         backdropCard = NuvioCardComponentTokens(
             width = 320.dp,
             height = 180.dp,
-            cornerRadius = 16.dp,
+            cornerRadius = 12.dp,
             contentPadding = 16.dp,
             focusedBorderWidth = 2.dp,
-            focusedScale = 1.02f
+            focusedScale = 1.05f
         ),
         collectionCard = NuvioCardComponentTokens(
             width = 320.dp,
             height = 180.dp,
-            cornerRadius = 16.dp,
+            cornerRadius = 12.dp,
             contentPadding = 16.dp,
             focusedBorderWidth = 2.dp,
-            focusedScale = 1.02f
+            focusedScale = 1.05f
         ),
         continueWatchingCard = NuvioCardComponentTokens(
             width = 260.dp,
@@ -114,15 +114,15 @@ object NuvioComponents {
             cornerRadius = 12.dp,
             contentPadding = 12.dp,
             focusedBorderWidth = 2.dp,
-            focusedScale = 1.02f
+            focusedScale = 1.05f
         ),
         episodeCard = NuvioCardComponentTokens(
             width = 320.dp,
             height = 207.dp,
-            cornerRadius = 16.dp,
+            cornerRadius = 12.dp,
             contentPadding = 16.dp,
             focusedBorderWidth = 2.dp,
-            focusedScale = 1.02f
+            focusedScale = 1.05f
         ),
         row = NuvioRowComponentTokens(
             horizontalPadding = 48.dp,
@@ -151,12 +151,12 @@ object NuvioComponents {
         sidePanel = NuvioDialogComponentTokens(
             maxWidth = 420.dp,
             contentPadding = 20.dp,
-            cornerRadius = 20.dp,
+            cornerRadius = 16.dp,
             actionSpacing = 12.dp
         ),
         settings = NuvioSettingsComponentTokens(
-            containerRadius = 28.dp,
-            secondaryCardRadius = 18.dp,
+            containerRadius = 16.dp,
+            secondaryCardRadius = 12.dp,
             railItemHeight = 56.dp,
             workspacePadding = 20.dp,
             rowGap = 16.dp

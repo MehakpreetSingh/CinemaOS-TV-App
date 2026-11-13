@@ -23,7 +23,16 @@ data class ThemeColorPalette(
     val field: Color = NuvioPrimitives.neutral850,
     val menu: Color = NuvioPrimitives.neutral875,
     val modal: Color = NuvioPrimitives.neutral900,
-    val playerOverlay: Color = Color(0xCC000000)
+    val playerOverlay: Color = Color(0xCC000000),
+    val primary: Color = NuvioPrimitives.neutral500,
+    val primaryVariant: Color = NuvioPrimitives.neutral650,
+    val onPrimary: Color = NuvioPrimitives.white,
+    val textSecondary: Color = NuvioPrimitives.neutral400,
+    val textTertiary: Color = NuvioPrimitives.neutral600,
+    val divider: Color = NuvioPrimitives.neutral750,
+    val border: Color = NuvioPrimitives.neutral750,
+    val rating: Color = NuvioPrimitives.rating,
+    val info: Color = NuvioPrimitives.info
 )
 
 object ThemeColors {
@@ -81,6 +90,35 @@ object ThemeColors {
         backgroundCard = Color(0xFF241A1F)
     )
 
+    val CinemaOS = ThemeColorPalette(
+        secondary = NuvioPrimitives.zinc50,
+        secondaryVariant = NuvioPrimitives.zinc300,
+        onSecondary = NuvioPrimitives.zinc900,
+        onSecondaryVariant = NuvioPrimitives.zinc900,
+        focusRing = NuvioPrimitives.white,
+        focusBackground = NuvioPrimitives.zinc800,
+        background = NuvioPrimitives.zinc950,
+        backgroundElevated = NuvioPrimitives.zinc900,
+        backgroundCard = NuvioPrimitives.zinc900,
+        surface = NuvioPrimitives.zinc900,
+        surfaceVariant = NuvioPrimitives.zinc800,
+        panel = NuvioPrimitives.zinc900,
+        overlay = NuvioPrimitives.zinc950.copy(alpha = 0.85f),
+        field = NuvioPrimitives.zinc800,
+        menu = NuvioPrimitives.zinc950.copy(alpha = 0.92f),
+        modal = NuvioPrimitives.zinc900,
+        playerOverlay = NuvioPrimitives.zinc950.copy(alpha = 0.80f),
+        primary = NuvioPrimitives.zinc50,
+        primaryVariant = NuvioPrimitives.zinc300,
+        onPrimary = NuvioPrimitives.zinc900,
+        textSecondary = NuvioPrimitives.zinc400,
+        textTertiary = NuvioPrimitives.zinc400.copy(alpha = 0.7f),
+        divider = Color.White.copy(alpha = 0.10f),
+        border = Color.White.copy(alpha = 0.10f),
+        rating = NuvioPrimitives.cinemaStar,
+        info = NuvioPrimitives.cinemaLoader
+    )
+
     val White = ThemeColorPalette(
         secondary = NuvioPrimitives.neutral100,
         secondaryVariant = NuvioPrimitives.neutral200,
@@ -96,6 +134,7 @@ object ThemeColors {
         customColors: CustomThemeColors = CustomThemeColors.Default
     ): ThemeColorPalette {
         return when (theme) {
+            AppTheme.CINEMAOS -> CinemaOS
             AppTheme.CUSTOM -> customColors.toColorPalette()
             AppTheme.GOLD -> SupporterThemeColors.Gold
             AppTheme.JADE -> SupporterThemeColors.Jade

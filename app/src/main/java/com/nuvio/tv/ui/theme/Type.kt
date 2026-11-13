@@ -3,13 +3,26 @@ package com.nuvio.tv.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Typography
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.AppFont
+
+@OptIn(ExperimentalTextApi::class)
+val SpaceGroteskFamily = FontFamily(
+    Font(R.font.space_grotesk_variable, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.space_grotesk_variable, FontWeight.Medium, variationSettings = FontVariation.Settings(FontVariation.weight(500))),
+    Font(R.font.space_grotesk_variable, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.space_grotesk_variable, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.space_grotesk_variable, FontWeight.ExtraBold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.space_grotesk_variable, FontWeight.Black, variationSettings = FontVariation.Settings(FontVariation.weight(700)))
+)
 
 val DMSansFamily = FontFamily(
     Font(R.font.dm_sans_variable, FontWeight.Normal),
@@ -33,6 +46,7 @@ val OpenSansFamily = FontFamily(
 )
 
 fun getFontFamily(appFont: AppFont): FontFamily = when (appFont) {
+    AppFont.SPACE_GROTESK -> SpaceGroteskFamily
     AppFont.INTER -> InterFamily
     AppFont.DM_SANS -> DMSansFamily
     AppFont.OPEN_SANS -> OpenSansFamily
@@ -49,6 +63,7 @@ data class NuvioTextStyleTokens(
     val bodyCompact: TextStyle,
     val metadata: TextStyle,
     val badge: TextStyle,
+    val eyebrow: TextStyle,
     val button: TextStyle,
     val tab: TextStyle,
     val nav: TextStyle,
@@ -151,12 +166,18 @@ fun buildNuvioTypography(fontFamily: FontFamily): Typography = Typography(
 )
 
 @OptIn(ExperimentalTvMaterial3Api::class)
-val NuvioTypography = buildNuvioTypography(InterFamily)
+val NuvioTypography = buildNuvioTypography(SpaceGroteskFamily)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 fun buildNuvioTextStyles(typography: Typography): NuvioTextStyleTokens = NuvioTextStyleTokens(
-    display = typography.displayLarge,
-    displayCompact = typography.displayMedium,
+    display = typography.displayLarge.copy(
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.02).em
+    ),
+    displayCompact = typography.displayMedium.copy(
+        fontWeight = FontWeight.Bold,
+        letterSpacing = (-0.02).em
+    ),
     headline = typography.headlineLarge,
     sectionTitle = typography.headlineMedium,
     cardTitle = typography.titleMedium,
@@ -166,6 +187,12 @@ fun buildNuvioTextStyles(typography: Typography): NuvioTextStyleTokens = NuvioTe
     badge = typography.labelSmall.copy(
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.8.sp
+    ),
+    eyebrow = typography.labelSmall.copy(
+        fontSize = 11.sp,
+        lineHeight = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.2.em
     ),
     button = typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
     tab = typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
