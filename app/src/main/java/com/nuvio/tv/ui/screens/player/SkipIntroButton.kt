@@ -197,10 +197,11 @@ fun SkipIntroButton(
                     if (it.isFocused) onFocused?.invoke()
                 },
             colors = CardDefaults.colors(
-                containerColor = NuvioPrimitives.neutral875.copy(alpha = 0.85f),
+                containerColor = com.nuvio.tv.ui.theme.NuvioPrimitives.zinc950.copy(alpha = 0.85f),
                 focusedContainerColor = NuvioTheme.colors.Secondary
             ),
-            shape = CardDefaults.shape(shape = RoundedCornerShape(NuvioTheme.radii.md))
+            shape = CardDefaults.shape(shape = RoundedCornerShape(16.dp)),
+            border = CardDefaults.border(border = androidx.tv.material3.Border(androidx.compose.foundation.BorderStroke(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle), RoundedCornerShape(16.dp)))
         ) {
             androidx.compose.foundation.layout.Column(
                 modifier = Modifier.width(IntrinsicSize.Max)

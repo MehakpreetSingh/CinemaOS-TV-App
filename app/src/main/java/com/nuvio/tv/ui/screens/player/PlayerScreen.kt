@@ -3536,7 +3536,7 @@ private fun ProgressBar(
                     progress = { animatedProgress },
                     bufferedProgress = { animatedBufferedProgress },
                     bufferedColor = NuvioTheme.colors.Secondary,
-                    playedBrush = accentBrush
+                    playedBrush = androidx.compose.ui.graphics.SolidColor(Color.White)
                 )
                 // Chapter marks, drawn over the fill.
                 .drawBehind {
@@ -3856,13 +3856,13 @@ private fun SubtitleDelayOverlay(
 ) {
     val fraction = ((subtitleDelayMs - SUBTITLE_DELAY_MIN_MS).toFloat() /
         (SUBTITLE_DELAY_MAX_MS - SUBTITLE_DELAY_MIN_MS).toFloat()).coerceIn(0f, 1f)
-    val sliderAccent = if (isSliderFocused) Color(0xFF4AA3FF) else Color.White
+    val sliderAccent = Color.White
 
     Column(
         modifier = Modifier
             .fillMaxWidth(0.6f)
-            .clip(RoundedCornerShape(26.dp))
-            .background(Color(0xCC0F0F0F))
+            .clip(RoundedCornerShape(16.dp))
+            .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc950.copy(alpha = 0.85f))
             .padding(horizontal = 26.dp, vertical = 20.dp)
     ) {
         Row(
@@ -4293,8 +4293,9 @@ private fun SpeedSelectionDialog(
             modifier = Modifier
                 .playerControlsBrightness(brightness)
                 .width(300.dp)
-                .clip(RoundedCornerShape(NuvioTheme.radii.xl))
-                .background(NuvioTheme.colors.BackgroundElevated)
+                .clip(RoundedCornerShape(16.dp))
+                .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc950.copy(alpha = 0.85f))
+                .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier.padding(NuvioTheme.spacing.xl)
@@ -4336,8 +4337,9 @@ private fun MoreActionsDialog(
         Box(
             modifier = Modifier
                 .width(360.dp)
-                .clip(RoundedCornerShape(NuvioTheme.radii.xl))
-                .background(NuvioTheme.colors.BackgroundElevated)
+                .clip(RoundedCornerShape(16.dp))
+                .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc950.copy(alpha = 0.85f))
+                .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier.padding(NuvioTheme.spacing.xl),
