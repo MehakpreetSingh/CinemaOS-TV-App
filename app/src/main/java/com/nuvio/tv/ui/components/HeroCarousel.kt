@@ -450,15 +450,6 @@ private fun HeroCarouselSlide(
                 )
             }
 
-            // Visual CTAs; the whole hero is the focusable target (Enter opens the title).
-            Row(
-                modifier = Modifier.padding(top = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                WhitePillLabel(text = stringResource(R.string.hero_play), highlighted = heroFocused)
-                GlassPillLabel(text = stringResource(R.string.hero_more_info))
-            }
         }
     }
 }

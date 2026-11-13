@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListPrefetchStrategy
 import androidx.compose.foundation.lazy.LazyListState
@@ -1010,15 +1012,20 @@ internal fun ModernRowSection(
                                 }
                             }
                             val placeholderFocusBlock = isPlaceholder && index > 0
-                            Box(modifier = if (placeholderFocusBlock) {
-                                Modifier.focusProperties { canFocus = false }
-                            } else Modifier) {
+                            val isTop10Row = row.key.startsWith(CINEMA_TOP10_ROW_PREFIX)
+                            Row(
+                                verticalAlignment = Alignment.Bottom,
+                                modifier = if (placeholderFocusBlock) {
+                                    Modifier.focusProperties { canFocus = false }
+                                } else Modifier
+                            ) {
+                            if (isTop10Row) CinemaTop10Numeral(rank = index + 1)
                             ModernCatalogRowItem(
                                 item = item,
                                 payload = payload,
                                 requester = requester,
                                 isTargetItem = isTargetItem,
-                                useLandscapePosters = useLandscapePosters,
+                                useLandscapePosters = useLandscapePosters && !isTop10Row,
                                 alwaysShowLandscapeClearlogo = alwaysShowLandscapeClearlogo,
                                 showLabels = showLabels,
                                 placeholderShimmerOffsetState = placeholderShimmerOffsetState,
@@ -1051,7 +1058,7 @@ internal fun ModernRowSection(
                                 onExpandedCatalogFocusKeyChange = onExpandedCatalogFocusKeyChange,
                                 enrichedPreviews = enrichedPreviews
                             )
-                            } // Box
+                            } // Row
                         }
                     }
                 }
@@ -1607,4 +1614,27 @@ private class AnimatedWidthNode(var width: State<Dp>) : LayoutModifierNode, Modi
 
     override fun IntrinsicMeasureScope.maxIntrinsicHeight(measurable: IntrinsicMeasurable, width: Int) =
         measurable.maxIntrinsicHeight(width)
+}
+
+/** Big outlined "ghost" rank numeral (white outline, transparent fill) shown left of a Top 10 poster. */
+@Composable
+private fun CinemaTop10Numeral(rank: Int) {
+    androidx.tv.material3.Text(
+        text = rank.toString(),
+        style = androidx.compose.ui.text.TextStyle(
+            fontSize = 132.sp,
+            fontWeight = FontWeight.Black,
+            letterSpacing = (-6).sp,
+            color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.85f),
+            drawStyle = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 5f,
+                join = androidx.compose.ui.graphics.StrokeJoin.Round
+            )
+        ),
+        maxLines = 1,
+        softWrap = false,
+        modifier = Modifier
+            .padding(end = 4.dp, bottom = 8.dp)
+            .widthIn(min = 70.dp)
+    )
 }

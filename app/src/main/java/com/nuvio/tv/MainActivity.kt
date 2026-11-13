@@ -746,6 +746,7 @@ open class MainActivity : ComponentActivity() {
                     if (!surfaceContentReady) {
                         // Still loading auth state; nothing to show yet.
                     } else if (
+                        CINEMAOS_SHOW_ONBOARDING &&
                         hasSeenAuthQrOnFirstLaunch == false &&
                         authState !is AuthState.FullAccount &&
                         !onboardingCompletedThisSession
@@ -792,6 +793,7 @@ open class MainActivity : ComponentActivity() {
                     } else {
 
                     val shouldShowProfileSelection =
+                        CINEMAOS_SHOW_PROFILES &&
                         !hasSelectedProfileThisSession && (profiles.size > 1 || activeProfileHasPin)
 
                     if (shouldShowProfileSelection) {
@@ -824,11 +826,11 @@ open class MainActivity : ComponentActivity() {
                         )
                     } else {
 
-                    val layoutChosen = mainUiPrefs.hasChosenLayout
+                    val layoutChosen = mainUiPrefs.hasChosenLayout?.let { it || !CINEMAOS_SHOW_ONBOARDING }
                     val prefsLoading = layoutChosen == null || !mainUiPrefs.experienceModeLoaded || installedAddons == null
                     if (!prefsLoading) {
                     val effectiveExperienceMode = mainUiPrefs.experienceMode
-                        ?: if (layoutChosen) ExperienceMode.ADVANCED else null
+                        ?: if (layoutChosen == true) ExperienceMode.ADVANCED else null
                     val needsExperienceSelection = effectiveExperienceMode == null
                     val needsEssentialAddonSetup =
                         effectiveExperienceMode == ExperienceMode.ESSENTIAL &&
@@ -1861,6 +1863,10 @@ private fun LegacySidebarButton(
 /** CinemaOS default navigation: floating glass pill top bar. Set false to fall back to the sidebar modes. */
 private const val USE_CINEMA_TOP_BAR = true
 
+/** CinemaOS: no first-run setup and no profile picker. Flip to restore upstream flows. */
+private const val CINEMAOS_SHOW_ONBOARDING = false
+private const val CINEMAOS_SHOW_PROFILES = false
+
 @Composable
 private fun CinemaTopBarScaffold(
     longPressBackHeld: MutableState<Boolean>,
@@ -1933,8 +1939,6 @@ private fun CinemaTopBarScaffold(
                     )
                 },
                 onBarFocusChanged = { barHasFocus = it },
-                profileName = activeProfileName.takeIf { showProfileSelector && it.isNotEmpty() },
-                onProfileClick = if (showProfileSelector) onSwitchProfile else null,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .padding(top = 12.dp)

@@ -31,9 +31,11 @@ internal fun visibleSettingsCategories(
     isWatchPartyAvailable: Boolean = false
 ): List<SettingsCategory> = SettingsCategory.entries.filter { category ->
     when (category) {
+        // CinemaOS: no account/profiles/watch party/about (Nuvio-only) in settings.
         SettingsCategory.ACCOUNT,
-        SettingsCategory.PROFILES -> isPrimaryProfile
-        SettingsCategory.WATCH_PARTY -> isWatchPartyAvailable
+        SettingsCategory.PROFILES,
+        SettingsCategory.WATCH_PARTY,
+        SettingsCategory.ABOUT -> false
         SettingsCategory.DEBUG -> isDebugBuild && !isEssentialMode
         SettingsCategory.EXPERIENCE -> false
         else -> true

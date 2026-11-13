@@ -42,7 +42,7 @@ internal fun buildModernHomePresentation(
     val strTypeMovie = localizedContext.getString(R.string.type_movie)
     val strTypeSeries = localizedContext.getString(R.string.type_series)
 
-    val rows = buildList {
+    val baseRows = buildList {
         val activeCatalogKeys = LinkedHashSet<String>()
         val activeCollectionKeys = LinkedHashSet<String>()
         val catalogRowLimit = maxCatalogRows?.coerceAtLeast(0)
@@ -328,6 +328,7 @@ internal fun buildModernHomePresentation(
         cache.collectionRows.keys.retainAll(activeCollectionKeys)
     }
 
+    val rows = withCinemaTop10Rows(baseRows)
     val lookups = buildCarouselRowLookups(rows)
     return ModernHomePresentationState(
         rows = rows.asStable(),
@@ -423,4 +424,54 @@ internal fun buildCarouselRowLookups(carouselRows: List<HeroCarouselRow>): Carou
         itemIdentitiesByRow = itemIdentitiesByRow.asStable(),
         activeCatalogItemIds = activeCatalogItemIds.asStable()
     )
+}
+
+internal const val CINEMA_TOP10_ROW_PREFIX = "cinemaos_top10_"
+
+/**
+ * CinemaOS "Top 10 Today" rows: built from the first popular/trending movie and series catalogs
+ * already loaded for home (no extra requests). Placed right before the first catalog row.
+ */
+internal fun withCinemaTop10Rows(rows: List<HeroCarouselRow>): List<HeroCarouselRow> {
+    fun isReal(row: HeroCarouselRow): Boolean =
+        !row.isLoading &&
+            row.key != MODERN_CONTINUE_WATCHING_ROW_KEY &&
+            row.key != MODERN_UPCOMING_ROW_KEY &&
+            row.items.list.size >= 3 &&
+            row.items.list.all { (it.payload as? ModernPayload.Catalog)?.itemId?.startsWith("__placeholder_") == false }
+
+    fun pick(type: String): HeroCarouselRow? {
+        val candidates = rows.filter { isReal(it) && it.apiType.equals(type, ignoreCase = true) }
+        return candidates.firstOrNull {
+            val hay = "${it.catalogId.orEmpty()} ${it.title}".lowercase()
+            hay.contains("popular") || hay.contains("trending") || hay.contains("top")
+        } ?: candidates.firstOrNull()
+    }
+
+    fun build(source: HeroCarouselRow, label: String, tag: String): HeroCarouselRow {
+        val items = source.items.list.take(10).map { item ->
+            val poster = item.metaPreview?.poster?.takeIf { it.isNotBlank() }
+                ?: item.heroPreview.poster?.takeIf { it.isNotBlank() }
+                ?: item.imageUrl
+            item.copy(key = "${CINEMA_TOP10_ROW_PREFIX}${tag}_${item.key}", imageUrl = poster)
+        }
+        return HeroCarouselRow(
+            key = CINEMA_TOP10_ROW_PREFIX + tag,
+            title = label,
+            globalRowIndex = -1,
+            items = items.asStable(),
+            catalogId = source.catalogId,
+            addonId = source.addonId,
+            apiType = source.apiType
+        )
+    }
+
+    val movie = pick("movie")?.let { build(it, "Top 10 Movies Today", "movie") }
+    val series = pick("series")?.let { build(it, "Top 10 Series Today", "series") }
+    val extra = listOfNotNull(movie, series)
+    if (extra.isEmpty()) return rows
+    val insertAt = rows.indexOfFirst {
+        it.key != MODERN_CONTINUE_WATCHING_ROW_KEY && it.key != MODERN_UPCOMING_ROW_KEY
+    }.let { if (it < 0) rows.size else it }
+    return rows.toMutableList().apply { addAll(insertAt, extra) }
 }

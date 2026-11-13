@@ -1102,6 +1102,7 @@ fun ModernHomeContent(
             }
             val onFirstFrameRenderedLambda = remember { { heroTrailerFirstFrameRendered = true } }
 
+            CinemaHomeAmbient(heroSceneStateLambda)
             ModernHeroSection(
                 heroSceneState = heroSceneStateLambda,
                 isFullScreen = isFullScreenLambda,
@@ -1332,7 +1333,8 @@ private fun ModernHeroSection(
     onFirstFrameRendered: () -> Unit
 ) {
     val highlighterEnabled = LocalRecompositionHighlighterEnabled.current
-    val bgColor = NuvioTheme.colors.Background
+    // CinemaOS: the hero fades into the ambient background, so the scrim end colour is transparent.
+    val bgColor = androidx.compose.ui.graphics.Color.Transparent
     ModernHeroScene(
         state = heroSceneState,
         isFullScreen = isFullScreen,
@@ -1353,4 +1355,13 @@ private fun ModernHeroSection(
 @Composable
 private fun IsolatedReadScope(content: @Composable () -> Unit) {
     content()
+}
+
+/** CinemaOS ambient page background driven by the focused hero item (own scope: state read is isolated). */
+@Composable
+private fun CinemaHomeAmbient(state: () -> ModernHeroSceneState) {
+    com.nuvio.tv.ui.components.CinemaAmbientBackground(
+        imageUrl = state().heroBackdrop,
+        modifier = Modifier.fillMaxSize()
+    )
 }
