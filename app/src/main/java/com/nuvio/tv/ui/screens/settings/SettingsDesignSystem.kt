@@ -106,8 +106,8 @@ internal val SettingsSecondaryCardRadius = NuvioComponents.tokens.settings.secon
 internal val SettingsRailItemHeight = NuvioComponents.tokens.settings.railItemHeight
 
 internal val SettingsZenRowShape = RoundedCornerShape(12.dp)
-internal val SettingsHorizonRowShape = RoundedCornerShape(10.dp)
-internal val SettingsHorizonGroupShape = RoundedCornerShape(16.dp)
+internal val SettingsHorizonRowShape = RoundedCornerShape(12.dp)
+internal val SettingsHorizonGroupShape = RoundedCornerShape(18.dp)
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
@@ -137,7 +137,7 @@ internal fun isFlatSettingsStyle(): Boolean = NuvioTheme.settingsUiStyle != Sett
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
-internal fun settingsFocusFillColor(): Color = NuvioTheme.colors.TextPrimary.copy(alpha = 0.1f)
+internal fun settingsFocusFillColor(): Color = Color.White.copy(alpha = 0.14f)
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
@@ -178,7 +178,13 @@ internal fun settingsRowBorder(
     contentAlpha: Float = 1f,
     shape: RoundedCornerShape = settingsRowShape()
 ): CardBorder = if (isFlatSettingsStyle()) {
-    CardDefaults.border(border = Border.None, focusedBorder = Border.None)
+    CardDefaults.border(
+        border = Border.None,
+        focusedBorder = Border(
+            border = BorderStroke(1.5.dp, Color.White),
+            shape = shape
+        )
+    )
 } else {
     CardDefaults.border(
         focusedBorder = Border(
@@ -372,7 +378,7 @@ internal fun SettingsRailButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val zen = isFlatSettingsStyle()
-    val railShape = if (zen) SettingsZenRowShape else RoundedCornerShape(SettingsPillRadius)
+    val railShape = RoundedCornerShape(com.nuvio.tv.ui.components.cdp(14))
     val appliedModifier = if (focusRequester != null) {
         modifier.focusRequester(focusRequester)
     } else {
@@ -385,7 +391,7 @@ internal fun SettingsRailButton(
         modifier = appliedModifier
             .padding(top = NuvioTheme.spacing.xxs, bottom = NuvioTheme.spacing.xxs)
             .fillMaxWidth()
-            .heightIn(min = SettingsRailItemHeight)
+            .heightIn(min = com.nuvio.tv.ui.components.cdp(64))
             .onFocusChanged { state ->
                 val nowFocused = state.isFocused
                 if (isFocused != nowFocused) {
@@ -399,17 +405,17 @@ internal fun SettingsRailButton(
                 this.selected = isSelected
             },
         colors = CardDefaults.colors(
-            containerColor = if (showSelected) Color.White else Color.Transparent,
+            containerColor = if (showSelected) Color.White.copy(alpha = 0.10f) else Color.Transparent,
             focusedContainerColor = Color.White
         ),
         border = CardDefaults.border(border = Border.None, focusedBorder = Border.None),
-        shape = CardDefaults.shape(RoundedCornerShape(SettingsPillRadius)),
+        shape = CardDefaults.shape(railShape),
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SettingsRailItemHeight),
+                .heightIn(min = com.nuvio.tv.ui.components.cdp(64)),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(
@@ -439,18 +445,18 @@ internal fun SettingsRailButton(
                         Image(
                             painter = rememberRawSvgPainter(rawIconRes),
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp),
+                            modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(26)),
                             contentScale = ContentScale.Fit,
                             colorFilter = ColorFilter.tint(
-                                if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary
+                                if (isFocused) Color.Black else if (isSelected) Color.White else Color(0xFFD4D4D8)
                             )
                         )
                     } else if (icon != null) {
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary,
-                            modifier = Modifier.size(18.dp)
+                            tint = if (isFocused) Color.Black else if (isSelected) Color.White else Color(0xFFD4D4D8),
+                            modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(26))
                         )
                     }
 
@@ -463,13 +469,15 @@ internal fun SettingsRailButton(
                         focused = isFocused,
                         modifier = Modifier.clearAndSetSemantics {},
                         style = MaterialTheme.typography.titleMedium.copy(
+                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                            fontSize = com.nuvio.tv.ui.components.csp(23),
                             fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
                         ),
-                        color = if (isSelected || isFocused) Color.Black else NuvioTheme.colors.TextSecondary,
+                        color = if (isFocused) Color.Black else if (isSelected) Color.White else Color(0xFFD4D4D8),
                     )
                 }
 
-                if (!zen) {
+                if (false) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
@@ -592,56 +600,31 @@ internal fun SettingsDetailHeader(
     subtitle: String,
     modifier: Modifier = Modifier
 ) {
-    when (NuvioTheme.settingsUiStyle) {
-        SettingsUiStyle.ZEN -> Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(start = settingsHeaderInset(), bottom = NuvioTheme.spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = NuvioTheme.colors.TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuvioTheme.colors.TextTertiary
-            )
-        }
-        SettingsUiStyle.HORIZON -> Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(start = settingsHeaderInset(), bottom = NuvioTheme.spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = NuvioTheme.colors.TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuvioTheme.colors.TextSecondary
-            )
-        }
-        SettingsUiStyle.CLASSIC -> Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = NuvioTheme.colors.TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuvioTheme.colors.TextSecondary
-            )
-        }
+    // CinemaOS: large title + muted subtitle for every settings style.
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = settingsHeaderInset(), bottom = com.nuvio.tv.ui.components.cdp(10)),
+        verticalArrangement = Arrangement.spacedBy(com.nuvio.tv.ui.components.cdp(6))
+    ) {
+        Text(
+            text = title,
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                fontSize = com.nuvio.tv.ui.components.csp(56),
+                fontWeight = FontWeight.Bold,
+                letterSpacing = com.nuvio.tv.ui.components.csp(-1.1)
+            ),
+            color = Color.White
+        )
+        Text(
+            text = subtitle,
+            style = androidx.compose.ui.text.TextStyle(
+                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                fontSize = com.nuvio.tv.ui.components.csp(21)
+            ),
+            color = Color(0xFFA1A1AA)
+        )
     }
 }
 
@@ -662,8 +645,13 @@ internal fun SettingsGroupCard(
             if (!title.isNullOrBlank()) {
                 Text(
                     text = title.uppercase(),
-                    style = NuvioTheme.textStyles.eyebrow,
-                    color = Color.White.copy(alpha = 0.5f),
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                        fontSize = com.nuvio.tv.ui.components.csp(15),
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = com.nuvio.tv.ui.components.csp(2.1)
+                    ),
+                    color = Color(0xFFA1A1AA),
                     modifier = Modifier.padding(start = NuvioTheme.spacing.lg)
                 )
             }
@@ -679,8 +667,8 @@ internal fun SettingsGroupCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(settingsGroupShape())
-                    .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900)
-                    .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, settingsGroupShape())
+                    .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900.copy(alpha = 0.70f))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), settingsGroupShape())
                     .padding(NuvioTheme.spacing.sm),
                 verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxs)
             ) {
@@ -691,8 +679,8 @@ internal fun SettingsGroupCard(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(settingsGroupShape())
-                .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900)
-                .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, settingsGroupShape())
+                .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc900.copy(alpha = 0.70f))
+                .border(1.dp, Color.White.copy(alpha = 0.08f), settingsGroupShape())
                 .padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -737,7 +725,7 @@ internal fun SettingsToggleRow(
         },
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 62.dp)
+            .heightIn(min = com.nuvio.tv.ui.components.cdp(88))
             .focusProperties { canFocus = enabled }
             .semantics {
                 if (!enabled) disabled()
@@ -767,7 +755,11 @@ internal fun SettingsToggleRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                            fontSize = com.nuvio.tv.ui.components.csp(23),
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = NuvioTheme.colors.TextPrimary.copy(alpha = contentAlpha),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -787,8 +779,11 @@ internal fun SettingsToggleRow(
                     Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxs))
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NuvioTheme.colors.TextSecondary.copy(alpha = contentAlpha),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                            fontSize = com.nuvio.tv.ui.components.csp(17)
+                        ),
+                        color = Color(0xFFA1A1AA).copy(alpha = contentAlpha),
                         maxLines = if (expandSubtitleOnFocus && isFocused) 8 else 3,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -848,7 +843,7 @@ internal fun SettingsActionRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 62.dp)
+                .heightIn(min = com.nuvio.tv.ui.components.cdp(88))
                 .padding(horizontal = 18.dp, vertical = NuvioTheme.spacing.md),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -870,7 +865,11 @@ internal fun SettingsActionRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                            fontSize = com.nuvio.tv.ui.components.csp(23),
+                            fontWeight = FontWeight.SemiBold
+                        ),
                         color = NuvioTheme.colors.TextPrimary.copy(alpha = contentAlpha),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -890,8 +889,11 @@ internal fun SettingsActionRow(
                     Spacer(modifier = Modifier.height(NuvioTheme.spacing.xxs))
                     Text(
                         text = subtitle,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = NuvioTheme.colors.TextSecondary.copy(alpha = contentAlpha),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                            fontSize = com.nuvio.tv.ui.components.csp(17)
+                        ),
+                        color = Color(0xFFA1A1AA).copy(alpha = contentAlpha),
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -902,7 +904,10 @@ internal fun SettingsActionRow(
                 Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = value,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(
+                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
+                        fontSize = com.nuvio.tv.ui.components.csp(21)
+                    ),
                     color = valueColor.copy(alpha = contentAlpha),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1247,27 +1252,26 @@ private fun SettingsTogglePill(
     val alpha = if (enabled) 1f else 0.35f
     val zen = isFlatSettingsStyle()
     val trackColor = when {
-        zen && checked -> NuvioTheme.colors.Secondary.copy(alpha = 0.9f * alpha)
-        checked -> NuvioTheme.colors.Secondary.copy(alpha = 0.35f * alpha)
-        else -> NuvioTheme.colors.Border.copy(alpha = alpha)
+        checked -> Color.White.copy(alpha = alpha)
+        else -> Color(0xFF3F3F46).copy(alpha = alpha)
     }
-    val knobColor = if (zen && checked) {
-        NuvioTheme.colors.OnSecondary.copy(alpha = alpha)
+    val knobColor = if (checked) {
+        Color(0xFF09090B).copy(alpha = alpha)
     } else {
-        Color.White.copy(alpha = alpha)
+        Color(0xFFE4E4E7).copy(alpha = alpha)
     }
     Box(
         modifier = Modifier
-            .width(46.dp)
-            .height(NuvioTheme.spacing.xl)
+            .width(com.nuvio.tv.ui.components.cdp(68))
+            .height(com.nuvio.tv.ui.components.cdp(38))
             .clip(RoundedCornerShape(SettingsPillRadius))
             .background(trackColor)
-            .padding(NuvioTheme.spacing.xxs),
+            .padding(com.nuvio.tv.ui.components.cdp(4)),
         contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
     ) {
         Box(
             modifier = Modifier
-                .size(20.dp)
+                .size(com.nuvio.tv.ui.components.cdp(30))
                 .clip(CircleShape)
                 .background(knobColor)
         )
