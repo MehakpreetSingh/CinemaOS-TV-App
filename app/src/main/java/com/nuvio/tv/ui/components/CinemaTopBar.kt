@@ -6,6 +6,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.nuvio.tv.R
+import com.nuvio.tv.ui.theme.SpaceGroteskFamily
+import androidx.tv.material3.Icon
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
@@ -39,8 +59,9 @@ import androidx.tv.material3.Text
 data class CinemaTopBarItem(val route: String, val label: String)
 
 /**
- * CinemaOS floating glass pill navigation bar (TV): logo left, nav items as pills,
- * active = white pill with black text, focus = white ring + 1.05 scale.
+ * CinemaOS TV top bar (prototype v3): small white clapperboard mark, text nav items (active = white
+ * pill with black text, focused-inactive = white@15% pill), frosted gradient strip fading downward,
+ * muted gear + clock on the right.
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -54,41 +75,80 @@ fun CinemaTopBar(
     onProfileClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    var now by remember { mutableStateOf(java.util.Date()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            now = java.util.Date()
+            kotlinx.coroutines.delay(20_000)
+        }
+    }
+    val clock = remember(now) {
+        java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now)
+    }
     Row(
         modifier = modifier
-            .height(56.dp)
-            .clip(CircleShape)
-            .background(CinemaGlass.Scrim, CircleShape)
-            .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), shape = CircleShape)
+            .fillMaxWidth()
+            .height(100.dp)
+            .background(
+                Brush.verticalGradient(
+                    0f to Color(0xC709090B),
+                    0.55f to Color(0x7309090B),
+                    1f to Color.Transparent
+                )
+            )
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
-            .padding(horizontal = 20.dp)
+            .padding(horizontal = 80.dp)
             .selectableGroup(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        BrandWordmark(
-            modifier = Modifier.height(22.dp).widthIn(max = 120.dp),
-            alpha = 0.9f
+        Image(
+            painter = painterResource(R.drawable.ic_cinema_clapper),
+            contentDescription = null,
+            modifier = Modifier.size(30.dp)
         )
-        Spacer(Modifier.width(14.dp))
-        items.forEach { item ->
-            val selected = item.route == selectedRoute
-            val requester = focusRequesters[item.route]
-            CinemaTopBarPill(
-                label = item.label,
-                selected = selected,
-                onClick = { onItemClick(item.route) },
-                modifier = if (requester != null) Modifier.focusRequester(requester) else Modifier
-            )
+        Spacer(Modifier.width(52.dp))
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items.forEach { item ->
+                val selected = item.route == selectedRoute
+                val requester = focusRequesters[item.route]
+                CinemaTopBarPill(
+                    label = item.label,
+                    selected = selected,
+                    showSearchIcon = item.route.contains("search", ignoreCase = true),
+                    onClick = { onItemClick(item.route) },
+                    modifier = if (requester != null) Modifier.focusRequester(requester) else Modifier
+                )
+            }
+            if (!profileName.isNullOrBlank() && onProfileClick != null) {
+                CinemaTopBarPill(
+                    label = profileName,
+                    selected = false,
+                    showSearchIcon = false,
+                    onClick = onProfileClick
+                )
+            }
         }
-        if (!profileName.isNullOrBlank() && onProfileClick != null) {
-            Spacer(Modifier.width(8.dp))
-            CinemaTopBarPill(
-                label = profileName,
-                selected = false,
-                onClick = onProfileClick
+        Spacer(Modifier.weight(1f))
+        Icon(
+            imageVector = Icons.Filled.Settings,
+            contentDescription = null,
+            tint = Color(0xFFA1A1AA).copy(alpha = 0.8f),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(Modifier.width(22.dp))
+        Text(
+            text = clock,
+            style = TextStyle(
+                fontFamily = SpaceGroteskFamily,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.8.sp,
+                color = Color(0xFFA1A1AA)
             )
-        }
+        )
     }
 }
 
@@ -97,13 +157,17 @@ fun CinemaTopBar(
 private fun CinemaTopBarPill(
     label: String,
     selected: Boolean,
+    showSearchIcon: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
         modifier = modifier
-            .height(38.dp)
+            .then(
+                if (selected) Modifier.shadow(10.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                else Modifier
+            )
             .semantics {
                 contentDescription = label
                 role = Role.Tab
@@ -112,28 +176,45 @@ private fun CinemaTopBarPill(
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) Color.White else Color.Transparent,
-            contentColor = if (selected) Color.Black else Color.White.copy(alpha = 0.7f),
-            focusedContainerColor = if (selected) Color.White else Color.White.copy(alpha = 0.2f),
-            focusedContentColor = if (selected) Color.Black else Color.White,
-            pressedContainerColor = Color.White.copy(alpha = 0.3f),
-            pressedContentColor = if (selected) Color.Black else Color.White
+            contentColor = if (selected) Color(0xFF09090B) else Color(0xFFB4B4BB),
+            focusedContainerColor = if (selected) Color.White else Color.White.copy(alpha = 0.15f),
+            focusedContentColor = if (selected) Color(0xFF09090B) else Color.White,
+            pressedContainerColor = Color.White.copy(alpha = 0.25f),
+            pressedContentColor = if (selected) Color(0xFF09090B) else Color.White
         ),
         border = ClickableSurfaceDefaults.border(
-            focusedBorder = androidx.tv.material3.Border(
-                BorderStroke(2.dp, CinemaGlass.FocusRing), shape = CircleShape
-            )
+            focusedBorder = if (selected) {
+                androidx.tv.material3.Border(
+                    BorderStroke(3.dp, Color.White.copy(alpha = 0.28f)),
+                    0.dp,
+                    CircleShape
+                )
+            } else {
+                androidx.tv.material3.Border.None
+            }
         ),
-        scale = ClickableSurfaceDefaults.scale(focusedScale = CinemaGlass.FocusScale)
+        scale = ClickableSurfaceDefaults.scale(scale = 1f, focusedScale = 1f)
     ) {
-        Box(
-            modifier = Modifier.fillMaxHeight().padding(horizontal = 18.dp),
-            contentAlignment = Alignment.Center
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 24.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
+            if (showSearchIcon) {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = null,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelLarge.copy(
-                    fontSize = 14.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                style = TextStyle(
+                    fontFamily = SpaceGroteskFamily,
+                    fontSize = 20.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    letterSpacing = 0.4.sp
                 ),
                 maxLines = 1
             )

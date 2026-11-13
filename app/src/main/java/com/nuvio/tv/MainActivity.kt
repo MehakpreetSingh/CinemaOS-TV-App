@@ -1910,7 +1910,7 @@ private fun CinemaTopBarScaffold(
             }
     ) {
         // Home is full-bleed under the floating bar; other root screens start below it.
-        val topInset = if (showBar && currentRoute != Screen.Home.route) 80.dp else 0.dp
+        val topInset = if (showBar && currentRoute != Screen.Home.route) 84.dp else 0.dp
         Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
@@ -1939,9 +1939,7 @@ private fun CinemaTopBarScaffold(
                     )
                 },
                 onBarFocusChanged = { barHasFocus = it },
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 12.dp)
+                modifier = Modifier.align(Alignment.TopStart)
             )
         }
     }
