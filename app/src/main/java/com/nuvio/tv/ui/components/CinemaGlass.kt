@@ -71,7 +71,7 @@ fun GlassPill(
         modifier = modifier
             .clip(CircleShape)
             .background(fill, CircleShape)
-            .border(BorderStroke(1.dp, borderColor), CircleShape)
+            .border(BorderStroke(1.dp, borderColor), shape = CircleShape)
             .padding(contentPadding),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -182,7 +182,7 @@ fun WhitePillButton(
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                BorderStroke(2.dp, CinemaGlass.FocusRing), CircleShape
+                BorderStroke(2.dp, CinemaGlass.FocusRing), shape = CircleShape
             )
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = CinemaGlass.FocusScale)
@@ -226,8 +226,8 @@ fun GlassPillButton(
             pressedContentColor = Color.White
         ),
         border = ClickableSurfaceDefaults.border(
-            border = androidx.tv.material3.Border(BorderStroke(1.dp, CinemaGlass.BorderStrong), CircleShape),
-            focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, CinemaGlass.FocusRing), CircleShape)
+            border = androidx.tv.material3.Border(BorderStroke(1.dp, CinemaGlass.BorderStrong), shape = CircleShape),
+            focusedBorder = androidx.tv.material3.Border(BorderStroke(2.dp, CinemaGlass.FocusRing), shape = CircleShape)
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = CinemaGlass.FocusScale)
     ) {
@@ -252,7 +252,7 @@ fun GlassPillButton(
 /** Non-focusable visual twin of [WhitePillButton], for hero CTAs inside an already-focusable container. */
 @Composable
 fun WhitePillLabel(text: String, highlighted: Boolean, modifier: Modifier = Modifier, icon: ImageVector? = Icons.Filled.PlayArrow) {
-    val ring = if (highlighted) Modifier.border(BorderStroke(2.dp, CinemaGlass.FocusRing), CircleShape) else Modifier
+    val ring = if (highlighted) Modifier.border(BorderStroke(2.dp, CinemaGlass.FocusRing), shape = CircleShape) else Modifier
     Row(
         modifier = modifier
             .height(44.dp)
@@ -279,7 +279,7 @@ fun GlassPillLabel(text: String, modifier: Modifier = Modifier) {
             .height(44.dp)
             .clip(CircleShape)
             .background(CinemaGlass.FillStrong, CircleShape)
-            .border(BorderStroke(1.dp, CinemaGlass.BorderStrong), CircleShape)
+            .border(BorderStroke(1.dp, CinemaGlass.BorderStrong), shape = CircleShape)
             .padding(horizontal = 24.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

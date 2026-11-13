@@ -59,7 +59,7 @@ fun CinemaTopBar(
             .height(56.dp)
             .clip(CircleShape)
             .background(CinemaGlass.Scrim, CircleShape)
-            .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), CircleShape)
+            .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), shape = CircleShape)
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
             .padding(horizontal = 20.dp)
             .selectableGroup(),
@@ -120,7 +120,7 @@ private fun CinemaTopBarPill(
         ),
         border = ClickableSurfaceDefaults.border(
             focusedBorder = androidx.tv.material3.Border(
-                BorderStroke(2.dp, CinemaGlass.FocusRing), CircleShape
+                BorderStroke(2.dp, CinemaGlass.FocusRing), shape = CircleShape
             )
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = CinemaGlass.FocusScale)
