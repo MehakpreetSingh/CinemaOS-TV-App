@@ -48,6 +48,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -330,8 +331,8 @@ fun LibraryScreen(
                 false
             },
         contentPadding = PaddingValues(start = NuvioTheme.spacing.xxxl, end = NuvioTheme.spacing.xxxl, top = NuvioTheme.spacing.xl, bottom = NuvioTheme.spacing.xxl),
-        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
-        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item(span = { GridItemSpan(maxLineSpan) }) {
             Row(
@@ -339,12 +340,9 @@ fun LibraryScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
             ) {
-                Text(
-                    text = stringResource(R.string.library_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent,
-                    fontWeight = FontWeight.SemiBold,
-                    letterSpacing = 0.5.sp
+                com.nuvio.tv.ui.components.SectionHeader(
+                    title = stringResource(R.string.library_title),
+                    modifier = Modifier.alpha(if (showBuiltInHeader) 1f else 0f)
                 )
                 Text(
                     text = when {

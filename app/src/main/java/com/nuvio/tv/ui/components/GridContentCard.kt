@@ -80,7 +80,7 @@ fun GridContentCard(
     onLongPress: (() -> Unit)? = null,
     onFocused: () -> Unit = {}
 ) {
-    val cardShape = remember(posterCardStyle.cornerRadius) { RoundedCornerShape(posterCardStyle.cornerRadius) }
+    val cardShape = remember { RoundedCornerShape(12.dp) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val density = LocalDensity.current
     val globalLandscape = LocalLandscapePosterMode.current
@@ -197,6 +197,7 @@ fun GridContentCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(cardShape)
+                    .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), cardShape)
                     .nuvioCardDepth(
                         shape = cardShape,
                         surface = depthSurface,
@@ -367,17 +368,7 @@ fun GridContentCard(
                     .then(if (globalLandscape) Modifier.fillMaxWidth() else Modifier.width(posterCardStyle.width))
                     .padding(top = NuvioTheme.spacing.sm, start = NuvioTheme.spacing.xxs, end = NuvioTheme.spacing.xxs)
             )
-            item.releaseInfo?.takeIf { showReleaseInfo }?.let { info ->
-                FocusMarqueeText(
-                    text = info,
-                    focused = isFocused,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = NuvioTheme.extendedColors.textSecondary,
-                    modifier = Modifier
-                        .then(if (globalLandscape) Modifier.fillMaxWidth() else Modifier.width(posterCardStyle.width))
-                        .padding(top = 2.dp, start = NuvioTheme.spacing.xxs, end = NuvioTheme.spacing.xxs)
-                )
-            }
+            CinemaCardMetaRow(item = item, showRating = true)
         }
     }
 }

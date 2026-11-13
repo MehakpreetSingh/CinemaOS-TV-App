@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -136,10 +137,9 @@ internal fun DiscoverSection(
             .padding(horizontal = NuvioTheme.spacing.xxxl),
         verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
     ) {
-        Text(
-            text = stringResource(R.string.discover_title),
-            style = MaterialTheme.typography.headlineMedium,
-            color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent
+        com.nuvio.tv.ui.components.SectionHeader(
+            title = stringResource(R.string.discover_title),
+            modifier = Modifier.alpha(if (showBuiltInHeader) 1f else 0f)
         )
 
         Row(
@@ -652,8 +652,8 @@ internal fun DiscoverGrid(
                 }
             ),
         contentPadding = PaddingValues(bottom = NuvioTheme.spacing.xxl),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         itemsIndexed(
             items = items,
