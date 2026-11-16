@@ -134,7 +134,15 @@ fun CollectionRowSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader(title = collection.title)
+            Text(
+                text = collection.title,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    textDirection = collection.title.contentTextDirection()
+                ),
+                color = NuvioTheme.colors.TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
         val density = LocalDensity.current

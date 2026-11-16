@@ -493,10 +493,6 @@ fun ClassicHomeContent(
             .background(backgroundColor)
     ) {
     if (heroVisible) {
-        com.nuvio.tv.ui.components.CinemaAmbientBackground(
-            imageUrl = activeHeroItem?.backdropUrl,
-            modifier = Modifier.fillMaxSize()
-        )
         activeHeroItem?.let { item ->
             Box(
                 modifier = Modifier

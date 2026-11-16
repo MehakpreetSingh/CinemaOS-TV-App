@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,7 +63,7 @@ data class CinemaTopBarItem(val route: String, val label: String)
 /**
  * CinemaOS TV top bar (prototype v3): small white clapperboard mark, text nav items (active = white
  * pill with black text, focused-inactive = white@15% pill), frosted gradient strip fading downward,
- * muted gear + clock on the right.
+ * clock on the right.
  */
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -132,13 +134,6 @@ fun CinemaTopBar(
             }
         }
         Spacer(Modifier.weight(1f))
-        Icon(
-            imageVector = Icons.Filled.Settings,
-            contentDescription = null,
-            tint = Color(0xFFA1A1AA).copy(alpha = 0.8f),
-            modifier = Modifier.size(cdp(24))
-        )
-        Spacer(Modifier.width(cdp(22)))
         Text(
             text = clock,
             style = TextStyle(
@@ -161,9 +156,13 @@ private fun CinemaTopBarPill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var focused by remember { mutableStateOf(false) }
+    val focusScale by animateFloatAsState(if (focused) 1.1f else 1f, tween(150), label = "navFocusScale")
     Surface(
         onClick = onClick,
         modifier = modifier
+            .onFocusChanged { focused = it.isFocused }
+            .graphicsLayer { scaleX = focusScale; scaleY = focusScale }
             .then(
                 if (selected) Modifier.shadow(cdp(10), CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
                 else Modifier

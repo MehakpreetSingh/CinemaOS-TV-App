@@ -5,7 +5,6 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -81,7 +80,7 @@ fun GridContentCard(
     onLongPress: (() -> Unit)? = null,
     onFocused: () -> Unit = {}
 ) {
-    val cardShape = remember { RoundedCornerShape(12.dp) }
+    val cardShape = remember(posterCardStyle.cornerRadius) { RoundedCornerShape(posterCardStyle.cornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val density = LocalDensity.current
     val globalLandscape = LocalLandscapePosterMode.current
@@ -198,7 +197,6 @@ fun GridContentCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(cardShape)
-                    .border(BorderStroke(1.dp, CinemaGlass.BorderSubtle), cardShape)
                     .nuvioCardDepth(
                         shape = cardShape,
                         surface = depthSurface,
@@ -369,7 +367,17 @@ fun GridContentCard(
                     .then(if (globalLandscape) Modifier.fillMaxWidth() else Modifier.width(posterCardStyle.width))
                     .padding(top = NuvioTheme.spacing.sm, start = NuvioTheme.spacing.xxs, end = NuvioTheme.spacing.xxs)
             )
-            CinemaCardMetaRow(item = item, showRating = true)
+            item.releaseInfo?.takeIf { showReleaseInfo }?.let { info ->
+                FocusMarqueeText(
+                    text = info,
+                    focused = isFocused,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NuvioTheme.extendedColors.textSecondary,
+                    modifier = Modifier
+                        .then(if (globalLandscape) Modifier.fillMaxWidth() else Modifier.width(posterCardStyle.width))
+                        .padding(top = 2.dp, start = NuvioTheme.spacing.xxs, end = NuvioTheme.spacing.xxs)
+                )
+            }
         }
     }
 }

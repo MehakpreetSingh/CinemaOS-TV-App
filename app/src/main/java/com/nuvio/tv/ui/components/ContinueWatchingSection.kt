@@ -187,8 +187,10 @@ fun ContinueWatchingSection(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionHeader(
-                title = title ?: stringResource(R.string.continue_watching)
+            Text(
+                text = title ?: stringResource(R.string.continue_watching),
+                style = MaterialTheme.typography.headlineMedium,
+                color = NuvioTheme.colors.TextPrimary
             )
         }
 
