@@ -268,7 +268,11 @@ private fun HeroTextBlock(item: HeroDisplay) {
                 )
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.height(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             Text(
                 text = item.meta,
                 fontSize = 13.sp,
@@ -295,15 +299,18 @@ private fun HeroTextBlock(item: HeroDisplay) {
             }
         }
         val synopsis = item.synopsis
-        if (!synopsis.isNullOrBlank()) {
-            Text(
-                text = synopsis,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                color = Color.White.copy(alpha = 0.78f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
+        // Fixed 2-line block so the buttons below never shift with description length.
+        Box(modifier = Modifier.fillMaxWidth().height(32.dp)) {
+            if (!synopsis.isNullOrBlank()) {
+                Text(
+                    text = synopsis,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp,
+                    color = Color.White.copy(alpha = 0.78f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

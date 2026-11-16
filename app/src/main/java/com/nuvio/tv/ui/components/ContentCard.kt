@@ -287,8 +287,10 @@ fun ContentCard(
         val logoRequestHeightPx = remember(density) {
             with(density) { NuvioTheme.spacing.xxxl.roundToPx() }
         }
-        val logoModel = remember(item.logo, requestWidthPx, logoRequestHeightPx) {
-            item.logo?.let { logoUrl ->
+        // Search/catalog items often lack a clearlogo; resolve via TMDB like Home does (landscape only).
+        val cardLogo = rememberResolvedCardLogo(item, enabled = globalLandscape)
+        val logoModel = remember(cardLogo, requestWidthPx, logoRequestHeightPx) {
+            cardLogo?.let { logoUrl ->
                 ImageRequest.Builder(context)
                     .data(logoUrl)
                     .crossfade(false)
@@ -297,8 +299,8 @@ fun ContentCard(
                     .build()
             }
         }
-        var logoLoadFailed by remember(item.logo) { mutableStateOf(false) }
-        val showExpandedLogo = !item.logo.isNullOrBlank() && !logoLoadFailed
+        var logoLoadFailed by remember(cardLogo) { mutableStateOf(false) }
+        val showExpandedLogo = !cardLogo.isNullOrBlank() && !logoLoadFailed
 
         val bgCardColor = NuvioTheme.colors.BackgroundCard
         val backgroundPainter = remember(bgCardColor) { androidx.compose.ui.graphics.painter.ColorPainter(bgCardColor) }
@@ -552,7 +554,7 @@ fun ContentCard(
                 val showLandscapeOverlay = globalLandscape && (isLandscapeBackdropCard || isBackdropExpanded) &&
                     !(useLandscapeAsExpanded && !trailerFirstFrameRendered)
                 val showLandscapeLogoOverlay = showLandscapeOverlay &&
-                    !item.logo.isNullOrBlank() && !logoLoadFailed
+                    !cardLogo.isNullOrBlank() && !logoLoadFailed
                 if (showLandscapeLogoOverlay && logoModel != null) {
                     Box(
                         modifier = Modifier

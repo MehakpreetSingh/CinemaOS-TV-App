@@ -72,7 +72,7 @@ private val resolvedLogoCache = java.util.concurrent.ConcurrentHashMap<String, S
 
 /** Same TMDB enrichment Home uses to get clearlogos, for grid items (Search/Discover/Library) lacking one. */
 @Composable
-private fun rememberResolvedCardLogo(item: MetaPreview, enabled: Boolean): String? {
+internal fun rememberResolvedCardLogo(item: MetaPreview, enabled: Boolean): String? {
     val existing = item.logo
     if (!existing.isNullOrBlank()) return existing
     val key = "${item.id}:${item.apiType}"

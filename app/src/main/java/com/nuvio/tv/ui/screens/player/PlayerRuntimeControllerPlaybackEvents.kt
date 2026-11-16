@@ -1899,6 +1899,9 @@ fun PlayerRuntimeController.onEvent(
         PlayerEvent.OnShowSourcesPanel -> {
             showSourcesPanel()
         }
+        PlayerEvent.OnShowQualityPanel -> {
+            showSourcesPanel(qualityMode = true)
+        }
         PlayerEvent.OnDismissSourcesPanel -> {
             dismissSourcesPanel()
         }

@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ClosedCaption
+import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -1646,6 +1647,7 @@ fun PlayerScreen(
                 onShowChaptersPanel = { viewModel.onEvent(PlayerEvent.OnShowChaptersPanel) },
                 onShowEpisodesPanel = { viewModel.onEvent(PlayerEvent.OnShowEpisodesPanel) },
                 onShowSourcesPanel = { viewModel.onEvent(PlayerEvent.OnShowSourcesPanel) },
+                onShowQualityPanel = { viewModel.onEvent(PlayerEvent.OnShowQualityPanel) },
                 onShowPartyPanel = if (partyAvailable && viewModel.canUseParty) {
                     { viewModel.onEvent(PlayerEvent.OnShowPartyPanel) }
                 } else {
@@ -2743,6 +2745,7 @@ private fun PlayerControlsOverlay(
     onShowChaptersPanel: () -> Unit,
     onShowEpisodesPanel: () -> Unit,
     onShowSourcesPanel: () -> Unit,
+    onShowQualityPanel: () -> Unit,
     onShowPartyPanel: (() -> Unit)?,
     partyActive: Boolean,
     onShowAudioDialog: () -> Unit,
@@ -3028,6 +3031,15 @@ private fun PlayerControlsOverlay(
                         iconPainter = customSourcePainter,
                         contentDescription = stringResource(R.string.cd_sources),
                         onClick = onShowSourcesPanel,
+                        upFocusRequester = progressUpTarget,
+                        onDownKey = onHideControls,
+                        onFocused = onResetHideTimer
+                    )
+
+                    ControlButton(
+                        icon = Icons.Default.HighQuality,
+                        contentDescription = "Quality",
+                        onClick = onShowQualityPanel,
                         upFocusRequester = progressUpTarget,
                         onDownKey = onHideControls,
                         onFocused = onResetHideTimer

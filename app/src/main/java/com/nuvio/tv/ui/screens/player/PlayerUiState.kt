@@ -177,6 +177,8 @@ data class PlayerUiState(
     val partyBehindMs: Long? = null,
     // Stream sources side panel (for switching streams during playback)
     val showSourcesPanel: Boolean = false,
+    // CinemaOS: when true the sources overlay shows the Quality picker instead
+    val sourcesPanelQualityMode: Boolean = false,
     val isLoadingSourceStreams: Boolean = false,
     val sourceStreamsError: String? = null,
     val sourceAllStreams: List<Stream> = emptyList(),
@@ -367,6 +369,7 @@ sealed class PlayerEvent {
     data class OnEpisodeAddonFilterSelected(val addonName: String?) : PlayerEvent()
     data class OnEpisodeStreamSelected(val stream: Stream) : PlayerEvent()
     data object OnShowSourcesPanel : PlayerEvent()
+    data object OnShowQualityPanel : PlayerEvent()
     data object OnDismissSourcesPanel : PlayerEvent()
     data object OnShowPartyPanel : PlayerEvent()
     data object OnDismissPartyPanel : PlayerEvent()

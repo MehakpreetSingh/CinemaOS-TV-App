@@ -66,6 +66,11 @@ fun LoadingOverlay(
     subText: String? = null,
     // CinemaOS: RN-style minimal loading (dimmed backdrop, title/logo, small spinner ring, no text lines)
     minimal: Boolean = false,
+    // CinemaOS: provider search status shown under the spinner (minimal mode only)
+    providerChips: List<com.nuvio.tv.ui.components.SourceChipItem> = emptyList(),
+    providerCounts: Map<String, Int> = emptyMap(),
+    foundCount: Int = 0,
+    startingText: String? = null,
     modifier: Modifier = Modifier
 ) {
     var logoLoadFailed by remember(logoUrl) { mutableStateOf(false) }
@@ -241,6 +246,19 @@ fun LoadingOverlay(
                     )
                 }
 
+                if (minimal && (providerChips.isNotEmpty() || startingText != null)) {
+                    ProviderSearchStatus(
+                        chips = providerChips,
+                        counts = providerCounts,
+                        foundCount = foundCount,
+                        startingText = startingText,
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = if (showLogo || !title.isNullOrBlank()) 190.dp else 70.dp)
+                            .padding(horizontal = NuvioTheme.spacing.xl)
+                    )
+                }
+
                 // The horizontal progress bar is suppressed when the show logo
                 // is acting as the fill indicator. The text message stays visible.
                 val showHorizontalBar = progress != null && !showLogo
@@ -370,5 +388,80 @@ fun RnLoadingSpinner(diameter: androidx.compose.ui.unit.Dp = 28.dp, modifier: Mo
         val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = (diameter.value / 11f).dp.toPx())
         drawArc(color = Color.White.copy(alpha = 0.15f), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
         drawArc(color = Color.White, startAngle = angle - 90f, sweepAngle = 90f, useCenter = false, style = stroke)
+    }
+}
+
+/** Centred "Searching X…" line, found-count and a compact row of provider status dots. */
+@Composable
+private fun ProviderSearchStatus(
+    chips: List<com.nuvio.tv.ui.components.SourceChipItem>,
+    counts: Map<String, Int>,
+    foundCount: Int,
+    startingText: String?,
+    modifier: Modifier = Modifier
+) {
+    val running = chips.filter { it.status == com.nuvio.tv.ui.components.SourceChipStatus.LOADING }
+    var cycle by remember { mutableStateOf(0) }
+    androidx.compose.runtime.LaunchedEffect(running.size) {
+        while (true) {
+            kotlinx.coroutines.delay(1200)
+            cycle++
+        }
+    }
+    val headline = when {
+        startingText != null -> startingText
+        running.isNotEmpty() -> "Searching ${running[cycle % running.size].name}\u2026"
+        foundCount > 0 -> "Found $foundCount sources"
+        else -> null
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
+        if (headline != null) {
+            Text(
+                text = headline,
+                style = MaterialTheme.typography.labelLarge,
+                color = Color.White.copy(alpha = 0.85f),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (startingText == null && running.isNotEmpty() && foundCount > 0) {
+            Text(
+                text = "Found $foundCount sources",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.55f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+        if (startingText == null && chips.isNotEmpty()) {
+            androidx.compose.foundation.layout.Row(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 10.dp)
+            ) {
+                chips.take(8).forEach { chip ->
+                    val color = when (chip.status) {
+                        com.nuvio.tv.ui.components.SourceChipStatus.LOADING -> Color(0xFFE0B341)
+                        com.nuvio.tv.ui.components.SourceChipStatus.SUCCESS -> Color(0xFF4CAF50)
+                        com.nuvio.tv.ui.components.SourceChipStatus.ERROR -> Color(0xFFE05555)
+                    }
+                    val count = counts[chip.name] ?: 0
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(Modifier.size(7.dp).clip(RoundedCornerShape(4.dp)).background(color))
+                        Text(
+                            text = if (chip.status == com.nuvio.tv.ui.components.SourceChipStatus.SUCCESS && count > 0)
+                                "${chip.name} ($count)" else chip.name,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            maxLines = 1
+                        )
+                    }
+                }
+            }
+        }
     }
 }

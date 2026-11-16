@@ -56,6 +56,10 @@ import android.view.KeyEvent
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.type
+import androidx.compose.runtime.mutableStateMapOf
 import com.nuvio.tv.domain.model.Stream
 import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.SourceChipStatus
@@ -117,11 +121,43 @@ internal fun StreamSourcesSidePanel(
     onExpandStreams: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    if (uiState.sourcesPanelQualityMode) {
+        StreamQualityPanel(
+            visible = visible,
+            uiState = uiState,
+            currentFilename = currentFilename,
+            onClose = onClose,
+            onStreamSelected = onStreamSelected,
+            modifier = modifier
+        )
+    } else {
+        StreamSourcesPanelContent(
+            visible, uiState, currentFilename, streamsFocusRequester, onClose, onReload,
+            onAddonFilterSelected, onStreamSelected, onExpandStreams, modifier
+        )
+    }
+}
+
+@Composable
+private fun StreamSourcesPanelContent(
+    visible: Boolean,
+    uiState: PlayerUiState,
+    currentFilename: String?,
+    streamsFocusRequester: FocusRequester,
+    onClose: () -> Unit,
+    onReload: () -> Unit,
+    onAddonFilterSelected: (String?) -> Unit,
+    onStreamSelected: (Stream) -> Unit,
+    onExpandStreams: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     var filter by remember { mutableStateOf(SourceFormatFilter.ALL) }
     var selectedProvider by remember { mutableStateOf<String?>(null) }
     val chipRequesters = remember { List(SourceFormatFilter.values().size) { FocusRequester() } }
     val providerRequesters = remember { mutableMapOf<String, FocusRequester>() }
     val rightRequester = remember { FocusRequester() }
+    val lastServerIndex = remember { mutableStateMapOf<String, Int>() }
+    val panelScope = rememberCoroutineScope()
     val providerListState = rememberLazyListState()
     val serverListState = rememberLazyListState()
 
@@ -155,7 +191,14 @@ internal fun StreamSourcesSidePanel(
             }
         }
         kept.groupBy { it.addonName }
-            .map { (prov, list) -> prov to list.sortedByDescending { it.sourceQuality() } }
+            .map { (prov, list) ->
+                val sorted = list.sortedByDescending { it.sourceQuality() }
+                // Collapse duplicate links of the same provider + quality into one row
+                // (alternates stay in allStreams for fallback). Unknown quality is not collapsed.
+                val rows = sorted.groupBy { if (it.sourceQuality() > 0) it.sourceQuality() else -System.identityHashCode(it) }
+                    .values.map { l -> l.firstOrNull { it === currentStream } ?: l.first() }
+                prov to rows
+            }
             .sortedWith(
                 compareByDescending<Pair<String, List<Stream>>> { it.first == currentProvider }
                     .thenByDescending { (_, l) -> l.maxOf { it.sourceQuality() } }
@@ -167,6 +210,16 @@ internal fun StreamSourcesSidePanel(
         ?: groups.firstOrNull { it.first == currentProvider }?.first
         ?: groups.firstOrNull()?.first
     val activeServers = groups.firstOrNull { it.first == activeProvider }?.second.orEmpty()
+    val rightTargetIdx = lastServerIndex[activeProvider]?.takeIf { it in activeServers.indices }
+        ?: activeServers.indexOfFirst { it === currentStream }.takeIf { it >= 0 }
+        ?: 0
+    val focusServers: () -> Unit = {
+        panelScope.coroutineLaunch {
+            serverListState.scrollToItem(rightTargetIdx)
+            withFrameNanos { }
+            runCatching { rightRequester.requestFocus() }
+        }
+    }
 
     // Initial focus: the playing provider's card (or the first one) once results are there.
     var focusDone by remember { mutableStateOf(false) }
@@ -248,6 +301,11 @@ internal fun StreamSourcesSidePanel(
                         onClick = { filter = f },
                         modifier = Modifier
                             .focusRequester(chipRequesters[i])
+                            .focusProperties {
+                                down = providerRequesters[activeProvider]
+                                    ?.takeIf { providerListState.layoutInfo.visibleItemsInfo.any { it.key == activeProvider } }
+                                    ?: FocusRequester.Default
+                            }
                             .onFocusChanged { if (it.isFocused) filter = f },
                         colors = androidx.tv.material3.CardDefaults.colors(
                             containerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f),
@@ -307,7 +365,7 @@ internal fun StreamSourcesSidePanel(
                         contentPadding = PaddingValues(top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
                         modifier = Modifier.width(340.dp).heightIn(max = 560.dp)
                     ) {
-                        items(items = groups, key = { it.first }) { (prov, list) ->
+                        itemsIndexed(items = groups, key = { _, g -> g.first }) { provIdx, (prov, list) ->
                             val req = providerRequesters.getOrPut(prov) {
                                 if (prov == groups.firstOrNull()?.first) streamsFocusRequester else FocusRequester()
                             }
@@ -315,11 +373,19 @@ internal fun StreamSourcesSidePanel(
                             val shown = prov == activeProvider
                             val formats = list.map { it.sourceFormat() }.distinct().joinToString(", ")
                             androidx.tv.material3.Card(
-                                onClick = { runCatching { rightRequester.requestFocus() } },
+                                onClick = { focusServers() },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .focusRequester(req)
-                                    .focusProperties { right = rightRequester; up = chipRequesters[filter.ordinal] }
+                                    // Up: previous provider (default search); only the first goes to the chips.
+                                    .focusProperties {
+                                        if (provIdx == 0) up = chipRequesters[filter.ordinal]
+                                    }
+                                    .onPreviewKeyEvent {
+                                        if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionRight) {
+                                            focusServers(); true
+                                        } else false
+                                    }
                                     .onFocusChanged { if (it.isFocused) selectedProvider = prov },
                                 colors = androidx.tv.material3.CardDefaults.colors(
                                     containerColor = if (shown) NuvioTheme.colors.Secondary else Color.Transparent,
@@ -375,7 +441,7 @@ internal fun StreamSourcesSidePanel(
                             key = { i, _ -> "$activeProvider#$i" }
                         ) { i, s ->
                             val active = s === currentStream
-                            val isRightTarget = if (activeServers.any { it === currentStream }) active else i == 0
+                            val isRightTarget = i == rightTargetIdx
                             val title = s.getDisplayNameOrNull() ?: s.name ?: s.addonName
                             val meta = listOfNotNull(
                                 s.pluginSourceName?.takeIf { it.isNotBlank() && it != s.addonName },
@@ -389,7 +455,10 @@ internal fun StreamSourcesSidePanel(
                                     .then(if (isRightTarget) Modifier.focusRequester(rightRequester) else Modifier)
                                     .focusProperties {
                                         left = providerRequesters[activeProvider] ?: FocusRequester.Default
-                                    },
+                                        // Up: previous server (default search); only the first goes to the chips.
+                                        if (i == 0) up = chipRequesters[filter.ordinal]
+                                    }
+                                    .onFocusChanged { if (it.isFocused) activeProvider?.let { p -> lastServerIndex[p] = i } },
                                 colors = androidx.tv.material3.CardDefaults.colors(
                                     containerColor = if (active) NuvioTheme.colors.Secondary else Color.Transparent,
                                     focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
@@ -531,4 +600,135 @@ internal fun findCurrentStreamIndex(
     }
 
     return -1
+}
+
+/**
+ * CinemaOS quality picker: lists the qualities the CURRENT provider offers (Auto = unknown quality),
+ * with the playing one checked. Selecting switches to the best link of that quality from the same
+ * provider, falling back to any provider.
+ */
+@Composable
+private fun StreamQualityPanel(
+    visible: Boolean,
+    uiState: PlayerUiState,
+    currentFilename: String?,
+    onClose: () -> Unit,
+    onStreamSelected: (Stream) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val allStreams = uiState.sourceAllStreams
+    val currentIdx = remember(
+        allStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx, uiState.currentStreamAddonName,
+        uiState.currentStreamUrl, uiState.currentStreamName, uiState.currentStreamDescription, currentFilename
+    ) {
+        findCurrentStreamIndex(
+            streams = allStreams,
+            currentStreamInfoHash = uiState.currentStreamInfoHash,
+            currentStreamFileIdx = uiState.currentStreamFileIdx,
+            currentStreamAddonName = uiState.currentStreamAddonName,
+            currentStreamUrl = uiState.currentStreamUrl,
+            currentStreamName = uiState.currentStreamName,
+            currentStreamDescription = uiState.currentStreamDescription,
+            currentFilename = currentFilename
+        )
+    }
+    val currentStream = allStreams.getOrNull(currentIdx)
+    val provider = currentStream?.addonName ?: uiState.currentStreamAddonName
+    val candidates = remember(allStreams, provider) {
+        allStreams.filter { !it.isExternal() && (provider == null || it.addonName == provider) }
+    }
+    val qualities = remember(candidates) { candidates.map { it.sourceQuality() }.distinct().sortedDescending() }
+    val currentQuality = currentStream?.sourceQuality()
+    val requesters = remember(qualities.size) { List(qualities.size) { FocusRequester() } }
+
+    LaunchedEffect(visible, qualities) {
+        if (!visible || qualities.isEmpty()) return@LaunchedEffect
+        withFrameNanos { }
+        withFrameNanos { }
+        val target = qualities.indexOf(currentQuality).coerceAtLeast(0)
+        runCatching { requesters[target].requestFocus() }
+    }
+
+    PlayerOverlayScaffold(
+        visible = visible,
+        onDismiss = onClose,
+        modifier = modifier,
+        captureKeys = false,
+        contentPadding = PaddingValues(start = 44.dp, end = 44.dp, top = 28.dp, bottom = 64.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .width(460.dp)
+                .align(Alignment.BottomStart)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Text(
+                text = "Quality",
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+                modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
+            )
+            if (qualities.isEmpty()) {
+                Text(
+                    text = if (uiState.isLoadingSourceStreams) "Loading qualities\u2026"
+                    else stringResource(R.string.sources_no_streams),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            } else {
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)
+                ) {
+                    itemsIndexed(items = qualities, key = { _, q -> q }) { i, q ->
+                        val active = q == currentQuality
+                        val count = candidates.count { it.sourceQuality() == q }
+                        androidx.tv.material3.Card(
+                            onClick = {
+                                val pick = candidates.filter { it.sourceQuality() == q }
+                                    .let { l -> l.firstOrNull { it !== currentStream } ?: l.firstOrNull() }
+                                    ?: allStreams.filter { !it.isExternal() && it.sourceQuality() == q }.firstOrNull()
+                                if (pick != null && pick !== currentStream) onStreamSelected(pick) else onClose()
+                            },
+                            modifier = Modifier.fillMaxWidth().focusRequester(requesters[i]),
+                            colors = androidx.tv.material3.CardDefaults.colors(
+                                containerColor = if (active) NuvioTheme.colors.Secondary else Color.Transparent,
+                                focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
+                            ),
+                            shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
+                            border = sourcePanelBorder(NuvioTheme.radii.md),
+                            scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(horizontal = NuvioTheme.spacing.md, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = qualityLabel(q) ?: "Auto",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = if (active) NuvioTheme.colors.OnSecondary else Color.White
+                                    )
+                                    Text(
+                                        text = listOfNotNull(provider, "$count link${if (count > 1) "s" else ""}")
+                                            .joinToString(" \u00B7 "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (active) NuvioTheme.colors.OnSecondary.copy(alpha = 0.72f)
+                                        else NuvioTheme.colors.TextTertiary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                if (active) Text(text = "\u2713", color = NuvioTheme.colors.OnSecondary)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

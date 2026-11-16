@@ -134,10 +134,11 @@ private fun Stream.isReadyForDebridPreparation(): Boolean =
     getStreamUrl().isNullOrBlank() &&
         (isDirectDebrid() || (needsLocalDebridResolve() && debridCacheStatus?.state == StreamDebridCacheState.CACHED))
 
-internal fun PlayerRuntimeController.showSourcesPanel() {
+internal fun PlayerRuntimeController.showSourcesPanel(qualityMode: Boolean = false) {
     _uiState.update {
         it.copy(
             showSourcesPanel = true,
+            sourcesPanelQualityMode = qualityMode,
             showControls = true,
             showAudioOverlay = false,
             showSubtitleOverlay = false,

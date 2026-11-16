@@ -424,6 +424,9 @@ fun StreamScreen(
                 title = uiState.title,
                 // RN-style loader while sources are searched: dimmed backdrop + spinner only.
                 minimal = true,
+                providerChips = uiState.sourceChips,
+                providerCounts = uiState.allStreams.groupingBy { it.addonName }.eachCount(),
+                foundCount = uiState.allStreams.size,
                 modifier = Modifier.fillMaxSize()
             )
         } else if (showOverlay) {
@@ -432,8 +435,12 @@ fun StreamScreen(
                 backdropUrl = uiState.backdrop ?: uiState.poster,
                 logoUrl = uiState.logo,
                 title = uiState.title,
-                // Stream chosen: minimal RN-style loader, no status lines.
+                // Stream chosen: minimal RN-style loader + "Starting <provider> · <quality>".
                 minimal = true,
+                startingText = uiState.autoPlayStream?.let { st ->
+                    val prov = st.pluginSourceName?.takeIf { it.isNotBlank() } ?: st.addonName
+                    "Starting $prov" + (st.quality?.takeIf { it.isNotBlank() }?.let { " \u00B7 $it" } ?: "")
+                },
                 modifier = Modifier.fillMaxSize()
             )
         } else {

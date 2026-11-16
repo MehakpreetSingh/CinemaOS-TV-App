@@ -183,16 +183,16 @@ fun AppleHomeContent(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // Tallest row drives the window: catalog cards, plus Continue Watching poster cards (title + episode label below).
+    // Row heading (AppleRowTitle: bar+eyebrow+22sp title) is ~64dp. Tallest row drives the window: catalog cards, plus Continue Watching poster cards (title + episode label below).
     val cwPosterRow = uiState.continueWatchingCardStyle == ContinueWatchingCardStyle.POSTER &&
         uiState.continueWatchingItems.isNotEmpty()
     val catalogRowHeight = if (cardStyle.landscape) {
-        135.dp * cardStyle.scale + 28.dp + 36.dp + 24.dp
+        135.dp * cardStyle.scale + 28.dp + 64.dp + 24.dp
     } else {
-        195.dp * cardStyle.scale + 26.dp + 28.dp + 36.dp + 24.dp + 20.dp
+        195.dp * cardStyle.scale + 26.dp + 28.dp + 64.dp + 24.dp + 20.dp
     }
     val cwRowHeight = if (cwPosterRow) {
-        195.dp * cardStyle.scale + 42.dp + 28.dp + 36.dp + 24.dp
+        195.dp * cardStyle.scale + 42.dp + 28.dp + 64.dp + 24.dp
     } else {
         0.dp
     }

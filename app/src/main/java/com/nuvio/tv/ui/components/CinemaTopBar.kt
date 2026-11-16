@@ -66,6 +66,8 @@ import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.nuvio.tv.ui.util.rememberRawSvgPainter
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 
 data class CinemaTopBarItem(
     val route: String,
@@ -80,7 +82,7 @@ private val NavSpec = tween<Float>(320, easing = FastOutSlowInEasing)
  * CinemaOS TV top bar, ported from Nuvio Desktop's TabletFloatingTopBar: a floating frosted pill
  * (translucent fill + sheen + subtle border) centred at the top. Collapsed (icons only, active item
  * in a lighter circle) while focus is in page content; expands with labels while the bar has focus.
- * True backdrop blur is skipped (needs API 31+ and a haze source); the fill is translucent instead.
+ * Backdrop blur via haze on API 31+ when a HazeState is supplied; translucent fill otherwise.
  */
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -91,6 +93,7 @@ fun CinemaTopBar(
     onItemClick: (String) -> Unit,
     onBarFocusChanged: (Boolean) -> Unit,
     contentFocusRequester: FocusRequester? = null,
+    hazeState: HazeState? = null,
     profileName: String? = null,
     onProfileClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -108,8 +111,11 @@ fun CinemaTopBar(
         java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now)
     }
 
+    val blurSupported = hazeState != null && android.os.Build.VERSION.SDK_INT >= 31
     val surfaceColor by animateColorAsState(
-        targetValue = if (barFocused) Color(0xFF1C1C1E).copy(alpha = 0.62f) else Color(0xFF0F0F11).copy(alpha = 0.42f),
+        targetValue = if (blurSupported) {
+            if (barFocused) Color(0xFF1C1C1E).copy(alpha = 0.40f) else Color(0xFF0F0F11).copy(alpha = 0.28f)
+        } else if (barFocused) Color(0xFF1C1C1E).copy(alpha = 0.62f) else Color(0xFF0F0F11).copy(alpha = 0.42f),
         animationSpec = tween(320, easing = FastOutSlowInEasing),
         label = "topBarSurface"
     )
@@ -127,6 +133,14 @@ fun CinemaTopBar(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .clip(CircleShape)
+                .then(
+                    if (blurSupported && hazeState != null) {
+                        Modifier.hazeEffect(state = hazeState) {
+                            blurRadius = 24.dp
+                            noiseFactor = 0.04f
+                        }
+                    } else Modifier
+                )
                 .background(surfaceColor)
                 .background(
                     Brush.verticalGradient(

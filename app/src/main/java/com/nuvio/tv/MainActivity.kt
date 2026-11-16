@@ -1904,6 +1904,7 @@ private fun CinemaTopBarScaffold(
     val contentFocusRequester = remember { FocusRequester() }
     val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var barHasFocus by remember { mutableStateOf(false) }
+    val topBarHazeState = remember { HazeState() }
 
     // Back from content moves focus to the bar; Back on the bar exits the app.
     BackHandler(enabled = showBar && !barHasFocus) {
@@ -1929,7 +1930,7 @@ private fun CinemaTopBarScaffold(
     ) {
         // Home runs full-bleed behind the bar; other root screens sit below it.
         // The inset is applied inside each root page (see rootComposable), not as a route-tied box here.
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize().hazeSource(state = topBarHazeState)) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
                 LocalRootTopInset provides 72.dp,
@@ -1959,6 +1960,7 @@ private fun CinemaTopBarScaffold(
                 },
                 onBarFocusChanged = { barHasFocus = it },
                 contentFocusRequester = contentFocusRequester,
+                hazeState = topBarHazeState,
                 modifier = Modifier.align(Alignment.TopStart)
             )
         }
