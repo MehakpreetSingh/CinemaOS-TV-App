@@ -204,28 +204,19 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
     suspend fun isVideo(url: String, headers: Map<String, String> = emptyMap(), timeoutMs: Long = 7_000): Boolean {
         probeCache[url]?.let { if (System.currentTimeMillis() - it.first < 600_000) return it.second }
         val ok = isVideoUncached(url, headers, timeoutMs)
-        probeCache[url] = System.currentTimeMillis() to ok
+        if (ok) probeCache[url] = System.currentTimeMillis() to true
         return ok
     }
 
     private val probeCache = ConcurrentHashMap<String, Pair<Long, Boolean>>()
 
+    /** Same check as the RN app: one 64-byte ranged read; HTML / JSON answers and non-video bodies are dropped. */
     private suspend fun isVideoUncached(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean {
         val h = headers.toMutableMap().also { it["Range"] = "bytes=0-63" }
         val head = fetch(url, h, timeoutMs = timeoutMs, maxBytes = 64) ?: return false
         val ct = head.header("content-type")
         if (!head.ok || Regex("text/html|application/json", RegexOption.IGNORE_CASE).containsMatchIn(ct)) return false
-        if (head.code == 200) return false // no Range support: ExoPlayer cannot seek / read MKV cues
-        val b = head.body
-        if (!looksLikeVideo(b, ct)) return false
-        val total = Regex("/(\\d+)$").find(head.header("content-range"))?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        // PixelDrain rate-limits repeated ranged reads per file (403 on the player's own cues read afterwards), so only the head is probed there
-        if (total > 2_097_152L && !hostOf(url).contains("pixeldrain", ignoreCase = true)) {
-            val t = headers.toMutableMap().also { it["Range"] = "bytes=${total - 1_048_576L}-" }
-            val tail = fetch(url, t, timeoutMs = timeoutMs, maxBytes = 1) ?: return false
-            if (tail.code != 206 && tail.code != 200) return false
-        }
-        return true
+        return looksLikeVideo(head.body, ct)
     }
 
     private fun looksLikeVideo(b: ByteArray, contentType: String): Boolean {

@@ -73,8 +73,8 @@ class HdHubScraper(private val http: CinemaHttp) : CinemaScraper {
         // All candidates probed concurrently; stop once enough are verified.
         val ok = parallelUntil<Cand, Cand>(
             items = cands,
-            timeoutMs = 9_000,
-            enough = { it.size >= 8 }
+            timeoutMs = 12_000,
+            enough = { false }
         ) { c ->
             val good = if (c.isHls) {
                 val r = http.fetch(c.url, c.headers, timeoutMs = 7_000, maxBytes = 4096)
@@ -153,6 +153,6 @@ class HdHubScraper(private val http: CinemaHttp) : CinemaScraper {
 
     private companion object {
         const val BASE = "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
-        const val MAX_CANDIDATES = 24
+        const val MAX_CANDIDATES = 80
     }
 }

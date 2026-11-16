@@ -10,7 +10,7 @@ class WingScraper(private val http: CinemaHttp) : CinemaScraper {
     override val id = "cinemaos-wing"
     override val name = "CinemaOS · Wing"
     override val description = "Wing direct download links (MKV/MP4, up to 4K)"
-    override val budgetMs = 14_000L
+    override val budgetMs = 22_000L
 
     private class Cand(
         val url: String,
@@ -40,11 +40,11 @@ class WingScraper(private val http: CinemaHttp) : CinemaScraper {
         }
         val cands = out.sortedByDescending { it.rank }
             .filter { !BAD_HOST.containsMatchIn(it.url) }
-            .take(24)
+            .take(60)
         val verified = parallelUntil<Cand, Cand>(
             items = cands,
-            timeoutMs = 9_000,
-            enough = { it.size >= 4 }
+            timeoutMs = 12_000,
+            enough = { false }
         ) { c -> if (http.isVideo(c.url, emptyMap(), timeoutMs = 7_000)) c else null }
         return verified.sortedByDescending { it.rank }.map { c ->
             LocalScraperResult(
