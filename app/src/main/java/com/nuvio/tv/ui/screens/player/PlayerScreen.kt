@@ -3047,7 +3047,7 @@ private fun PlayerControlsOverlay(
                     val qualityBadgeText = remember(
                         uiState.sourceAllStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx,
                         uiState.currentStreamAddonName, uiState.currentStreamUrl, uiState.currentStreamName,
-                        uiState.currentStreamDescription, uiState.videoHeight
+                        uiState.currentStreamDescription, uiState.streamInfoData?.videoHeight
                     ) {
                         val idx = findCurrentStreamIndex(
                             streams = uiState.sourceAllStreams,
@@ -3061,7 +3061,7 @@ private fun PlayerControlsOverlay(
                         )
                         val declared = uiState.sourceAllStreams.getOrNull(idx)
                             ?.let { com.nuvio.tv.core.player.DeviceVideoCapabilities.declaredHeight(it) } ?: 0
-                        val h = if (declared > 0) declared else (uiState.videoHeight ?: 0)
+                        val h = if (declared > 0) declared else (uiState.streamInfoData?.videoHeight ?: 0)
                         com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(h).takeIf { h > 0 } ?: "HD"
                     }
                     ControlButton(
