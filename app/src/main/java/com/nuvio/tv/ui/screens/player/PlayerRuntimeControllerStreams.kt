@@ -478,7 +478,10 @@ private suspend fun PlayerRuntimeController.updateSourceChipsForFetchStart(
         emptyList()
     }
 
-    val ordered = (serverSourceNames(type, videoId) + addonNames + pluginNames).distinct()
+    val ordered = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(
+        (serverSourceNames(type, videoId) + addonNames + pluginNames).distinct(),
+        com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(type, videoId)
+    )
     _uiState.update {
         it.copy(
             sourceChips = ordered.map { name -> SourceChipItem(name, SourceChipStatus.LOADING) }
@@ -488,8 +491,12 @@ private suspend fun PlayerRuntimeController.updateSourceChipsForFetchStart(
 
 private fun PlayerRuntimeController.mergeSourceChipStatuses(
     existing: List<SourceChipItem>,
-    succeededNames: List<String>
+    succeededNamesRaw: List<String>
 ): List<SourceChipItem> {
+    val anime = com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(
+        _uiState.value.contentType, currentVideoId, null
+    )
+    val succeededNames = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(succeededNamesRaw, anime)
     if (succeededNames.isEmpty()) return existing
     if (existing.isEmpty()) {
         return succeededNames.distinct().map { SourceChipItem(it, SourceChipStatus.SUCCESS) }

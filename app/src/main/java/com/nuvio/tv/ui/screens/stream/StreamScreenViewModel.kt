@@ -1092,7 +1092,10 @@ class StreamScreenViewModel @Inject constructor(
             emptyList()
         }
 
-        val orderedNames = (directDebridSourceNames + serverSourceNames + addonNames + pluginNames).distinct()
+        val orderedNames = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(
+            (directDebridSourceNames + serverSourceNames + addonNames + pluginNames).distinct(),
+            isAnimeContent
+        )
         if (orderedNames.isEmpty()) {
             updateUiStateIfChanged { it.copy(sourceChips = emptyList()) }
             return
@@ -1112,6 +1115,7 @@ class StreamScreenViewModel @Inject constructor(
     }
 
     private fun updateSourceChipsForEmbedded(name: String) {
+        if (!com.nuvio.tv.ui.components.ProviderContentFilter.appliesTo(name, isAnimeContent)) return
         updateUiStateIfChanged { state ->
             val chips = if (state.sourceChips.any { it.name == name }) {
                 state.sourceChips.map { chip ->
@@ -1126,8 +1130,9 @@ class StreamScreenViewModel @Inject constructor(
 
     private fun mergeSourceChipStatuses(
         existing: List<SourceChipItem>,
-        succeededNames: List<String>
+        succeededNamesRaw: List<String>
     ): List<SourceChipItem> {
+        val succeededNames = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(succeededNamesRaw, isAnimeContent)
         if (succeededNames.isEmpty()) return existing
         if (existing.isEmpty()) {
             return succeededNames.distinct().map { name ->

@@ -82,6 +82,7 @@ fun LoadingOverlay(
     seasonEpisodeText: String? = null,
     yearText: String? = null,
     episodeTitle: String? = null,
+    isAnimeContent: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var logoLoadFailed by remember(logoUrl) { mutableStateOf(false) }
@@ -255,9 +256,12 @@ fun LoadingOverlay(
                 }
 
                 if (minimal) {
-                    val running = providerChips.firstOrNull {
-                        it.status == com.nuvio.tv.ui.components.SourceChipStatus.LOADING
-                    }
+                    val running = providerChips
+                        .filter {
+                            it.status == com.nuvio.tv.ui.components.SourceChipStatus.LOADING &&
+                                com.nuvio.tv.ui.components.ProviderContentFilter.appliesTo(it.name, isAnimeContent)
+                        }
+                        .minByOrNull { com.nuvio.tv.ui.components.ProviderContentFilter.sortIndex(it.name, isAnimeContent) }
                     val statusText = when {
                         startingText != null -> startingText
                         running != null -> "Searching ${running.name}\u2026"
@@ -271,11 +275,12 @@ fun LoadingOverlay(
                             .clip(glassShape)
                             .then(
                                 if (hazeState != null) Modifier.hazeEffect(state = hazeState) {
-                                    blurRadius = 28.dp
+                                    blurRadius = 36.dp
                                     noiseFactor = 0.04f
+                                    tints = listOf(dev.chrisbanes.haze.HazeTint(Color.Black.copy(alpha = 0.12f)))
                                 } else Modifier
                             )
-                            .background(Color.White.copy(alpha = if (hazeState != null) 0.06f else 0.12f))
+                            .background(Color.Black.copy(alpha = if (hazeState != null) 0.25f else 0.40f))
                             .border(1.dp, Color.White.copy(alpha = 0.12f), glassShape)
                             .padding(horizontal = 24.dp, vertical = 12.dp),
                         contentAlignment = Alignment.Center
@@ -284,7 +289,7 @@ fun LoadingOverlay(
                             Text(
                                 text = text,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = Color.White,
+                                color = Color.White.copy(alpha = 0.9f),
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis

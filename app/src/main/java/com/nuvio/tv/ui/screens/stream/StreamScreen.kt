@@ -438,6 +438,9 @@ fun StreamScreen(
                 } else null,
                 yearText = uiState.year,
                 episodeTitle = uiState.episodeName,
+                isAnimeContent = com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(
+                    uiState.contentType, uiState.videoId, uiState.genres
+                ),
                 modifier = Modifier.fillMaxSize()
             )
         } else {
