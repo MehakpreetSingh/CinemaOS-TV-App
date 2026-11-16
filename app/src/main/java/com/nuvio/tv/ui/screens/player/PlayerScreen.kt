@@ -3081,8 +3081,7 @@ private fun PlayerControlsOverlay(
                     }
                     ControlButton(
                         icon = Icons.Default.HighQuality,
-                        badgeText = qualityBadgeText,
-                        contentDescription = "Quality",
+                        contentDescription = "Quality $qualityBadgeText",
                         onClick = onShowQualityPanel,
                         upFocusRequester = progressUpTarget,
                         onDownKey = onHideControls,
