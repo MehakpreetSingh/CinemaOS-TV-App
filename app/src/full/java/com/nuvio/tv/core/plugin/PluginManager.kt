@@ -780,7 +780,8 @@ class PluginManager @Inject constructor(
         season: Int? = null,
         episode: Int? = null,
         priorityBingeGroup: String? = null,
-        preferredPluginOnly: Boolean = false
+        preferredPluginOnly: Boolean = false,
+        sequential: Boolean = false
     ): Flow<Pair<ScraperInfo, List<LocalScraperResult>>> = channelFlow {
         val enabledList = enabledScrapers.first().filter { it.supportsType(mediaType) }
         
@@ -818,6 +819,28 @@ class PluginManager @Inject constructor(
         }
 
         preloadDexExtractors(plan.others)
+        if (sequential) {
+            // One provider at a time in priority order; each result is sent as soon as it
+            // arrives so the first playable source can auto-play while the rest keep loading.
+            plan.others
+                .sortedByDescending {
+                    maxOf(
+                        com.nuvio.tv.core.player.autoPlayProviderRank(it.name),
+                        com.nuvio.tv.core.player.animeProviderRank(it.name)
+                    )
+                }
+                .forEach { scraper ->
+                    try {
+                        val results = executeScraperWithSingleFlight(scraper, tmdbId, mediaType, season, episode)
+                        if (results.isNotEmpty()) send(scraper to results)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Scraper ${scraper.name} failed in sequential run: ${e.message}")
+                    }
+                }
+            return@channelFlow
+        }
         launchPluginScrapers(
             scrapers = plan.others,
             tmdbId = tmdbId,

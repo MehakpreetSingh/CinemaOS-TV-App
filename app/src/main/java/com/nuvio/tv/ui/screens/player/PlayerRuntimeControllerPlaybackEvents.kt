@@ -1571,6 +1571,15 @@ fun PlayerRuntimeController.onEvent(
             seekToChapter(chapter.startMs)
         }
         is PlayerEvent.OnSelectAudioTrack -> {
+            if (event.index <= MOVIEBOX_VARIANT_INDEX_BASE) {
+                val variant = com.nuvio.tv.core.player.MovieBoxLanguageVariants
+                    .variantsFor(_uiState.value.currentStreamUrl)
+                    .getOrNull(MOVIEBOX_VARIANT_INDEX_BASE - event.index)
+                _uiState.update { it.copy(showAudioOverlay = false) }
+                // Position resumes from the progress saved by the switch (same as changing source).
+                if (variant != null) switchToSourceStream(variant.stream)
+                return
+            }
             logSwitchTrace(
                 stage = "event-select-audio",
                 message = "index=${event.index}"

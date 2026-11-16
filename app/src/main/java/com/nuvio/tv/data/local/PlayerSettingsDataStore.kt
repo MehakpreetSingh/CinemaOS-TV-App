@@ -384,6 +384,7 @@ data class PlayerSettings(
     val nextEpisodeThresholdPercent: Float = 99f,
     val nextEpisodeThresholdMinutesBeforeEnd: Float = 2f,
     val streamReuseLastLinkEnabled: Boolean = true,
+    val searchAllSourcesAtOnce: Boolean = false,
     val streamReuseLastLinkCacheHours: Int = 1,
     val externalPlayerForwardSubtitles: Boolean = false,
     val externalPlayerSendSkipSegments: Boolean = false,
@@ -734,6 +735,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val nextEpisodeThresholdMinutesBeforeEndLegacyKey = intPreferencesKey("next_episode_threshold_minutes_before_end")
     private val nextEpisodeThresholdPercentKey = floatPreferencesKey("next_episode_threshold_percent_v2")
     private val nextEpisodeThresholdMinutesBeforeEndKey = floatPreferencesKey("next_episode_threshold_minutes_before_end_v2")
+    private val searchAllSourcesAtOnceKey = booleanPreferencesKey("search_all_sources_at_once")
     private val streamReuseLastLinkEnabledKey = booleanPreferencesKey("stream_reuse_last_link_enabled")
     private val streamReuseLastLinkCacheHoursKey = intPreferencesKey("stream_reuse_last_link_cache_hours")
     private val externalPlayerForwardSubtitlesKey = booleanPreferencesKey("external_player_forward_subtitles")
@@ -1180,6 +1182,7 @@ class PlayerSettingsDataStore @Inject constructor(
                     max = 3.5f
                 ),
                 streamReuseLastLinkEnabled = prefs[streamReuseLastLinkEnabledKey] ?: false,
+                searchAllSourcesAtOnce = prefs[searchAllSourcesAtOnceKey] ?: false,
                 streamReuseLastLinkCacheHours = (prefs[streamReuseLastLinkCacheHoursKey] ?: 24).coerceIn(1, 168),
                 externalPlayerForwardSubtitles = prefs[externalPlayerForwardSubtitlesKey] ?: false,
                 externalPlayerSendSkipSegments = prefs[externalPlayerSendSkipSegmentsKey] ?: false,
@@ -1651,6 +1654,12 @@ class PlayerSettingsDataStore @Inject constructor(
 
     private fun normalizeHalfStep(value: Float, min: Float, max: Float): Float {
         return (value.coerceIn(min, max) * 2f).roundToInt() / 2f
+    }
+
+    suspend fun setSearchAllSourcesAtOnce(enabled: Boolean) {
+        store().edit { prefs ->
+            prefs[searchAllSourcesAtOnceKey] = enabled
+        }
     }
 
     suspend fun setStreamReuseLastLinkEnabled(enabled: Boolean) {

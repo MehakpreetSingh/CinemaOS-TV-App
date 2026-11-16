@@ -2067,7 +2067,22 @@ fun PlayerScreen(
         // Audio track dialog
         AudioSelectionOverlay(
             visible = uiState.showAudioOverlay,
-            tracks = uiState.serverAudioTracks.ifEmpty { uiState.audioTracks },
+            tracks = uiState.serverAudioTracks.ifEmpty {
+                val variants = remember(uiState.currentStreamUrl) {
+                    com.nuvio.tv.core.player.MovieBoxLanguageVariants.variantsFor(uiState.currentStreamUrl)
+                }
+                if (variants.isEmpty()) {
+                    uiState.audioTracks
+                } else {
+                    uiState.audioTracks + variants.mapIndexed { i, v ->
+                        TrackInfo(
+                            index = MOVIEBOX_VARIANT_INDEX_BASE - i,
+                            name = v.language,
+                            language = v.language
+                        )
+                    }
+                }
+            },
             selectedIndex = uiState.serverAudioTracks.firstOrNull { it.isSelected }?.index ?: uiState.selectedAudioTrackIndex,
             audioDelayMs = uiState.audioDelayMs,
             audioAmplificationDb = uiState.audioAmplificationDb,

@@ -137,7 +137,8 @@ class StreamRepositoryPluginIsolationTest {
                 null,
                 null,
                 "local-plugin-plugin",
-                true
+                true,
+                any()
             )
         } returns flowOf(
             scraper to listOf(
@@ -189,7 +190,7 @@ class StreamRepositoryPluginIsolationTest {
         val harness = newHarness(listOf(scraper))
         coEvery { harness.tmdbService.ensureTmdbId("tt1341338", "movie") } returns "123"
         every {
-            harness.pluginManager.executeScrapersStreaming("123", "movie", null, null, "local-plugin-plugin", any())
+            harness.pluginManager.executeScrapersStreaming("123", "movie", null, null, "local-plugin-plugin", any(), any())
         } returns flowOf(
             scraper to listOf(
                 LocalScraperResult(
@@ -243,7 +244,7 @@ class StreamRepositoryPluginIsolationTest {
         )
         coEvery { harness.tmdbService.ensureTmdbId("tt1341338", "movie") } returns "123"
         every {
-            harness.pluginManager.executeScrapersStreaming("123", "movie", null, null, null, false)
+            harness.pluginManager.executeScrapersStreaming("123", "movie", null, null, null, false, any())
         } returns
             flowOf(*scrapers.map { scraper ->
                 scraper to listOf(LocalScraperResult(
@@ -324,6 +325,9 @@ class StreamRepositoryPluginIsolationTest {
                 tmdbService = tmdbService,
                 debridStreamPresentation = presentation,
                 localDebridAvailabilityService = availability,
+                playerSettingsDataStore = mockk {
+                    every { playerSettings } returns flowOf(com.nuvio.tv.data.local.PlayerSettings())
+                },
                 serverStreams = mockk {
                     every { isNativeRequest(any()) } returns false
                     every { revision } returns 0

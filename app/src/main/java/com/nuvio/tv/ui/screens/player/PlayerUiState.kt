@@ -289,6 +289,9 @@ data class PlaybackTimelineState(
     val watchedDurationMs: Long = 0L
 )
 
+/** Synthetic audio-track indices at or below this value are MovieBox language variants. */
+internal const val MOVIEBOX_VARIANT_INDEX_BASE = -1000
+
 data class TrackInfo(
     val index: Int,
     val name: String,

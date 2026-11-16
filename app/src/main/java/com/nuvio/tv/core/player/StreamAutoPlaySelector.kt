@@ -158,7 +158,7 @@ object StreamAutoPlaySelector {
             StreamAutoPlayMode.FIRST_STREAM -> {
                 // Best quality this device can actually play first (display max + decoder support,
                 // see DeviceVideoCapabilities), CinemaOS providers before other addons, then
-                // provider order HdHub > Wing > Movy > MovieBox within a quality.
+                // provider order HdHub > Movy > Wing > MovieBox within a quality.
                 val playable = candidateStreams.filter { isPlayable(it) }
                 if (isAnimeContent) {
                     // Anime: only the CinemaOS anime scrapers may be auto-picked (never HDHub /
@@ -248,11 +248,11 @@ fun animeProviderRank(addonName: String): Int = when {
     else -> 0
 }
 
-/** Movie/TV provider priority: HdHub > Wing > Movy > MovieBox. */
+/** Movie/TV provider priority: HdHub > Movy > Wing > MovieBox. */
 fun autoPlayProviderRank(addonName: String): Int = when {
     addonName.contains("HdHub", true) -> 4
-    addonName.contains("Wing", true) -> 3
-    addonName.contains("Movy", true) -> 2
+    addonName.contains("Movy", true) -> 3
+    addonName.contains("Wing", true) -> 2
     addonName.contains("MovieBox", true) -> 1
     else -> 0
 }

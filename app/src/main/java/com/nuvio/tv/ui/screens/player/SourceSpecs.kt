@@ -27,13 +27,13 @@ import java.util.Locale
 /** One spec chip shown for a source: optional vector icon plus text. */
 internal data class SourceSpec(val label: String, @DrawableRes val icon: Int? = null)
 
-private val RX_WEBDL = Regex("web[-. ]?dl", RegexOption.IGNORE_CASE)
+private val RX_WEBDL = Regex("web[-. ]?dl|\\bweb\\b|\\bamzn\\b|\\bnf\\b|\\bdsnp\\b", RegexOption.IGNORE_CASE)
 private val RX_WEBRIP = Regex("web[-. ]?rip", RegexOption.IGNORE_CASE)
 private val RX_BLURAY = Regex("blu[-. ]?ray|bdrip|brrip", RegexOption.IGNORE_CASE)
 private val RX_REMUX = Regex("remux", RegexOption.IGNORE_CASE)
 private val RX_ATMOS = Regex("atmos", RegexOption.IGNORE_CASE)
-private val RX_DDP = Regex("ddp|dd\\+|e-?ac-?3", RegexOption.IGNORE_CASE)
-private val RX_DD = Regex("\\bdd\\s?[257]|\\bac-?3\\b|dolby\\s*digital", RegexOption.IGNORE_CASE)
+private val RX_DDP = Regex("\\bddp|dd\\+|e[-. ]?ac[-. ]?3|dolby\\s*digital\\s*plus", RegexOption.IGNORE_CASE)
+private val RX_DD = Regex("\\bdd[-. ]?[257]|\\bac[-. ]?3\\b|dolby\\s*digital", RegexOption.IGNORE_CASE)
 private val RX_DTSX = Regex("dts[-: .]?x", RegexOption.IGNORE_CASE)
 private val RX_DTSHD = Regex("dts[-: .]?hd", RegexOption.IGNORE_CASE)
 private val RX_DTSMA = Regex("dts[-: .]?hd[-: .]?ma|\\bma\\b", RegexOption.IGNORE_CASE)
@@ -42,14 +42,14 @@ private val RX_TRUEHD = Regex("true[-. ]?hd", RegexOption.IGNORE_CASE)
 private val RX_DV = Regex("dolby[-. ]?vision|\\bdovi\\b|\\bdv\\b", RegexOption.IGNORE_CASE)
 private val RX_HDR10P = Regex("hdr10\\+|hdr10plus", RegexOption.IGNORE_CASE)
 private val RX_HDR10 = Regex("hdr10", RegexOption.IGNORE_CASE)
-private val RX_HDR = Regex("hdr", RegexOption.IGNORE_CASE)
+private val RX_HDR = Regex("hdr(?!ip)", RegexOption.IGNORE_CASE)
 private val RX_SDR = Regex("\\bsdr\\b", RegexOption.IGNORE_CASE)
-private val RX_HEVC = Regex("hevc|x265|h[. ]?265", RegexOption.IGNORE_CASE)
+private val RX_HEVC = Regex("hevc|x[. ]?265|h[. ]?265", RegexOption.IGNORE_CASE)
 private val RX_AV1 = Regex("\\bav1\\b", RegexOption.IGNORE_CASE)
-private val RX_H264 = Regex("x264|h[. ]?264|\\bavc\\b", RegexOption.IGNORE_CASE)
+private val RX_H264 = Regex("x[. ]?264|h[. ]?264|\\bavc\\b", RegexOption.IGNORE_CASE)
 private val RX_10BIT = Regex("10[-. ]?bit|hi10", RegexOption.IGNORE_CASE)
 private val RX_CH = Regex("(?<![\\d.])([2578])[. ]([01])(?!\\d)", RegexOption.IGNORE_CASE)
-private val RX_DDP_CH = Regex("(?:ddp|dd\\+|dd|eac3|ac3|aac|dts)[-. ]?([2578])(?![\\d])", RegexOption.IGNORE_CASE)
+private val RX_DDP_CH = Regex("(?:ddp|dd\\+|dd|e-?ac-?3|ac-?3|aac|dts)[-. ]?([2578])(?![\\d])", RegexOption.IGNORE_CASE)
 private val RX_SIZE = Regex("(\\d+(?:[.,]\\d+)?)\\s?(gb|mb)\\b", RegexOption.IGNORE_CASE)
 
 internal fun formatSourceSize(bytes: Long?): String? {
@@ -60,7 +60,13 @@ internal fun formatSourceSize(bytes: Long?): String? {
 
 /** Parses name/title/description/filename keywords into ordered spec chips. */
 internal fun Stream.sourceSpecs(): List<SourceSpec> {
-    val t = listOfNotNull(name, title, description, behaviorHints?.filename).joinToString(" ")
+    val urlName = listOfNotNull(url, externalUrl).firstOrNull()?.substringBefore('?')?.substringAfterLast('/')
+        ?.let { runCatching { java.net.URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+    val t = listOfNotNull(
+        name, title, description, behaviorHints?.filename, behaviorHints?.bingeGroup, urlName, quality
+    ).joinToString(" ")
+        .replace('_', ' ')
+        .replace(Regex("(?i)\\bdolby\\s+vision\\b"), "Dolby Vision")
     val out = ArrayList<SourceSpec>()
 
     when {

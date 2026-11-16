@@ -617,6 +617,10 @@ class PlaybackSettingsViewModel @Inject constructor(
         playerSettingsDataStore.setNextEpisodeThresholdMinutesBeforeEnd(minutes)
     }
 
+    suspend fun setSearchAllSourcesAtOnce(enabled: Boolean) {
+        playerSettingsDataStore.setSearchAllSourcesAtOnce(enabled)
+    }
+
     suspend fun setStreamReuseLastLinkEnabled(enabled: Boolean) {
         playerSettingsDataStore.setStreamReuseLastLinkEnabled(enabled)
     }

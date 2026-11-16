@@ -71,7 +71,8 @@ class PluginManager {
         season: Int? = null,
         episode: Int? = null,
         priorityBingeGroup: String? = null,
-        preferredPluginOnly: Boolean = false
+        preferredPluginOnly: Boolean = false,
+        sequential: Boolean = false
     ): Flow<Pair<ScraperInfo, List<LocalScraperResult>>> = emptyFlow()
 
     suspend fun executeScraper(

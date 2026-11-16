@@ -214,6 +214,13 @@ internal fun PlaybackStreamSelectionSection(
     )
 
     SettingsToggleRow(
+        title = stringResource(R.string.autoplay_search_all_sources),
+        subtitle = stringResource(R.string.autoplay_search_all_sources_sub),
+        checked = settings.searchAllSourcesAtOnce,
+        onToggle = { onUpdate { setSearchAllSourcesAtOnce(!settings.searchAllSourcesAtOnce) } }
+    )
+
+    SettingsToggleRow(
         title = stringResource(R.string.autoplay_reuse_last_link),
         subtitle = stringResource(R.string.autoplay_reuse_last_link_sub),
         checked = settings.streamReuseLastLinkEnabled,

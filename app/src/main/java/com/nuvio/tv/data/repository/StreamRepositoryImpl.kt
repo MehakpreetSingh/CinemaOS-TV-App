@@ -60,7 +60,8 @@ class StreamRepositoryImpl @Inject constructor(
     private val tmdbService: TmdbService,
     private val debridStreamPresentation: DebridStreamPresentation,
     private val localDebridAvailabilityService: LocalDebridAvailabilityService,
-    private val serverStreams: ServerStreams
+    private val serverStreams: ServerStreams,
+    private val playerSettingsDataStore: com.nuvio.tv.data.local.PlayerSettingsDataStore
 ) : StreamRepository {
     private val streamSearchSessions = StreamSearchSessionCache()
     private val localPluginSearchPaused = MutableStateFlow(false)
@@ -596,14 +597,17 @@ class StreamRepositoryImpl @Inject constructor(
                 season = season,
                 episode = episode,
                 priorityBingeGroup = priorityBingeGroup,
-                preferredPluginOnly = preferredPluginOnly
+                preferredPluginOnly = preferredPluginOnly,
+                sequential = !playerSettingsDataStore.playerSettings.first().searchAllSourcesAtOnce
             ).collect { (scraper, results) ->
                 if (results.isNotEmpty()) {
                     val addonName = scraper.pluginAddonName(groupByRepository, repositoriesById)
                     val addonStreams = AddonStreams(
                         addonName = addonName,
                         addonLogo = null,
-                        streams = results.map { result -> result.toPluginStream(scraper, addonName) }
+                        streams = com.nuvio.tv.core.player.MovieBoxLanguageVariants.collapse(
+                            results.map { result -> result.toPluginStream(scraper, addonName) }
+                        )
                     )
                     resultChannel.send(addonStreams)
                     Log.d(TAG, "Streamed ${results.size} results from ${scraper.name}")
