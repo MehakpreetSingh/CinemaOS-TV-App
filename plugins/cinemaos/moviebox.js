@@ -4,7 +4,7 @@
  *  1. H5 play endpoint (movie-box.co) - real MP4 streams + DASH manifests
  *  2. resourceDetectors in the mobile subject detail - direct MP4 links
  *  3. mobile play-info - host rotation + alt key, decoy CDN paths rejected
- * Uses the host's crypto-js, fetch and TMDB_API_KEY globals. No timers exist in the host,
+ * Uses the host's crypto-js and fetch globals (TMDB via cinemaos.tech proxy). No timers exist in the host,
  * so per-request timeouts rely on the host's 30 s OkHttp timeout and the 60 s plugin cap.
  */
 var CryptoJS = require('crypto-js');
@@ -428,10 +428,28 @@ async function getSubtitles(subjectId, streamId) {
 
 // ---- TMDB -------------------------------------------------------------------
 
+// TMDB via the CinemaOS web app proxy (host TMDB_API_KEY is empty). No cookies are sent.
+var TMDB_PROXY = 'https://cinemaos.tech/api/tmdb';
+async function tmdbProxy(requestID, id, type) {
+  var ref = 'https://cinemaos.tech/' + (type === 'movie' ? 'movie' : 'tv') + '/' + id;
+  var res = await fetch(TMDB_PROXY + '?requestID=' + requestID + '&id=' + id + '&language=en-US', {
+    headers: {
+      Accept: '*/*',
+      'Accept-Language': 'en-IN,en;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+      Referer: ref,
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Dest': 'empty'
+    }
+  });
+  if (!res.ok) throw new Error('tmdb proxy ' + res.status);
+  return await res.json();
+}
+
 async function tmdbDetails(type, id) {
   try {
-    var res = await fetch('https://api.themoviedb.org/3/' + (type === 'movie' ? 'movie' : 'tv') + '/' + id + '?api_key=' + TMDB_API_KEY);
-    return await res.json();
+    return await tmdbProxy(type === 'movie' ? 'movieData' : 'tvData', id, type);
   } catch (e) {
     return null;
   }

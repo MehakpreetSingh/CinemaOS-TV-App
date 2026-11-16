@@ -117,12 +117,28 @@ function rank(q) {
   return parseInt(q, 10) || 0;
 }
 
+// TMDB via the CinemaOS web app proxy (host TMDB_API_KEY is empty). No cookies are sent.
+var TMDB_PROXY = 'https://cinemaos.tech/api/tmdb';
+async function tmdbProxy(requestID, id, type) {
+  var ref = 'https://cinemaos.tech/' + (type === 'movie' ? 'movie' : 'tv') + '/' + id;
+  var res = await fetch(TMDB_PROXY + '?requestID=' + requestID + '&id=' + id + '&language=en-US', {
+    headers: {
+      Accept: '*/*',
+      'Accept-Language': 'en-IN,en;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+      Referer: ref,
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-Mode': 'cors',
+      'Sec-Fetch-Dest': 'empty'
+    }
+  });
+  if (!res.ok) throw new Error('tmdb proxy ' + res.status);
+  return await res.json();
+}
+
 async function tmdbInfo(type, id) {
   try {
-    var res = await fetch(
-      'https://api.themoviedb.org/3/' + (type === 'movie' ? 'movie' : 'tv') + '/' + id + '?api_key=' + TMDB_API_KEY + '&append_to_response=external_ids'
-    );
-    var d = await res.json();
+    var d = await tmdbProxy(type === 'movie' ? 'movieData' : 'tvData', id, type);
     return {
       title: (d && (d.title || d.name)) || '',
       year: String((d && (d.release_date || d.first_air_date)) || '').slice(0, 4),
