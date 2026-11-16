@@ -522,9 +522,31 @@ fun EpisodesRow(
         anchorPlaced = true
     }
 
+    val pillListState = rememberLazyListState()
+    var focusedPill by remember { mutableStateOf(-1) }
+    var focusedEpisodeId by remember { mutableStateOf<String?>(null) }
+    var pendingFocusEpisodeId by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(focusedPill) {
+        if (focusedPill >= 0) pillListState.animateScrollToItem((focusedPill - 1).coerceAtLeast(0))
+    }
+    LaunchedEffect(selectedRange) {
+        if (showRanges && pendingFocusEpisodeId == null && focusedPill >= 0) lazyListState.scrollToItem(0)
+    }
+    LaunchedEffect(selectedRange, pendingFocusEpisodeId) {
+        val id = pendingFocusEpisodeId ?: return@LaunchedEffect
+        val idx = dedupedEpisodes.indexOfFirst { it.id == id }
+        if (idx < 0) return@LaunchedEffect
+        lazyListState.scrollToItem(idx)
+        withFrameNanos { }
+        withFrameNanos { }
+        try { episodeFocusRequesters[id]?.requestFocus() } catch (_: Exception) {}
+        pendingFocusEpisodeId = null
+    }
+
     Column {
     if (showRanges) {
         LazyRow(
+            state = pillListState,
             contentPadding = PaddingValues(horizontal = cardMetrics.rowHorizontalPadding, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
         ) {
@@ -539,23 +561,35 @@ fun EpisodesRow(
                     onClick = { selectedRange = r },
                     modifier = Modifier
                         .then(if (isSelected) Modifier.focusRequester(rangePillsFocusRequester) else Modifier)
-                        .focusProperties { up = upFocusRequester }
+                        .focusProperties {
+                            up = upFocusRequester
+                            val firstId = allEpisodes.getOrNull(r * EPISODE_RANGE_SIZE)?.id
+                            val req = if (r == selectedRange && firstId != null) episodeFocusRequesters[firstId] else null
+                            if (req != null) down = req
+                        }
                         .onFocusChanged {
                             pillFocused = it.isFocused
-                            if (it.isFocused && !isSelected) selectedRange = r
+                            if (it.isFocused) {
+                                focusedPill = r
+                                if (!isSelected) selectedRange = r
+                            }
                         },
                     shape = CardDefaults.shape(shape = RoundedCornerShape(50)),
+                    scale = CardDefaults.scale(focusedScale = 1.1f),
+                    border = CardDefaults.border(
+                        focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = RoundedCornerShape(50))
+                    ),
                     colors = CardDefaults.colors(
-                        containerColor = if (isSelected) NuvioTheme.colors.SurfaceVariant else NuvioTheme.colors.BackgroundCard,
-                        focusedContainerColor = NuvioTheme.colors.Secondary
+                        containerColor = if (isSelected) NuvioTheme.colors.Secondary else NuvioTheme.colors.BackgroundCard,
+                        focusedContainerColor = if (isSelected) NuvioTheme.colors.Secondary else NuvioTheme.colors.BackgroundCard
                     )
                 ) {
                     Text(
                         text = "$firstNum-$lastNum",
                         style = MaterialTheme.typography.labelLarge,
                         color = when {
-                            pillFocused -> NuvioTheme.colors.OnSecondary
-                            isSelected -> NuvioTheme.colors.TextPrimary
+                            isSelected -> NuvioTheme.colors.OnSecondary
+                            pillFocused -> NuvioTheme.colors.TextPrimary
                             else -> NuvioTheme.extendedColors.textSecondary
                         },
                         modifier = Modifier.padding(vertical = 8.dp, horizontal = 18.dp)
@@ -571,6 +605,28 @@ fun EpisodesRow(
                 val native = event.nativeKeyEvent
                 val isHorizontalKey = native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_LEFT ||
                     native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_RIGHT
+                if (showRanges && isHorizontalKey && native.action == AndroidKeyEvent.ACTION_DOWN) {
+                    val fIdx = dedupedEpisodes.indexOfFirst { it.id == focusedEpisodeId }
+                    if (native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_RIGHT &&
+                        fIdx == dedupedEpisodes.lastIndex && selectedRange < rangeCount - 1
+                    ) {
+                        val nextFirst = allEpisodes.getOrNull((selectedRange + 1) * EPISODE_RANGE_SIZE)
+                        if (nextFirst != null) {
+                            pendingFocusEpisodeId = nextFirst.id
+                            selectedRange += 1
+                            return@onPreviewKeyEvent true
+                        }
+                    } else if (native.keyCode == AndroidKeyEvent.KEYCODE_DPAD_LEFT &&
+                        fIdx == 0 && selectedRange > 0
+                    ) {
+                        val prevLast = allEpisodes.getOrNull(selectedRange * EPISODE_RANGE_SIZE - 1)
+                        if (prevLast != null) {
+                            pendingFocusEpisodeId = prevLast.id
+                            selectedRange -= 1
+                            return@onPreviewKeyEvent true
+                        }
+                    }
+                }
                 if (
                     isHorizontalKey &&
                     native.action == AndroidKeyEvent.ACTION_DOWN &&
@@ -603,7 +659,7 @@ fun EpisodesRow(
             val episodeFocusRequester = remember(episode.id) { episodeFocusRequesters.getOrPut(episode.id) { FocusRequester() } }
             val episodeOnClick = remember(episode, onEpisodeClick) { { onEpisodeClick(episode) } }
             val episodeOnLongPress = remember(episode.id) { { optionsEpisode = episode } }
-            val episodeOnFocused = remember(episode.id) { { onEpisodeFocused(episode.id) } }
+            val episodeOnFocused = remember(episode.id) { { focusedEpisodeId = episode.id; onEpisodeFocused(episode.id) } }
             val isRestoreTarget = episode.id == restoreEpisodeId
             val episodeOnFocusRestored = remember(isRestoreTarget, onRestoreFocusHandled) {
                 if (isRestoreTarget) onRestoreFocusHandled else null
