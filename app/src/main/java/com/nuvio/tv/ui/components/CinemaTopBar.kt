@@ -90,21 +90,10 @@ fun CinemaTopBar(
         modifier = modifier
             .fillMaxWidth()
             .height(120.dp)
-            .background(
-                Brush.verticalGradient(
-                    0f to Color.Black.copy(alpha = 0.5f),
-                    1f to Color.Transparent
-                )
-            )
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
             .padding(horizontal = 48.dp)
             .padding(top = 24.dp)
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_cinema_clapper),
-            contentDescription = null,
-            modifier = Modifier.size(22.dp).align(Alignment.TopStart).padding(top = 11.dp)
-        )
         Row(
             modifier = Modifier
                 .align(Alignment.TopCenter)

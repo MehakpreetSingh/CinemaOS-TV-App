@@ -1901,6 +1901,7 @@ private fun CinemaTopBarScaffold(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(com.nuvio.tv.ui.theme.NuvioTheme.colors.Background)
             .onPreviewKeyEvent { keyEvent ->
                 if (longPressBackHeld.value && keyEvent.key == Key.Back) {
                     if (keyEvent.type == KeyEventType.KeyUp) longPressBackHeld.value = false
