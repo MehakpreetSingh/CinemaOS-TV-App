@@ -193,10 +193,10 @@ fun SearchScreen(
     }
     val isVoiceSearchAvailable = remember(context) { SpeechRecognizer.isRecognitionAvailable(context) }
     val topInputFocusRequester = remember(isVoiceSearchAvailable) {
-        if (isVoiceSearchAvailable) voiceFocusRequester else searchFocusRequester
+        searchFocusRequester
     }
     // Whichever of voice/text field was focused last is where Up or Back from results returns to.
-    var lastInputWasVoice by remember { mutableStateOf(isVoiceSearchAvailable) }
+    var lastInputWasVoice by remember { mutableStateOf(false) }
     val lastInputFocusRequester =
         if (isVoiceSearchAvailable && lastInputWasVoice) voiceFocusRequester else searchFocusRequester
     val speechRecognizer = remember(context, isVoiceSearchAvailable) {
@@ -618,8 +618,26 @@ fun SearchScreen(
             searchRowStates.values.toList().forEach { it.scrollToItem(0) }
         }
 
+        Column(modifier = Modifier.fillMaxSize().padding(start = 52.dp, end = 52.dp, top = 8.dp)) {
+        AppleSearchHeader(query = uiState.query)
+        Box(
+            Modifier.fillMaxWidth().padding(start = 316.dp, top = 12.dp).height(1.dp)
+                .background(Color.White.copy(alpha = 0.18f))
+        )
+        Row(modifier = Modifier.fillMaxSize().padding(top = 4.dp)) {
+        AppleKeyboard(
+            query = uiState.query,
+            onQueryChange = handleQueryChanged,
+            onVoice = launchVoiceSearch,
+            firstKeyFocusRequester = searchFocusRequester,
+            voiceFocusRequester = if (isVoiceSearchAvailable) voiceFocusRequester else null,
+            onVoiceFocused = { focused -> if (focused) lastInputWasVoice = true },
+            modifier = Modifier.padding(top = 6.dp)
+        )
+        Spacer(Modifier.width(16.dp))
         LazyColumn(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxSize()
                 .recompositionHighlighter()
                 .dpadRepeatThrottle(),
@@ -630,47 +648,18 @@ fun SearchScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
         ) {
-            item(key = "search_input") {
-                SearchInputField(
-                    modifier = Modifier.onFocusChanged { inputRowHasFocus = it.hasFocus },
-                    query = uiState.query,
-                    canMoveToResults = canMoveToResults,
-                    voiceFocusRequester = if (isVoiceSearchAvailable) voiceFocusRequester else null,
-                    searchFocusRequester = searchFocusRequester,
-                    onSearchFieldFocusChanged = { focused ->
-                        isSearchFieldFocused = focused
-                        if (focused) lastInputWasVoice = false
-                    },
-                    onVoiceFocusChanged = { focused -> if (focused) lastInputWasVoice = true },
-                    onQueryChanged = handleQueryChanged,
-                    onSubmit = {
-                        submitCurrentQuery(uiState.query.trim())
-                    },
-                    showVoiceSearch = isVoiceSearchAvailable,
-                    isVoiceListening = isVoiceListening,
-                    voiceRmsLevel = voiceRmsLevel,
-                    onVoiceSearch = launchVoiceSearch,
-                    onMoveToResults = {
-                        // D-pad down from the text field is the user's confirmation that the
-                        // live-search results are useful, even before a particular card opens.
-                        viewModel.onEvent(SearchEvent.RememberSearchFromTextInput)
-                        focusResults = true
-                    },
-                    onOpenDiscover = {
-                        // Arm the restore so coming back lands on this button rather than the
-                        // default entry focus.
-                        pendingDiscoverRestoreOnResume = true
-                        onOpenDiscover()
-                    },
-                    discoverFocusRequester = discoverButtonFocusRequester,
-                    showDiscoverButton = uiState.discoverLocation == DiscoverLocation.IN_SEARCH,
-                    keyboardController = keyboardController,
-                    clearHistoryFocusRequester = if (showRecentSearches) recentClearHistoryFocusRequester else null,
-                    isScreenActive = isScreenActive
-                )
-            }
-
             if (isDiscoverMode) {
+                item(key = "apple_browse") {
+                    val browseAddonBase = uiState.discoverCatalogs
+                        .firstOrNull { it.key == uiState.selectedDiscoverCatalogKey }?.addonBaseUrl.orEmpty()
+                    AppleBrowseRow(
+                        items = uiState.discoverResults,
+                        onItemClick = { item ->
+                            HeroBackdropState.update(item.backdropUrl)
+                            onNavigateToDetail(item.id, item.apiType, browseAddonBase)
+                        }
+                    )
+                }
                 if (showRecentSearches) {
                     item(key = "recent_searches") {
                         RecentSearchesSection(
@@ -941,6 +930,8 @@ fun SearchScreen(
                     }
                 }
             }
+        }
+        }
         }
     }
 

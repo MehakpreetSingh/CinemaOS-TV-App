@@ -86,30 +86,34 @@ fun CinemaTopBar(
     val clock = remember(now) {
         java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(now)
     }
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(100.dp)
+            .height(120.dp)
             .background(
                 Brush.verticalGradient(
-                    0f to Color(0xC709090B),
-                    0.55f to Color(0x7309090B),
+                    0f to Color.Black.copy(alpha = 0.5f),
                     1f to Color.Transparent
                 )
             )
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
-            .padding(horizontal = 80.dp)
-            .selectableGroup(),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 48.dp)
+            .padding(top = 24.dp)
     ) {
         Image(
             painter = painterResource(R.drawable.ic_cinema_clapper),
             contentDescription = null,
-            modifier = Modifier.size(30.dp)
+            modifier = Modifier.size(22.dp).align(Alignment.TopStart).padding(top = 11.dp)
         )
-        Spacer(Modifier.width(52.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.4f))
+                .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                .padding(4.dp)
+                .selectableGroup(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
@@ -132,13 +136,12 @@ fun CinemaTopBar(
                 )
             }
         }
-        Spacer(Modifier.weight(1f))
         Text(
             text = clock,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 10.dp),
             style = TextStyle(
-                                fontSize = 20.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = 0.8.sp,
                 color = Color(0xFFA1A1AA)
             )
         )
@@ -162,7 +165,7 @@ private fun CinemaTopBarPill(
             .onFocusChanged { focused = it.isFocused }
             .graphicsLayer { scaleX = focusScale; scaleY = focusScale }
             .then(
-                if (selected) Modifier.shadow(10.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                if (selected) Modifier
                 else Modifier
             )
             .semantics {
@@ -172,10 +175,10 @@ private fun CinemaTopBarPill(
             },
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = if (selected) Color.White else Color.Transparent,
-            contentColor = if (selected) Color(0xFF09090B) else Color(0xFFB4B4BB),
-            focusedContainerColor = if (selected) Color.White else Color.White.copy(alpha = 0.15f),
-            focusedContentColor = if (selected) Color(0xFF09090B) else Color.White,
+            containerColor = if (selected) Color.White.copy(alpha = 0.85f) else Color.Transparent,
+            contentColor = if (selected) Color(0xFF09090B) else Color(0xFFD4D4D8),
+            focusedContainerColor = Color.White,
+            focusedContentColor = Color(0xFF09090B),
             pressedContainerColor = Color.White.copy(alpha = 0.25f),
             pressedContentColor = if (selected) Color(0xFF09090B) else Color.White
         ),
@@ -194,7 +197,7 @@ private fun CinemaTopBarPill(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 24.dp, vertical = 9.dp),
+                .padding(horizontal = 18.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
@@ -202,15 +205,15 @@ private fun CinemaTopBarPill(
                 Icon(
                     imageVector = Icons.Filled.Search,
                     contentDescription = null,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
             Text(
                 text = label,
                 style = TextStyle(
-                                        fontSize = 20.sp,
+                    fontSize = 16.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    letterSpacing = 0.4.sp
+                    letterSpacing = 0.2.sp
                 ),
                 maxLines = 1
             )

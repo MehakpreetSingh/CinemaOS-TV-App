@@ -1909,8 +1909,8 @@ private fun CinemaTopBarScaffold(
                 false
             }
     ) {
-        // All root screens (incl. Home) start below the bar so hero text never collides with it.
-        val topInset = if (showBar) 92.dp else 0.dp
+        // Home runs full-bleed behind the bar; other root screens sit below it.
+        val topInset = if (showBar && currentRoute != Screen.Home.route) 72.dp else 0.dp
         Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
