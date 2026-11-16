@@ -51,6 +51,34 @@
         "tv"
       ],
       "enabled": true
+    },
+    {
+      "id": "cinemaos-megaplay",
+      "name": "CinemaOS \u00b7 MegaPlay",
+      "description": "MegaPlay anime HLS (SUB / DUB) for Kitsu, AniList, MAL and TMDB ids",
+      "version": "1.0.0",
+      "filename": "cinemaos-megaplay.js",
+      "supportedTypes": [
+        "movie",
+        "tv",
+        "series",
+        "anime"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-anikoto",
+      "name": "CinemaOS \u00b7 Anikoto",
+      "description": "Anikoto anime multi-server HLS (SUB / DUB / hard-sub)",
+      "version": "1.0.0",
+      "filename": "cinemaos-anikoto.js",
+      "supportedTypes": [
+        "movie",
+        "tv",
+        "series",
+        "anime"
+      ],
+      "enabled": true
     }
   ]
 }
