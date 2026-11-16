@@ -293,6 +293,8 @@ class AddonRepositoryImpl(
         }
         .stateIn(syncScope, SharingStarted.Eagerly, emptyList<Addon>())
 
+    override suspend fun seedDefaultAddonsOnce() = preferences.seedDefaultAddonsOnce()
+
     override fun getInstalledAddons(): Flow<List<Addon>> = installedAddonsFlow
 
     override suspend fun fetchAddon(baseUrl: String): NetworkResult<Addon> {

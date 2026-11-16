@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface AddonRepository {
     fun getInstalledAddons(): Flow<List<Addon>>
+    /** One-time append of newly added default addons to existing installs. */
+    suspend fun seedDefaultAddonsOnce() {}
     suspend fun fetchAddon(baseUrl: String): NetworkResult<Addon>
     suspend fun addAddon(url: String)
     suspend fun removeAddon(url: String)

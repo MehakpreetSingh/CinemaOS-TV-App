@@ -130,8 +130,15 @@ internal fun HomeViewModel.observeTmdbSettingsPipeline() {
 @OptIn(FlowPreview::class)
 internal fun HomeViewModel.observeInstalledAddonsPipeline() {
     viewModelScope.launch {
+        runCatching { addonRepository.seedDefaultAddonsOnce() }
+        runCatching { layoutPreferenceDataStore.migrateToCinemaOsLayoutOnce() }
+    }
+    viewModelScope.launch {
         combine(addonRepository.getInstalledAddons(), serverCatalog.addons) { installed, servers ->
-            installed.enabledAddons() + servers
+            // Anime Kitsu catalogs live on the Anime tab only; Home stays movies/TV.
+            val enabled = installed.enabledAddons()
+            if (animeMode) enabled.filter { it.isAnimeKitsuAddon() }
+            else enabled.filterNot { it.isAnimeKitsuAddon() } + servers
         }
             .distinctUntilChanged()
             .collectLatest { addons ->
@@ -1199,3 +1206,6 @@ internal fun HomeViewModel.refreshVisibleCatalogsPipeline(requestedByUser: Boole
         loadCatalogPipeline(addon, catalog, generation, isRefresh = true, requestedByUser = requestedByUser, forceReplace = forceReplace)
     }
 }
+
+internal fun com.nuvio.tv.domain.model.Addon.isAnimeKitsuAddon(): Boolean =
+    baseUrl.contains("anime-kitsu", ignoreCase = true) || id.contains("kitsu", ignoreCase = true)

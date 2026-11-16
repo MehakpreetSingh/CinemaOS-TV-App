@@ -1075,6 +1075,7 @@ open class MainActivity : ComponentActivity() {
                     val rootRoutes = remember(discoverLocation) {
                         buildSet {
                             add(Screen.Home.route)
+                            add(Screen.Anime.route)
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
@@ -1086,12 +1087,14 @@ open class MainActivity : ComponentActivity() {
 
                     val strNavHome = stringResource(R.string.nav_home)
                     val strNavDiscover = stringResource(R.string.nav_discover)
+                    val strNavAnime = stringResource(R.string.nav_anime)
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavSettings = stringResource(R.string.nav_settings)
                     val drawerItems = remember(
                         strNavHome,
                         strNavDiscover,
+                        strNavAnime,
                         strNavSearch,
                         strNavLibrary,
                         strNavSettings,
@@ -1114,6 +1117,13 @@ open class MainActivity : ComponentActivity() {
                                     )
                                 )
                             }
+                            add(
+                                DrawerItem(
+                                    route = Screen.Anime.route,
+                                    label = strNavAnime,
+                                    icon = Icons.Default.Explore
+                                )
+                            )
                             add(
                                 DrawerItem(
                                     route = Screen.Search.route,

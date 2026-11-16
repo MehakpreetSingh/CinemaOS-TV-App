@@ -70,6 +70,7 @@ class LayoutPreferenceDataStore @Inject constructor(
 
     private val layoutKey = stringPreferencesKey("selected_layout")
     private val hasChosenKey = booleanPreferencesKey("has_chosen_layout")
+    private val cinemaOsLayoutMigratedKey = booleanPreferencesKey("cinemaos_layout_migrated_v1")
     private val heroCatalogKey = stringPreferencesKey("hero_catalog_key")
     private val heroCatalogKeysKey = stringPreferencesKey("hero_catalog_keys")
     private val homeCatalogOrderKeysKey = stringPreferencesKey("home_catalog_order_keys")
@@ -501,6 +502,15 @@ class LayoutPreferenceDataStore @Inject constructor(
             } else {
                 prefs[customPosterEnabledScreensKey] = stored
             }
+        }
+    }
+
+    /** One-time switch of previously stored layouts to CINEMAOS; later manual choices stick. */
+    suspend fun migrateToCinemaOsLayoutOnce() {
+        store().edit { prefs ->
+            if (prefs[cinemaOsLayoutMigratedKey] == true) return@edit
+            prefs[layoutKey] = HomeLayout.CINEMAOS.name
+            prefs[cinemaOsLayoutMigratedKey] = true
         }
     }
 

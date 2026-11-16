@@ -95,9 +95,10 @@ private fun NavGraphBuilder.rootComposable(
     route: String,
     withInset: Boolean = true,
     withTopInset: Boolean = true,
+    arguments: List<androidx.navigation.NamedNavArgument> = emptyList(),
     content: @Composable (NavBackStackEntry) -> Unit
 ) {
-    composable(route) { backStackEntry ->
+    composable(route, arguments = arguments) { backStackEntry ->
         val inset = if (withInset) LocalRootContentInset.current else 0.dp
         val topInset = if (withTopInset) com.nuvio.tv.LocalRootTopInset.current else 0.dp
         // Opaque page background (same colour as the scaffold) so page swaps never dip to black.
@@ -127,7 +128,7 @@ private fun PlaybackNavHost(
 
     fun isRootRoute(route: String): Boolean =
         route == Screen.Home.route || route == Screen.Search.route || route == Screen.Library.route ||
-            route == Screen.Settings.route || route == Screen.Discover.route
+            route == Screen.Settings.route || route == Screen.Discover.route || route == Screen.Anime.route
 
     fun isPlayerToStream(from: String, to: String): Boolean {
         return from.startsWith("player/") && to.startsWith("stream/")
@@ -326,6 +327,37 @@ private fun PlaybackNavHost(
                 },
                 onNavigateToFolderDetail = { collectionId, folderId ->
                     navController.navigate(Screen.FolderDetail.createRoute(collectionId, folderId))
+                }
+            )
+        }
+
+        rootComposable(
+            Screen.Anime.route,
+            withTopInset = false,
+            arguments = listOf(navArgument("animeMode") {
+                type = NavType.BoolType
+                defaultValue = true
+            })
+        ) { backStackEntry ->
+            // Separate HomeViewModel instance (animeMode arg in its SavedStateHandle) that only
+            // loads the Anime Kitsu addon's catalogs; rendered with the same Apple home UI.
+            val animeViewModel: com.nuvio.tv.ui.screens.home.HomeViewModel =
+                androidx.hilt.navigation.compose.hiltViewModel(backStackEntry)
+            HomeScreen(
+                viewModel = animeViewModel,
+                onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
+                    val heroBackdrop = HeroBackdropState.consumeAndClear()
+                    navController.navigate(
+                        Screen.Detail.createRoute(
+                            itemId = itemId,
+                            itemType = itemType,
+                            addonBaseUrl = addonBaseUrl,
+                            heroBackdropUrl = heroBackdrop
+                        )
+                    )
+                },
+                onNavigateToCatalogSeeAll = { catalogId, addonId, type ->
+                    navController.navigate(Screen.CatalogSeeAll.createRoute(catalogId, addonId, type))
                 }
             )
         }

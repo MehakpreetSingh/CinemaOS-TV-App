@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.local
 
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -48,6 +49,7 @@ class AddonPreferences @Inject constructor(
     private val legacyUrlsKey = stringSetPreferencesKey("installed_addon_urls")
     private val userSetNamesKey = stringPreferencesKey("addon_user_set_names")
     private val addonEnabledStatesKey = stringPreferencesKey("installed_addon_enabled_states")
+    private val defaultsSeededV1Key = booleanPreferencesKey("default_addons_seeded_anime_v1")
     private val manifestSuffix = "/manifest.json"
 
     private fun canonicalizeUrl(url: String): String {
@@ -92,6 +94,29 @@ class AddonPreferences @Inject constructor(
                 preferences[orderedUrlsKey] = gson.toJson(legacySet.toList())
                 preferences.remove(legacyUrlsKey)
             }
+        }
+    }
+
+    /**
+     * One-time (flag-guarded) append of the current default addons (Anime Kitsu, HDHub) to stores
+     * created before they became defaults. A later manual removal sticks because the flag is set.
+     */
+    suspend fun seedDefaultAddonsOnce() {
+        val active = profileManager.activeProfile
+        if (active != null && !active.isPrimary && active.usesPrimaryAddons) return
+        store().edit { preferences ->
+            if (preferences[defaultsSeededV1Key] == true) return@edit
+            val current = getCurrentList(preferences)
+            val toAdd = getDefaultAddons().filter { def ->
+                current.none { canonicalizeUrl(it).equals(canonicalizeUrl(def), ignoreCase = true) }
+            }.map(::canonicalizeUrl)
+            if (toAdd.isNotEmpty()) {
+                preferences[orderedUrlsKey] = gson.toJson(current + toAdd)
+                val states = getCurrentEnabledStates(preferences).toMutableMap()
+                toAdd.forEach { states[it] = true }
+                preferences[addonEnabledStatesKey] = gson.toJson(states)
+            }
+            preferences[defaultsSeededV1Key] = true
         }
     }
 
@@ -241,6 +266,8 @@ class AddonPreferences @Inject constructor(
     private fun getDefaultAddons(): Set<String> = setOf(
         "https://v3-cinemeta.strem.io",
         "https://opensubtitles-v3.strem.io",
+        // Anime Kitsu (Stremio catalog/meta addon powering the Anime tab)
+        "https://anime-kitsu.strem.fun",
         // HDHub (third-party Stremio addon; the path segment is a public, non-secret config blob)
         "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
     )

@@ -93,7 +93,18 @@ fun HomeScreen(
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit = { _, _, _ -> },
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> }
 ) {
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val rawUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Anime tab: always the Apple look, and no Continue Watching rows (those live on Home).
+    val uiState = if (viewModel.animeMode) {
+        remember(rawUiState) {
+            rawUiState.copy(
+                homeLayout = HomeLayout.CINEMAOS,
+                continueWatchingEnabled = false,
+                continueWatchingItems = emptyList(),
+                upcomingItems = emptyList()
+            )
+        }
+    } else rawUiState
 
     // Home was the only major screen without a lifecycle observer, so nothing ever told it to
     // look at its catalogs again.

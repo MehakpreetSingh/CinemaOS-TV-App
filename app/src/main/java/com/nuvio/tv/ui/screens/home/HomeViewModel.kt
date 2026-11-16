@@ -93,8 +93,12 @@ class HomeViewModel @Inject constructor(
         tmdbService,
         tmdbMetadataService,
         mdbListRepository
-    )
+    ),
+    savedStateHandle: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle()
 ) : ViewModel() {
+    /** True for the Anime tab's instance: only the Anime Kitsu addon's catalogs are loaded. */
+    internal val animeMode: Boolean = savedStateHandle.get<Boolean>("animeMode") == true
+
     companion object {
         internal const val TAG = "HomeViewModel"
         internal const val STARTUP_GRACE_PERIOD_MS = 1_500L
