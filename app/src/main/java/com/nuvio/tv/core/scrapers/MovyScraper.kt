@@ -219,7 +219,7 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
         private val SITE_HEADERS = mapOf("Origin" to "https://www.movy.sx", "Referer" to "https://www.movy.sx/")
         private const val SLOTS = 61
         private val MS = 0x9E3779B9.toInt()
-        private val ACC_XOR = 0xA5A359A5.toInt()
+        private val ACC_XOR = 0xA5A5A5A5.toInt()
 
         private fun mix(v: Int): Int {
             var l = v
