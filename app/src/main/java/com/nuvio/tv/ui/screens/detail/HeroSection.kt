@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.tv.material3.Border
-import androidx.compose.ui.text.font.FontWeight
 import androidx.tv.material3.Button
 import androidx.tv.material3.ButtonDefaults
 import androidx.tv.material3.ExperimentalTvMaterial3Api
@@ -228,15 +227,8 @@ fun HeroContentSection(
                 ) {
                     Text(
                         text = meta.name,
-                        style = androidx.compose.ui.text.TextStyle(
-                            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                            fontSize = com.nuvio.tv.ui.components.csp(88),
-                            lineHeight = com.nuvio.tv.ui.components.csp(88),
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = com.nuvio.tv.ui.components.csp(-1.8)
-                        ),
+                        style = MaterialTheme.typography.displayMedium,
                         color = NuvioTheme.colors.TextPrimary,
-                        maxLines = 2,
                         modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
                     )
                 }
@@ -417,7 +409,6 @@ internal fun PlayButton(
             }
         },
         modifier = modifier
-            .height(com.nuvio.tv.ui.components.cdp(60))
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
             .onFocusChanged {
                 if (it.isFocused) {
@@ -479,7 +470,7 @@ internal fun PlayButton(
                 shape = RoundedCornerShape(NuvioTheme.spacing.xxl)
             )
         ),
-        contentPadding = PaddingValues(horizontal = com.nuvio.tv.ui.components.cdp(34), vertical = 0.dp)
+        contentPadding = PaddingValues(horizontal = NuvioTheme.spacing.xl, vertical = 14.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -494,7 +485,7 @@ internal fun PlayButton(
             Icon(
                 painter = playPainter,
                 contentDescription = null,
-                modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(24))
+                modifier = Modifier.size(18.dp)
             )
             AnimatedVisibility(
                 visible = text != null,
@@ -503,46 +494,11 @@ internal fun PlayButton(
             ) {
                 Text(
                     text = text ?: "",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(21),
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
         }
     }
-}
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun cinemaSecondaryHeroButtonColors() = ButtonDefaults.colors(
-    containerColor = Color(0xFF3F3F46).copy(alpha = 0.75f),
-    focusedContainerColor = Color.White,
-    contentColor = Color.White,
-    focusedContentColor = Color.Black
-)
-
-@OptIn(ExperimentalTvMaterial3Api::class)
-@Composable
-private fun cinemaHeroButtonBorder() = ButtonDefaults.border(
-    focusedBorder = Border(
-        border = BorderStroke(com.nuvio.tv.ui.components.cdp(2), Color.White),
-        shape = CircleShape
-    )
-)
-
-@Composable
-private fun HeroButtonLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge.copy(
-            fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-            fontSize = com.nuvio.tv.ui.components.csp(21),
-            fontWeight = FontWeight.SemiBold
-        ),
-        maxLines = 1
-    )
 }
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
@@ -554,27 +510,36 @@ private fun ActionIconButtonPainter(
     onFocused: () -> Unit = {},
     enabled: Boolean = true
 ) {
-    Button(
+    IconButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
-            .height(com.nuvio.tv.ui.components.cdp(60))
+            .size(NuvioTheme.spacing.xxxl)
             .onFocusChanged { state ->
                 if (state.isFocused) onFocused()
             }
             .focusProperties { up = FocusRequester.Cancel },
-        colors = cinemaSecondaryHeroButtonColors(),
-        border = cinemaHeroButtonBorder(),
-        shape = ButtonDefaults.shape(shape = CircleShape),
-        contentPadding = PaddingValues(horizontal = com.nuvio.tv.ui.components.cdp(30), vertical = 0.dp)
+        colors = IconButtonDefaults.colors(
+            containerColor = NuvioTheme.colors.BackgroundCard,
+            focusedContainerColor = NuvioTheme.colors.Secondary,
+            contentColor = NuvioTheme.colors.TextPrimary,
+            focusedContentColor = NuvioTheme.colors.OnSecondary
+        ),
+        border = IconButtonDefaults.border(
+            focusedBorder = Border(
+                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+                shape = CircleShape
+            )
+        ),
+        shape = IconButtonDefaults.shape(
+            shape = CircleShape
+        )
     ) {
         Icon(
             painter = painter,
-            contentDescription = null,
-            modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(24))
+            contentDescription = contentDescription,
+            modifier = Modifier.size(22.dp)
         )
-        Spacer(Modifier.width(com.nuvio.tv.ui.components.cdp(12)))
-        HeroButtonLabel(contentDescription)
     }
 }
 
@@ -599,7 +564,7 @@ private fun ActionIconButton(
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
 
-    Button(
+    IconButton(
         onClick = {
             if (longPressTriggered) {
                 longPressTriggered = false
@@ -610,7 +575,7 @@ private fun ActionIconButton(
         enabled = enabled,
         modifier = Modifier
             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
-            .height(com.nuvio.tv.ui.components.cdp(60))
+            .size(NuvioTheme.spacing.xxxl)
             .onFocusChanged { state ->
                 if (state.isFocused) onFocused()
             }
@@ -653,34 +618,34 @@ private fun ActionIconButton(
                     toggleableState = if (selected) ToggleableState.On else ToggleableState.Off
                 }
             },
-        colors = if (selected) {
-            ButtonDefaults.colors(
-                containerColor = selectedContainerColor,
-                focusedContainerColor = Color.White,
-                contentColor = selectedContentColor,
-                focusedContentColor = Color.Black
+        colors = IconButtonDefaults.colors(
+            containerColor = if (selected) selectedContainerColor else NuvioTheme.colors.BackgroundCard,
+            focusedContainerColor = NuvioTheme.colors.Secondary,
+            contentColor = if (selected) selectedContentColor else NuvioTheme.colors.TextPrimary,
+            focusedContentColor = NuvioTheme.colors.OnSecondary
+        ),
+        border = IconButtonDefaults.border(
+            focusedBorder = Border(
+                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+                shape = CircleShape
             )
-        } else {
-            cinemaSecondaryHeroButtonColors()
-        },
-        border = cinemaHeroButtonBorder(),
-        shape = ButtonDefaults.shape(shape = CircleShape),
-        contentPadding = PaddingValues(horizontal = com.nuvio.tv.ui.components.cdp(30), vertical = 0.dp)
+        ),
+        shape = IconButtonDefaults.shape(
+            shape = CircleShape
+        )
     ) {
         when {
             painter != null -> Icon(
                 painter = painter,
-                contentDescription = null,
-                modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(24))
+                contentDescription = contentDescription,
+                modifier = Modifier.size(22.dp)
             )
             icon != null -> Icon(
                 imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(com.nuvio.tv.ui.components.cdp(24))
+                contentDescription = contentDescription,
+                modifier = Modifier.size(NuvioTheme.spacing.xl)
             )
         }
-        Spacer(Modifier.width(com.nuvio.tv.ui.components.cdp(12)))
-        HeroButtonLabel(contentDescription)
     }
 }
 
@@ -762,14 +727,14 @@ private fun MetaInfoRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (meta.genres.isNotEmpty()) {
-                Row(
+                Text(
+                    text = genresText,
                     modifier = Modifier.weight(1f, fill = false),
-                    horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
-                ) {
-                    meta.genres.take(3).forEach { genre ->
-                        HeroGenreChip(text = localizedGenreLabel(context, genre))
-                    }
-                }
+                    style = MaterialTheme.typography.labelLarge,
+                    color = NuvioTheme.extendedColors.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (yearText != null || shouldShowImdbRating || shouldShowTmdbRating) {
                     MetaInfoDivider()
                 }
@@ -778,12 +743,8 @@ private fun MetaInfoRow(
             yearText?.let { year ->
                 Text(
                     text = year,
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(21),
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = Color(0xFFE4E4E7)
+                    style = MaterialTheme.typography.labelLarge,
+                    color = NuvioTheme.extendedColors.textSecondary
                 )
                 if (shouldShowImdbRating || shouldShowTmdbRating) {
                     MetaInfoDivider()
@@ -795,26 +756,17 @@ private fun MetaInfoRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
                 ) {
-                    Text(
-                        text = "\u2605",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(21),
-                        fontWeight = FontWeight.Medium
-                    ),
-                        color = com.nuvio.tv.ui.components.CinemaGlass.Star
+                    ImdbRatingSourceLabel(
+                        logoModifier = Modifier.size(30.dp),
+                        textStyle = MaterialTheme.typography.labelLarge,
+                        textColor = NuvioTheme.extendedColors.textSecondary
                     )
                     val ratingText = remember(rating) { String.format("%.1f", rating) }
                     Text(
                         text = ratingText,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(21),
-                        fontWeight = FontWeight.Medium
-                    ),
-                        color = Color(0xFFE4E4E7)
+                        style = MaterialTheme.typography.labelLarge,
+                        color = NuvioTheme.extendedColors.textSecondary
                     )
-                    ImdbBadge()
                 }
             }
 
@@ -832,12 +784,8 @@ private fun MetaInfoRow(
                     val ratingText = remember(rating) { (rating * 10).toInt().toString() }
                     Text(
                         text = ratingText,
-                        style = MaterialTheme.typography.labelLarge.copy(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(21),
-                        fontWeight = FontWeight.Medium
-                    ),
-                        color = Color(0xFFE4E4E7)
+                        style = MaterialTheme.typography.labelLarge,
+                        color = NuvioTheme.extendedColors.textSecondary
                     )
                 }
             }
@@ -882,55 +830,6 @@ private fun MetaInfoRow(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun HeroGenreChip(text: String) {
-    Box(
-        modifier = Modifier
-            .border(
-                BorderStroke(com.nuvio.tv.ui.components.cdp(1.5), Color.White.copy(alpha = 0.35f)),
-                CircleShape
-            )
-            .padding(
-                horizontal = com.nuvio.tv.ui.components.cdp(16),
-                vertical = com.nuvio.tv.ui.components.cdp(6)
-            )
-    ) {
-        Text(
-            text = text,
-            style = androidx.compose.ui.text.TextStyle(
-                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                fontSize = com.nuvio.tv.ui.components.csp(17)
-            ),
-            color = Color(0xFFE4E4E7),
-            maxLines = 1
-        )
-    }
-}
-
-@Composable
-private fun ImdbBadge() {
-    Box(
-        modifier = Modifier
-            .background(Color(0xFFF5C518), RoundedCornerShape(com.nuvio.tv.ui.components.cdp(6)))
-            .padding(
-                horizontal = com.nuvio.tv.ui.components.cdp(8),
-                vertical = com.nuvio.tv.ui.components.cdp(2)
-            )
-    ) {
-        Text(
-            text = "IMDb",
-            style = androidx.compose.ui.text.TextStyle(
-                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                fontSize = com.nuvio.tv.ui.components.csp(17),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = com.nuvio.tv.ui.components.csp(0.3)
-            ),
-            color = Color.Black,
-            maxLines = 1
-        )
     }
 }
 

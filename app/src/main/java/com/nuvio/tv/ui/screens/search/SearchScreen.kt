@@ -23,7 +23,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -1330,27 +1329,16 @@ private fun SearchInputField(
             Spacer(modifier = Modifier.width(NuvioTheme.spacing.md))
         }
 
-        var searchFieldFocused by remember { mutableStateOf(false) }
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChanged,
             modifier = Modifier
                 .weight(1f)
-                .heightIn(min = com.nuvio.tv.ui.components.cdp(88))
-                .border(
-                    androidx.compose.foundation.BorderStroke(
-                        com.nuvio.tv.ui.components.cdp(2),
-                        if (searchFieldFocused) androidx.compose.ui.graphics.Color.White
-                        else androidx.compose.ui.graphics.Color(0xFF3F3F46)
-                    ),
-                    RoundedCornerShape(com.nuvio.tv.ui.components.cdp(24))
-                )
                 .focusRequester(searchFocusRequester)
                 .focusProperties {
                     canFocus = isScreenActive
                 }
                 .onFocusChanged { focusState ->
-                    searchFieldFocused = focusState.isFocused
                     onSearchFieldFocusChanged(focusState.isFocused)
                 }
                 .onPreviewKeyEvent { keyEvent ->
@@ -1399,29 +1387,21 @@ private fun SearchInputField(
                 }
             ),
             singleLine = true,
-            shape = RoundedCornerShape(com.nuvio.tv.ui.components.cdp(24)),
+            shape = RoundedCornerShape(NuvioTheme.radii.md),
             placeholder = {
                 Text(
                     text = stringResource(R.string.search_placeholder),
-                    style = TextStyle(
-                        fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                        fontSize = com.nuvio.tv.ui.components.csp(32),
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
-                    ),
-                    color = androidx.compose.ui.graphics.Color(0xFF71717A)
+                    color = NuvioTheme.colors.TextTertiary
                 )
             },
             textStyle = TextStyle(
-                fontFamily = com.nuvio.tv.ui.theme.SpaceGroteskFamily,
-                fontSize = com.nuvio.tv.ui.components.csp(32),
-                fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
                 textDirection = TextDirection.Content
             ),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = androidx.compose.ui.graphics.Color(0xFF18181B).copy(alpha = 0.72f),
-                unfocusedContainerColor = androidx.compose.ui.graphics.Color(0xFF18181B).copy(alpha = 0.72f),
-                focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                focusedContainerColor = NuvioTheme.colors.BackgroundCard,
+                unfocusedContainerColor = NuvioTheme.colors.BackgroundCard,
+                focusedIndicatorColor = NuvioTheme.colors.FocusRing,
+                unfocusedIndicatorColor = NuvioTheme.colors.Border,
                 focusedTextColor = NuvioTheme.colors.TextPrimary,
                 unfocusedTextColor = NuvioTheme.colors.TextPrimary,
                 cursorColor = NuvioTheme.colors.FocusRing

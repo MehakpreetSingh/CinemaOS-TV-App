@@ -66,8 +66,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -2299,12 +2297,6 @@ private fun MetaDetailsContent(
             .background(backgroundColor)
             .onPreviewKeyEvent { randomEpisodePlaybackPending }
     ) {
-        // CinemaOS: tinted, blurred ambient background behind the backdrop.
-        com.nuvio.tv.ui.components.CinemaAmbientBackground(
-            imageUrl = meta.backdropUrl ?: meta.poster,
-            modifier = Modifier.fillMaxSize()
-        )
-
         // Sticky background — backdrop or trailer
         BackdropLayer(
             backdropRequest = backdropRequest,
@@ -2324,23 +2316,6 @@ private fun MetaDetailsContent(
             isScrolledPastHero = isScrolledPastHero,
             leftGradient = leftGradientBitmap,
             bottomGradient = bottomGradientBitmap,
-        )
-
-        // CinemaOS: faint vertical brand watermark on the right edge.
-        androidx.tv.material3.Text(
-            text = "CINEMAOS",
-            style = androidx.compose.ui.text.TextStyle(
-                fontSize = 64.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 16.sp,
-                color = Color.White.copy(alpha = 0.04f)
-            ),
-            maxLines = 1,
-            softWrap = false,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .graphicsLayer { rotationZ = 90f }
-                .padding(end = 8.dp)
         )
 
         // Single scrollable column with hero + content
@@ -3063,10 +3038,6 @@ private fun MetaDetailsContent(
                         )
                     }
                 }
-            }
-
-            item(key = "facts_panel", contentType = "facts_panel") {
-                DetailFactsPanel(meta = meta)
             }
         }
         }

@@ -1,7 +1,6 @@
 package com.nuvio.tv.domain.model
 
 enum class AppTheme(val displayName: String) {
-    CINEMAOS("CinemaOS"),
     CUSTOM("Custom"),
     GOLD("Gold"),
     JADE("Jade"),

@@ -669,11 +669,11 @@ fun SettingsScreen(
             } else {
             Row(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(com.nuvio.tv.ui.components.cdp(40))
+                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
             ) {
                 Box(
                     modifier = Modifier
-                        .width(com.nuvio.tv.ui.components.cdp(420))
+                        .width(220.dp)
                         .fillMaxHeight()
                 ) {
                     LazyColumn(

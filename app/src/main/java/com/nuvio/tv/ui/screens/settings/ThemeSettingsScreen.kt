@@ -291,6 +291,23 @@ fun ThemeSettingsContent(
                 }
             }
 
+            SettingsGroupCard(
+                modifier = Modifier.fillMaxWidth(),
+                title = stringResource(R.string.appearance_launcher_artwork),
+                subtitle = stringResource(R.string.appearance_launcher_artwork_subtitle)
+            ) {
+                SettingsActionRow(
+                    title = stringResource(R.string.appearance_app_icon_and_banner),
+                    subtitle = stringResource(R.string.appearance_app_icon_and_banner_subtitle),
+                    value = appIconState.selected.localizedName(),
+                    enabled = appIconState.pending == null,
+                    onClick = {
+                        viewModel.onEvent(ThemeSettingsEvent.DismissAppIconFailure)
+                        showAppIconDialog = true
+                    }
+                )
+            }
+
             AmbientModeSettingsCard()
 
             SettingsGroupCard(
@@ -576,7 +593,6 @@ private fun SettingsUiStyle.localizedDescription(): String = when (this) {
 
 @Composable
 private fun AppTheme.localizedName(): String = when (this) {
-    AppTheme.CINEMAOS -> "CinemaOS"
     AppTheme.CUSTOM -> stringResource(R.string.theme_color_custom)
     AppTheme.GOLD -> stringResource(R.string.theme_color_gold)
     AppTheme.JADE -> stringResource(R.string.theme_color_jade)

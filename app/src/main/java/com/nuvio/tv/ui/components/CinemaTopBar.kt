@@ -26,7 +26,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.nuvio.tv.R
-import com.nuvio.tv.ui.theme.SpaceGroteskFamily
 import androidx.tv.material3.Icon
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -90,7 +89,7 @@ fun CinemaTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(cdp(100))
+            .height(100.dp)
             .background(
                 Brush.verticalGradient(
                     0f to Color(0xC709090B),
@@ -99,18 +98,18 @@ fun CinemaTopBar(
                 )
             )
             .onFocusChanged { onBarFocusChanged(it.hasFocus) }
-            .padding(horizontal = cdp(80))
+            .padding(horizontal = 80.dp)
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Image(
             painter = painterResource(R.drawable.ic_cinema_clapper),
             contentDescription = null,
-            modifier = Modifier.size(cdp(30))
+            modifier = Modifier.size(30.dp)
         )
-        Spacer(Modifier.width(cdp(52)))
+        Spacer(Modifier.width(52.dp))
         Row(
-            horizontalArrangement = Arrangement.spacedBy(cdp(8)),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             items.forEach { item ->
@@ -137,10 +136,9 @@ fun CinemaTopBar(
         Text(
             text = clock,
             style = TextStyle(
-                fontFamily = SpaceGroteskFamily,
-                fontSize = csp(20),
+                                fontSize = 20.sp,
                 fontWeight = FontWeight.Medium,
-                letterSpacing = csp(0.8),
+                letterSpacing = 0.8.sp,
                 color = Color(0xFFA1A1AA)
             )
         )
@@ -164,7 +162,7 @@ private fun CinemaTopBarPill(
             .onFocusChanged { focused = it.isFocused }
             .graphicsLayer { scaleX = focusScale; scaleY = focusScale }
             .then(
-                if (selected) Modifier.shadow(cdp(10), CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
+                if (selected) Modifier.shadow(10.dp, CircleShape, ambientColor = Color.Black, spotColor = Color.Black)
                 else Modifier
             )
             .semantics {
@@ -184,8 +182,8 @@ private fun CinemaTopBarPill(
         border = ClickableSurfaceDefaults.border(
             focusedBorder = if (selected) {
                 androidx.tv.material3.Border(
-                    BorderStroke(cdp(3), Color.White.copy(alpha = 0.28f)),
-                    cdp(0),
+                    BorderStroke(3.dp, Color.White.copy(alpha = 0.28f)),
+                    0.dp,
                     CircleShape
                 )
             } else {
@@ -196,24 +194,23 @@ private fun CinemaTopBarPill(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = cdp(24), vertical = cdp(9)),
+                .padding(horizontal = 24.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(cdp(9))
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             if (showSearchIcon) {
                 Icon(
                     imageVector = Icons.Filled.Search,
                     contentDescription = null,
-                    modifier = Modifier.size(cdp(19))
+                    modifier = Modifier.size(19.dp)
                 )
             }
             Text(
                 text = label,
                 style = TextStyle(
-                    fontFamily = SpaceGroteskFamily,
-                    fontSize = csp(20),
+                                        fontSize = 20.sp,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    letterSpacing = csp(0.4)
+                    letterSpacing = 0.4.sp
                 ),
                 maxLines = 1
             )

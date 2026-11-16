@@ -488,7 +488,6 @@ dependencies {
 
     // Image Loading
     implementation(libs.coil.compose)
-    implementation(libs.androidx.palette)
     implementation(libs.coil.gif)
     implementation(libs.coil.svg)
     implementation(libs.coil.network.okhttp)

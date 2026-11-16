@@ -137,11 +137,11 @@ fun SeasonTabs(
         regularSeasons + specials
     }
 
-    val tabShape = remember { RoundedCornerShape(percent = 50) }
+    val tabShape = remember { RoundedCornerShape(20.dp) }
     val tabBorder = CardDefaults.border(
         focusedBorder = Border(
             border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-            shape = RoundedCornerShape(percent = 50)
+            shape = RoundedCornerShape(20.dp)
         )
     )
     val tabScale = CardDefaults.scale(focusedScale = 1.0f)
@@ -354,9 +354,8 @@ fun SeasonTabs(
                     },
                 shape = CardDefaults.shape(shape = tabShape),
                 colors = CardDefaults.colors(
-                    containerColor = if (isSelected) androidx.compose.ui.graphics.Color.White
-                    else androidx.compose.ui.graphics.Color(0xFF3F3F46).copy(alpha = 0.7f),
-                    focusedContainerColor = androidx.compose.ui.graphics.Color.White
+                    containerColor = if (isSelected) NuvioTheme.colors.SurfaceVariant else NuvioTheme.colors.BackgroundCard,
+                    focusedContainerColor = NuvioTheme.colors.Secondary
                 ),
                 border = tabBorder,
                 scale = tabScale
@@ -365,13 +364,11 @@ fun SeasonTabs(
                     text = if (season == 0) stringResource(R.string.episodes_specials) else stringResource(R.string.episodes_season, season),
                     style = tabTextStyle,
                     color = when {
-                        isFocused || isSelected -> androidx.compose.ui.graphics.Color(0xFF09090B)
-                        else -> androidx.compose.ui.graphics.Color(0xFFD4D4D8)
+                        isFocused -> NuvioTheme.colors.OnSecondary
+                        isSelected -> NuvioTheme.colors.TextPrimary
+                        else -> textSecondary
                     },
-                    modifier = Modifier.padding(
-                        vertical = com.nuvio.tv.ui.components.cdp(6),
-                        horizontal = com.nuvio.tv.ui.components.cdp(18)
-                    )
+                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 20.dp)
                 )
             }
         }
@@ -680,14 +677,13 @@ private fun EpisodeCard(
     val isUnavailable = remember(episode.available) { episode.available == false }
     val cardBgColor = NuvioTheme.colors.BackgroundCard
     val isFocusedState = remember { mutableStateOf(false) }
-    // CinemaOS episode cards: 12dp radius.
-    val cardCornerRadius = remember(density) {
-        with(density) { 12.dp.toPx() }
+    val cardCornerRadius = remember(cardMetrics.cornerRadius, density) {
+        with(density) { cardMetrics.cornerRadius.toPx() }
     }
     var isFocused by isFocusedState
     var longPressTriggered by remember { mutableStateOf(false) }
     val longPressKeyTracker = rememberLongPressKeyTracker()
-    val shape = remember { RoundedCornerShape(12.dp) }
+    val shape = remember(cardMetrics.cornerRadius) { RoundedCornerShape(cardMetrics.cornerRadius) }
     val cardDepthStyle = LocalCardDepthStyle.current
     val thumbnailWidthPx = remember(cardMetrics.cardWidth, density) {
         with(density) { cardMetrics.cardWidth.roundToPx() }

@@ -35,7 +35,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
@@ -77,9 +76,8 @@ internal fun ChaptersSidePanel(
         modifier = modifier
             .fillMaxHeight()
             .width(520.dp)
-            .clip(RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
-            .background(com.nuvio.tv.ui.theme.NuvioPrimitives.zinc950.copy(alpha = 0.85f))
-            .border(1.dp, com.nuvio.tv.ui.components.CinemaGlass.BorderSubtle, RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp))
+            .clip(RoundedCornerShape(topStart = NuvioTheme.spacing.lg, bottomStart = NuvioTheme.spacing.lg))
+            .background(NuvioTheme.colors.BackgroundElevated)
     ) {
         Column(modifier = Modifier.padding(NuvioTheme.spacing.xl)) {
             Row(

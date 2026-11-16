@@ -243,10 +243,10 @@ data class DrawerItem(
 )
 
 private data class MainUiPrefs(
-    val theme: AppTheme = AppTheme.CINEMAOS,
+    val theme: AppTheme = AppTheme.WHITE,
     val customThemeColors: CustomThemeColors = CustomThemeColors.Default,
     val memberAccess: MemberAccess = MemberAccess.None,
-    val font: AppFont = AppFont.SPACE_GROTESK,
+    val font: AppFont = AppFont.INTER,
     val amoledMode: Boolean = false,
     val amoledSurfacesMode: Boolean = false,
     val hasChosenLayout: Boolean? = null,
@@ -530,7 +530,7 @@ open class MainActivity : ComponentActivity() {
                     experienceModeDataStore.mode,
                 ) { themeAndAccess, font, amoledMode, amoledSurfacesMode, experienceMode ->
                     MainUiPrefs(
-                        theme = themeAndAccess.first.theme ?: AppTheme.CINEMAOS,
+                        theme = themeAndAccess.first.theme ?: AppTheme.WHITE,
                         customThemeColors = themeAndAccess.first.customColors,
                         memberAccess = themeAndAccess.second,
                         font = font,
@@ -673,7 +673,7 @@ open class MainActivity : ComponentActivity() {
                             .apply()
                     }
                     val activeTheme = mainUiPrefs.theme
-                    if (splashPreferencesReady && activeTheme != AppTheme.CINEMAOS) {
+                    if (splashPreferencesReady && activeTheme != AppTheme.WHITE) {
                         splashPrefs.edit().putString("theme_$activeProfileId", activeTheme.name).apply()
                     } else if (splashPreferencesReady) {
                         splashPrefs.edit().remove("theme_$activeProfileId").apply()
@@ -692,7 +692,7 @@ open class MainActivity : ComponentActivity() {
                         ?: activeTheme.takeIf { splashPreferencesReady }
                         ?: splashPrefs.getString("theme_$activeProfileId", null)
                             ?.let { name -> AppTheme.entries.firstOrNull { it.name == name } }
-                        ?: AppTheme.CINEMAOS
+                        ?: AppTheme.WHITE
                     SplashBackground(
                         profileColorHex = if (hasFocusedOverride) focusedSplashColor else (colorHex ?: fallbackColor),
                         backgroundUrl = resolvedBgUrl,
@@ -1910,7 +1910,7 @@ private fun CinemaTopBarScaffold(
             }
     ) {
         // All root screens (incl. Home) start below the bar so hero text never collides with it.
-        val topInset = if (showBar) com.nuvio.tv.ui.components.cdp(92) else 0.dp
+        val topInset = if (showBar) 92.dp else 0.dp
         Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
