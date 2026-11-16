@@ -701,7 +701,7 @@ class StreamRepositoryImpl @Inject constructor(
         if (order.isEmpty()) return
         nativeScrapers.stream(
             req = request,
-            sequential = sequential || firstWins,
+            sequential = firstWins, // native sources always run in parallel (like the RN app)
             only = order,
             stopAfterFirstResult = firstWins
         ).collect { (scraper, results) ->

@@ -88,17 +88,9 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
         val sorted = streams.sortedByDescending { rank(it.quality) }
         val headers = mapOf("User-Agent" to UA) + SITE_HEADERS
 
-        // Verify before returning (shard CDNs go down while the API still lists them): up to 12 playlists, stop at 3 good.
-        val cands = sorted.take(12)
-        val verified = parallelUntil<Src, Src>(
-            items = cands,
-            timeoutMs = 7_000,
-            enough = { it.size >= 3 }
-        ) { st -> if (st.type == "mp4" || playlistOk(st.url, headers)) st else null }
-        val goodUrls = verified.map { it.url }.toHashSet()
-        val goodHosts = verified.map { CinemaHttp.hostOf(it.url) }.toHashSet()
+        // No pre-verification (the RN app returns the shard answers straight away): shard CDN checks used to push
+        // the scraper past its budget and drop every result.
         return sorted
-            .filter { it.url in goodUrls || CinemaHttp.hostOf(it.url) in goodHosts }
             .map { st ->
                 LocalScraperResult(
                     name = "${st.quality} · ${st.type.uppercase()}",
@@ -119,7 +111,7 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
         val headers = mapOf("User-Agent" to UA) + SITE_HEADERS
         repeat(2) {
             val res = http.fetch("$API/seed?mediaId=$tmdbId", headers, timeoutMs = 5_000, maxBytes = 64 * 1024) ?: return null
-            if (res.code == 429 && it == 0) return@repeat
+            if (res.code == 429 && it == 0) { kotlinx.coroutines.delay(1_200); return@repeat }
             if (!res.ok) return null
             return runCatching { JSONObject(res.text).str("seed") }.getOrNull()
         }

@@ -21,13 +21,16 @@ class HdHubScraper(private val http: CinemaHttp) : CinemaScraper {
         val label: String,
         val size: String,
         val host: String,
-        val headers: Map<String, String>
+        val headers: Map<String, String>,
+        val language: String?,
+        val isHls: Boolean
     )
 
     override suspend fun getStreams(req: CinemaScrapeRequest): List<LocalScraperResult> {
         if (!Regex("^\\d+$").matches(req.tmdbId)) return emptyList()
         val type = if (req.isMovie) "movie" else "tv"
-        val imdb = http.tmdbBrief(type, req.tmdbId).imdbId
+        val brief = http.tmdbBrief(type, req.tmdbId)
+        val imdb = brief.imdbId
         if (imdb.isBlank()) return emptyList()
         val path = if (req.isMovie) "movie/$imdb" else "series/$imdb%3A${req.season}%3A${req.episode}"
         val res = http.fetch("$BASE/stream/$path.json", timeoutMs = 8_000, maxBytes = 2 * 1024 * 1024) ?: return emptyList()
@@ -50,7 +53,17 @@ class HdHubScraper(private val http: CinemaHttp) : CinemaScraper {
             val bh = st.optJSONObject("behaviorHints")?.optJSONObject("proxyHeaders")?.optJSONObject("request")
             val headers = HashMap<String, String>()
             bh?.keys()?.forEach { k -> bh.str(k)?.let { headers[k] = it } }
-            all += Cand(url, n, if (n > 0) (if (n >= 2160) "4K" else "${n}p") else "HD", file, size, host, headers)
+            val lang = lines.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() && it.length <= 24 && !it.contains('|') }
+            // CineJoy resolver links are keyed by TMDB id and have no file name: validate by id instead
+            val cj = Regex("/resolve/cj/tmdb/(\\d+)/", RegexOption.IGNORE_CASE).find(url)?.groupValues?.get(1)
+            if (cj != null) {
+                if (cj != req.tmdbId) continue
+                all += Cand(url, n, if (n > 0) "${n}p" else "HD", brief.title.ifBlank { "CineJoy" }, "", "CineJoy", headers, null, true)
+                continue
+            }
+            if (file.isBlank() || !Regex("\\.(mkv|mp4|avi|webm|m4v|ts)\\b|\\d{3,4}p|[A-Za-z]{3,}", RegexOption.IGNORE_CASE).containsMatchIn(file)) continue
+            if (!matchesRequest(file, brief.title, brief.year, req)) continue
+            all += Cand(url, n, if (n > 0) (if (n >= 2160) "4K" else "${n}p") else "HD", file, size, host, headers, lang, false)
         }
         val cands = all
             .filter { !Regex("download only", RegexOption.IGNORE_CASE).containsMatchIn(it.host + " " + it.label) }
@@ -62,20 +75,68 @@ class HdHubScraper(private val http: CinemaHttp) : CinemaScraper {
             items = cands,
             timeoutMs = 9_000,
             enough = { it.size >= 8 }
-        ) { c -> if (http.isVideo(c.url, c.headers, timeoutMs = 7_000)) c else null }
+        ) { c ->
+            val good = if (c.isHls) {
+                val r = http.fetch(c.url, c.headers, timeoutMs = 7_000, maxBytes = 4096)
+                r != null && r.ok && r.text.contains("#EXTM3U")
+            } else http.isVideo(c.url, c.headers, timeoutMs = 7_000)
+            if (good) c else null
+        }
 
         return ok.sortedBy { rank(it.n) }.map { x ->
             LocalScraperResult(
-                name = x.quality + (if (x.size.isNotEmpty()) " · ${x.size}" else ""),
-                title = "HDHub · ${x.host} · ${x.label}",
+                name = "HDHub · ${x.host} · ${x.quality}",
+                title = x.label.replace(Regex("\\.(mkv|mp4|avi|webm|m4v)$", RegexOption.IGNORE_CASE), "").replace('.', ' ').replace('_', ' ').trim(),
+                language = x.language,
                 url = x.url,
                 quality = x.quality,
                 size = x.size.ifEmpty { null },
                 provider = "HDHub",
-                type = if (Regex("\\.mp4(\\?|&|$)", RegexOption.IGNORE_CASE).containsMatchIn(x.url)) "mp4" else "mkv",
+                type = if (x.isHls) "hls" else if (Regex("\\.mp4(\\?|&|$)", RegexOption.IGNORE_CASE).containsMatchIn(x.url)) "mp4" else "mkv",
                 headers = x.headers
             )
         }
+    }
+
+    private fun norm(s: String) = s.lowercase().replace("&", " and ").replace(Regex("[^a-z0-9]+"), " ").trim()
+
+    private val okFirstTokens = Regex(
+        "^(19\\d\\d|20\\d\\d|s\\d+e\\d+.*|\\d+x\\d+|\\d{3,4}p|4k|uhd|bluray|blu|brrip|bdrip|webrip|web|webdl|hdrip|hdtv|dvdrip|hdcam|cam|remastered|proper|repack|extended|imax|unrated|uncut|hybrid|amzn|nf|hmax|dsnp|hevc|x264|x265|h264|h265|hindi|english|dual|multi|hq|10bit)$"
+    )
+
+    /** True when the file name is for the requested title (+ year for movies / SxxEyy for series). */
+    private fun matchesRequest(file: String, title: String, year: String, req: CinemaScrapeRequest): Boolean {
+        if (title.isBlank()) return true
+        val nf = " " + norm(file) + " "
+        val variants = LinkedHashSet<String>()
+        val full = norm(title)
+        variants += full
+        if (full.startsWith("the ")) variants += full.removePrefix("the ")
+        Regex("[:\\-–]").split(title).firstOrNull()?.let { v -> norm(v).takeIf { it.length >= 4 && it.split(' ').size >= 1 }?.let { variants += it } }
+        if (!req.isMovie) {
+            val s = req.season
+            val e = req.episode
+            val ep = Regex("\\bs0*${s}\\s?e0*${e}\\b|\\b0*${s}x0*${e}\\b")
+            if (!ep.containsMatchIn(nf)) return false
+        }
+        for (v in variants) {
+            var from = 0
+            while (true) {
+                val at = nf.indexOf(" $v ", from)
+                if (at < 0) break
+                val rest = nf.substring(at + v.length + 1).trim().split(' ').filter { it.isNotEmpty() }
+                val first = rest.firstOrNull() ?: return true
+                if (okFirstTokens.matches(first)) {
+                    if (req.isMovie && year.length == 4 && Regex("^(19|20)\\d\\d$").matches(first)) {
+                        val diff = Math.abs(first.toInt() - year.toInt())
+                        if (diff > 1) { from = at + 1; continue }
+                    }
+                    return true
+                }
+                from = at + 1
+            }
+        }
+        return false
     }
 
     private fun rank(q: Int) = when {
