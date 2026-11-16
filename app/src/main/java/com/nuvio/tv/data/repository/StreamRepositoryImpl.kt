@@ -8,6 +8,8 @@ import com.nuvio.tv.core.network.safeApiCall
 import com.nuvio.tv.core.debrid.DebridStreamPresentation
 import com.nuvio.tv.core.debrid.LocalDebridAvailabilityService
 import com.nuvio.tv.core.plugin.PluginManager
+import com.nuvio.tv.core.scrapers.CinemaScrapeRequest
+import com.nuvio.tv.core.scrapers.NativeCinemaScrapers
 import com.nuvio.tv.domain.model.pluginBingeGroup
 import com.nuvio.tv.core.plugin.resolvePluginSeasonEpisode
 import com.nuvio.tv.core.profile.ProfileManager
@@ -61,7 +63,8 @@ class StreamRepositoryImpl @Inject constructor(
     private val debridStreamPresentation: DebridStreamPresentation,
     private val localDebridAvailabilityService: LocalDebridAvailabilityService,
     private val serverStreams: ServerStreams,
-    private val playerSettingsDataStore: com.nuvio.tv.data.local.PlayerSettingsDataStore
+    private val playerSettingsDataStore: com.nuvio.tv.data.local.PlayerSettingsDataStore,
+    private val nativeScrapers: NativeCinemaScrapers
 ) : StreamRepository {
     private val streamSearchSessions = StreamSearchSessionCache()
     private val localPluginSearchPaused = MutableStateFlow(false)
@@ -129,6 +132,9 @@ class StreamRepositoryImpl @Inject constructor(
                     hasCompatiblePlugins = !isNativeServerRequest &&
                         sourceConfiguration.pluginsEnabled &&
                         sourceConfiguration.enabledScrapers.any { scraper -> scraper.supportsType(type) },
+                    runNativeScrapers = !isNativeServerRequest &&
+                        sourceConfiguration.pluginsEnabled &&
+                        nativeScrapers.supportsId(videoId, type),
                     serverSources = if (continuePluginOnly) {
                         emptyList()
                     } else {
@@ -226,6 +232,7 @@ class StreamRepositoryImpl @Inject constructor(
         addons: List<Addon>,
         debridSettings: DebridSettings,
         hasCompatiblePlugins: Boolean,
+        runNativeScrapers: Boolean,
         serverSources: List<ServerStreamSource>,
         priorityBingeGroup: String?,
         preferredPluginOnly: Boolean,
@@ -257,7 +264,7 @@ class StreamRepositoryImpl @Inject constructor(
                 val resultChannel = Channel<AddonStreams>(Channel.UNLIMITED)
                 
                 // Track number of pending jobs
-                val totalJobs = streamAddons.size + 1 + serverSources.size
+                val totalJobs = streamAddons.size + 1 + serverSources.size + (if (runNativeScrapers) 1 else 0)
                 val completedJobs = java.util.concurrent.atomic.AtomicInteger(0)
 
                 // Launch addon jobs
@@ -397,6 +404,54 @@ class StreamRepositoryImpl @Inject constructor(
                     } finally {
                         if (completedJobs.incrementAndGet() >= totalJobs) {
                             resultChannel.close()
+                        }
+                    }
+                }
+
+                if (runNativeScrapers) {
+                    launch {
+                        try {
+                            val tmdbId = tmdbService.ensureTmdbId(videoId, type)
+                            if (tmdbId == null || !tmdbId.all { it.isDigit() }) return@launch
+                            val (nativeSeason, nativeEpisode) = resolvePluginSeasonEpisode(
+                                videoId = videoId,
+                                season = season,
+                                episode = episode
+                            )
+                            val request = CinemaScrapeRequest(
+                                tmdbId = tmdbId,
+                                mediaType = normalizeTmdbPluginType(type),
+                                season = nativeSeason ?: 1,
+                                episode = nativeEpisode ?: 1
+                            )
+                            val runNative: suspend () -> Unit = {
+                                streamNativeScrapers(
+                                    request = request,
+                                    priorityBingeGroup = priorityBingeGroup,
+                                    preferredPluginOnly = preferredPluginOnly,
+                                    continuePluginOnly = continuePluginOnly,
+                                    resultChannel = resultChannel
+                                )
+                            }
+                            if (continuePluginOnly) {
+                                runNative()
+                            } else {
+                                localPluginSearchPaused
+                                    .transformLatest { paused ->
+                                        if (!paused) {
+                                            runNative()
+                                            emit(Unit)
+                                        }
+                                    }
+                                    .first()
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Log.e(TAG, "Native scrapers failed: ${e.message}")
+                        } finally {
+                            if (completedJobs.incrementAndGet() >= totalJobs) {
+                                resultChannel.close()
+                            }
                         }
                     }
                 }
@@ -600,6 +655,8 @@ class StreamRepositoryImpl @Inject constructor(
                 preferredPluginOnly = preferredPluginOnly,
                 sequential = !playerSettingsDataStore.playerSettings.first().searchAllSourcesAtOnce
             ).collect { (scraper, results) ->
+                // A stale install of the old JS plugins must not duplicate the built-in native sources.
+                if (nativeScrapers.providers.any { it.id == scraper.id }) return@collect
                 if (results.isNotEmpty()) {
                     val addonName = scraper.pluginAddonName(groupByRepository, repositoriesById)
                     val addonStreams = AddonStreams(
@@ -616,6 +673,49 @@ class StreamRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             if (e is CancellationException) throw e
             Log.e(TAG, "Failed to stream plugins: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Built-in native Movy / HdHub / Wing / MovieBox sources. Sequential (default): one provider at a time in
+     * priority order, each result sent as soon as it arrives. "Search all sources at once": all concurrently.
+     */
+    private suspend fun streamNativeScrapers(
+        request: CinemaScrapeRequest,
+        priorityBingeGroup: String?,
+        preferredPluginOnly: Boolean,
+        continuePluginOnly: Boolean,
+        resultChannel: Channel<AddonStreams>
+    ) {
+        val all = nativeScrapers.providers
+        val priorityId = com.nuvio.tv.domain.model.scraperIdFromPluginBingeGroup(priorityBingeGroup)
+        val preferred = all.firstOrNull { it.id == priorityId }
+        val sequential = !playerSettingsDataStore.playerSettings.first().searchAllSourcesAtOnce
+        val (order, firstWins) = when {
+            // next episode of a series started from a native source stays on that source
+            continuePluginOnly -> listOfNotNull(preferred) to true
+            // next-episode prefetch: preferred source first, then the others until one returns something
+            preferredPluginOnly -> (listOfNotNull(preferred) + all.filter { it !== preferred }) to true
+            else -> all to false
+        }
+        if (order.isEmpty()) return
+        nativeScrapers.stream(
+            req = request,
+            sequential = sequential || firstWins,
+            only = order,
+            stopAfterFirstResult = firstWins
+        ).collect { (scraper, results) ->
+            val info = scraper.scraperInfo()
+            resultChannel.send(
+                AddonStreams(
+                    addonName = scraper.name,
+                    addonLogo = null,
+                    streams = com.nuvio.tv.core.player.MovieBoxLanguageVariants.collapse(
+                        results.map { result -> result.toPluginStream(info, scraper.name) }
+                    )
+                )
+            )
+            Log.d(TAG, "Native ${scraper.name} returned ${results.size} results")
         }
     }
 

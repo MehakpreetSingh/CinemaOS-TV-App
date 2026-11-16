@@ -325,6 +325,7 @@ class StreamRepositoryPluginIsolationTest {
                 tmdbService = tmdbService,
                 debridStreamPresentation = presentation,
                 localDebridAvailabilityService = availability,
+                nativeScrapers = mockk(relaxed = true),
                 playerSettingsDataStore = mockk {
                     every { playerSettings } returns flowOf(com.nuvio.tv.data.local.PlayerSettings())
                 },
