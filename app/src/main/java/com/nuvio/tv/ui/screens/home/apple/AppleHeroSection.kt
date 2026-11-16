@@ -58,101 +58,83 @@ import com.nuvio.tv.domain.model.MetaPreview
 
 private val HeroButtonBg = Color.White.copy(alpha = 0.2f)
 
+/** What the hero area shows: the carousel item, or whatever card is focused in the rows. */
+internal data class HeroDisplay(
+    val key: String,
+    val backdrops: List<String>,
+    val name: String,
+    val logo: String?,
+    val meta: String,
+    val rating: Float?,
+    val synopsis: String?
+)
+
+internal fun MetaPreview.toHeroDisplay(): HeroDisplay {
+    val type = if (apiType.equals("movie", true)) "Movie" else "TV Show"
+    val parts = buildList {
+        add(type)
+        addAll(genres.take(2))
+        releaseInfo?.takeIf { it.isNotBlank() }?.let { add(it.take(4)) }
+    }
+    return HeroDisplay(
+        key = "$id|$apiType",
+        backdrops = listOfNotNull(background, landscapePoster, poster).filter { it.isNotBlank() }.distinct(),
+        name = name,
+        logo = logo,
+        meta = parts.joinToString(" \u00b7 "),
+        rating = imdbRating,
+        synopsis = description
+    )
+}
+
 @Composable
 internal fun AppleHeroSection(
-    items: List<MetaPreview>,
+    display: HeroDisplay,
+    count: Int,
     index: Int,
     onIndexChange: (Int) -> Unit,
     height: Dp,
     inLibrary: Boolean,
     canToggleLibrary: Boolean,
-    backgroundColor: Color,
-    onPlay: (MetaPreview) -> Unit,
-    onInfo: (MetaPreview) -> Unit,
-    onToggleLibrary: (MetaPreview) -> Unit,
+    onPlay: () -> Unit,
+    onInfo: () -> Unit,
+    onToggleLibrary: () -> Unit,
+    onHeroFocused: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val safeIndex = index.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-    val item = items.getOrNull(safeIndex) ?: return
-    val count = items.size
+    val safeIndex = index.coerceIn(0, (count - 1).coerceAtLeast(0))
     fun goPrev() = onIndexChange(if (safeIndex == 0) count - 1 else safeIndex - 1)
     fun goNext() = onIndexChange(if (safeIndex == count - 1) 0 else safeIndex + 1)
 
     Box(modifier = modifier.fillMaxWidth().height(height)) {
-        // Backdrop crossfade
-        Crossfade(
-            targetState = item.backdropUrl,
-            animationSpec = tween(400),
-            label = "heroBackdrop",
-            modifier = Modifier.fillMaxSize()
-        ) { url ->
-            val context = LocalContext.current
-            val cfg = LocalConfiguration.current
-            val density = LocalDensity.current
-            val widthPx = with(density) { cfg.screenWidthDp.dp.roundToPx() }
-            val heightPx = (widthPx * 9) / 16
-            val request = remember(url, widthPx) {
-                ImageRequest.Builder(context)
-                    .data(url)
-                    .size(width = widthPx, height = heightPx)
-                    .crossfade(false)
-                    .build()
-            }
-            AsyncImage(
-                model = request,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Left-bottom scrim + bottom fade into page background
-        Box(
-            modifier = Modifier.fillMaxSize().background(
-                Brush.horizontalGradient(
-                    0f to Color.Black.copy(alpha = 0.85f),
-                    0.5f to Color.Black.copy(alpha = 0.4f),
-                    1f to Color.Transparent
-                )
-            )
-        )
-        Box(
-            modifier = Modifier.fillMaxSize().background(
-                Brush.verticalGradient(
-                    0.55f to Color.Transparent,
-                    1f to backgroundColor
-                )
-            )
-        )
-
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 48.dp, bottom = 52.dp)
+                .padding(start = 48.dp, bottom = 10.dp)
                 .fillMaxWidth(0.5f)
         ) {
             Crossfade(
-                targetState = item,
-                animationSpec = tween(400),
+                targetState = display,
+                animationSpec = tween(300),
                 label = "heroText"
             ) { current ->
                 HeroTextBlock(current)
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 AppleFocusSurface(
-                    onClick = { onPlay(item) },
+                    onClick = onPlay,
+                    onFocused = onHeroFocused,
                     shape = CircleShape,
                     containerColor = HeroButtonBg,
                     focusedContainerColor = Color.White,
                     focusedContentColor = Color(0xFF09090B),
                     modifier = Modifier
                         .width(112.dp)
-                        .height(40.dp)
+                        .height(36.dp)
                         .focusRequester(com.nuvio.tv.LocalContentFocusRequester.current)
                         .onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft && count > 1) {
@@ -173,14 +155,16 @@ internal fun AppleHeroSection(
                 if (canToggleLibrary) {
                     HeroCircleButton(
                         icon = if (inLibrary) Icons.Filled.Check else Icons.Filled.Add,
-                        onClick = { onToggleLibrary(item) }
+                        onClick = onToggleLibrary,
+                        onFocused = onHeroFocused
                     )
                 }
-                HeroCircleButton(icon = Icons.Filled.Info, onClick = { onInfo(item) })
+                HeroCircleButton(icon = Icons.Filled.Info, onClick = onInfo, onFocused = onHeroFocused)
                 if (count > 1) {
                     HeroCircleButton(
                         icon = Icons.Filled.ChevronRight,
                         onClick = { goNext() },
+                        onFocused = onHeroFocused,
                         modifier = Modifier.onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionRight) {
                                 goNext(); true
@@ -194,7 +178,7 @@ internal fun AppleHeroSection(
         // Page indicator dots
         if (count > 1) {
             Row(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 22.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -213,19 +197,54 @@ internal fun AppleHeroSection(
     }
 }
 
+/** Full-screen backdrop; falls back to the next candidate image when one fails to load. */
+@Composable
+internal fun AppleBackdrop(display: HeroDisplay?, modifier: Modifier = Modifier) {
+    Crossfade(
+        targetState = display,
+        animationSpec = tween(300),
+        label = "appleBackdrop",
+        modifier = modifier
+    ) { d ->
+        if (d == null) return@Crossfade
+        var idx by remember(d.key) { mutableStateOf(0) }
+        val url = d.backdrops.getOrNull(idx)
+        if (url != null) {
+            val context = LocalContext.current
+            val cfg = LocalConfiguration.current
+            val density = LocalDensity.current
+            val widthPx = with(density) { cfg.screenWidthDp.dp.roundToPx() }
+            val heightPx = with(density) { cfg.screenHeightDp.dp.roundToPx() }
+            val request = remember(url, widthPx) {
+                ImageRequest.Builder(context).data(url).size(width = widthPx, height = heightPx).crossfade(false).build()
+            }
+            AsyncImage(
+                model = request,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.TopCenter,
+                onError = { if (idx < d.backdrops.lastIndex) idx++ },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    }
+}
+
 @Composable
 private fun HeroCircleButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFocused: () -> Unit = {}
 ) {
     AppleFocusSurface(
         onClick = onClick,
+        onFocused = onFocused,
         shape = CircleShape,
         containerColor = HeroButtonBg,
         focusedContainerColor = Color.White,
         focusedContentColor = Color(0xFF09090B),
-        modifier = modifier.size(40.dp)
+        modifier = modifier.size(36.dp)
     ) {
         Icon(
             icon,
@@ -236,11 +255,11 @@ private fun HeroCircleButton(
 }
 
 @Composable
-private fun HeroTextBlock(item: MetaPreview) {
+private fun HeroTextBlock(item: HeroDisplay) {
     val context = LocalContext.current
-    var logoFailed by remember(item.id) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(modifier = Modifier.height(64.dp).fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+    var logoFailed by remember(item.key) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(modifier = Modifier.height(48.dp).fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
             if (!item.logo.isNullOrBlank() && !logoFailed) {
                 val request = remember(item.logo) {
                     ImageRequest.Builder(context)
@@ -255,12 +274,12 @@ private fun HeroTextBlock(item: MetaPreview) {
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.CenterStart,
                     onError = { logoFailed = true },
-                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.7f)
+                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.6f)
                 )
             } else {
                 Text(
                     text = item.name,
-                    fontSize = 32.sp,
+                    fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
                     maxLines = 1,
@@ -268,23 +287,16 @@ private fun HeroTextBlock(item: MetaPreview) {
                 )
             }
         }
-        // Meta line
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            val type = if (item.apiType.equals("movie", true)) "Movie" else "TV Show"
-            val parts = buildList {
-                add(type)
-                addAll(item.genres.take(2))
-                item.releaseInfo?.takeIf { it.isNotBlank() }?.let { add(it.take(4)) }
-            }
             Text(
-                text = parts.joinToString(" · "),
+                text = item.meta,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.85f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            val rating = item.imdbRating
+            val rating = item.rating
             if (rating != null && rating > 0f) {
                 Box(
                     modifier = Modifier
@@ -301,14 +313,14 @@ private fun HeroTextBlock(item: MetaPreview) {
                 }
             }
         }
-        val synopsis = item.description
+        val synopsis = item.synopsis
         if (!synopsis.isNullOrBlank()) {
             Text(
                 text = synopsis,
-                fontSize = 13.sp,
-                lineHeight = 18.sp,
+                fontSize = 12.sp,
+                lineHeight = 16.sp,
                 color = Color.White.copy(alpha = 0.78f),
-                maxLines = 3,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
         }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,7 +64,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 import kotlinx.coroutines.delay
 
 private const val HERO_AUTO_ADVANCE_MS = 8_000L
-private val HeroPeekHeight = 118.dp
+private val RowsAreaHeight = 310.dp
 private val RowInset = 48.dp
 private val CardShape = RoundedCornerShape(12.dp)
 
@@ -102,11 +104,9 @@ fun AppleHomeContent(
     }
 
     var heroIndex by rememberSaveable { mutableStateOf(0) }
-    val heroVisible by remember(listState) {
-        derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 40 }
-    }
-    LaunchedEffect(heroIndex, heroVisible, heroItems.size) {
-        if (heroItems.size > 1 && heroVisible) {
+    var rowFocus by remember { mutableStateOf<HeroDisplay?>(null) }
+    LaunchedEffect(heroIndex, rowFocus == null, heroItems.size) {
+        if (heroItems.size > 1 && rowFocus == null) {
             delay(HERO_AUTO_ADVANCE_MS)
             heroIndex = (heroIndex + 1) % heroItems.size
         }
@@ -117,57 +117,87 @@ fun AppleHomeContent(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val heroHeight = screenHeight - HeroPeekHeight
-    val heroHeightPx = with(LocalDensity.current) { heroHeight.toPx() }
+    val rowsHeight = RowsAreaHeight
+    val heroHeight = screenHeight - rowsHeight
+
+    // Focused card in any row drives the hero/background (debounced), like Nuvio's Modern home.
+    var shownRowFocus by remember { mutableStateOf<HeroDisplay?>(null) }
+    LaunchedEffect(rowFocus) {
+        delay(150)
+        shownRowFocus = rowFocus
+    }
+    val carouselDisplay = remember(currentHero) { currentHero?.toHeroDisplay() }
+    val display = shownRowFocus ?: carouselDisplay
 
     Box(modifier = Modifier.fillMaxSize().background(background)) {
+        AppleBackdrop(display = display, modifier = Modifier.fillMaxSize())
+        // Left scrim only behind the text column
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(0.5f)
+                .background(
+                    Brush.horizontalGradient(
+                        0f to Color.Black.copy(alpha = 0.6f),
+                        1f to Color.Transparent
+                    )
+                )
+        )
+        // Bottom fade only where the rows sit
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(rowsHeight + 40.dp)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Transparent,
+                        0.45f to Color.Black.copy(alpha = 0.45f),
+                        1f to Color.Black.copy(alpha = 0.8f)
+                    )
+                )
+        )
+
+        if (display != null && currentHero != null) {
+            val statusKey = homeItemStatusKey(currentHero.id, currentHero.apiType)
+            AppleHeroSection(
+                display = display,
+                count = heroItems.size,
+                index = heroIndex,
+                onIndexChange = { heroIndex = it },
+                height = heroHeight,
+                inLibrary = uiState.posterLibraryMembership[statusKey] == true,
+                canToggleLibrary = true,
+                onPlay = {
+                    HeroBackdropState.update(currentHero.backdropUrl)
+                    onNavigateToDetail(currentHero.id, currentHero.apiType, addonBaseById[currentHero.id] ?: currentHero.sourceAddonBaseUrl.orEmpty())
+                },
+                onInfo = {
+                    HeroBackdropState.update(currentHero.backdropUrl)
+                    onNavigateToDetail(currentHero.id, currentHero.apiType, addonBaseById[currentHero.id] ?: currentHero.sourceAddonBaseUrl.orEmpty())
+                },
+                onToggleLibrary = {
+                    val base = addonBaseById[currentHero.id] ?: currentHero.sourceAddonBaseUrl
+                    if (uiState.librarySourceMode != LibrarySourceMode.LOCAL) {
+                        viewModel.openPosterListPicker(currentHero, base)
+                    } else {
+                        viewModel.togglePosterLibrary(currentHero, base)
+                    }
+                },
+                onHeroFocused = { rowFocus = null },
+                modifier = Modifier.align(Alignment.TopStart)
+            )
+        }
+
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 56.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(rowsHeight),
+            contentPadding = PaddingValues(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            if (currentHero != null) {
-                item(key = "apple_hero", contentType = "hero") {
-                    val statusKey = homeItemStatusKey(currentHero.id, currentHero.apiType)
-                    AppleHeroSection(
-                        items = heroItems,
-                        index = heroIndex,
-                        onIndexChange = { heroIndex = it },
-                        height = heroHeight,
-                        inLibrary = uiState.posterLibraryMembership[statusKey] == true,
-                        canToggleLibrary = true,
-                        backgroundColor = background,
-                        onPlay = { item ->
-                            // No direct play action exists on Home: open details (same as Nuvio's hero click).
-                            HeroBackdropState.update(item.backdropUrl)
-                            onNavigateToDetail(item.id, item.apiType, addonBaseById[item.id] ?: item.sourceAddonBaseUrl.orEmpty())
-                        },
-                        onInfo = { item ->
-                            HeroBackdropState.update(item.backdropUrl)
-                            onNavigateToDetail(item.id, item.apiType, addonBaseById[item.id] ?: item.sourceAddonBaseUrl.orEmpty())
-                        },
-                        onToggleLibrary = { item ->
-                            val base = addonBaseById[item.id] ?: item.sourceAddonBaseUrl
-                            if (uiState.librarySourceMode != LibrarySourceMode.LOCAL) {
-                                viewModel.openPosterListPicker(item, base)
-                            } else {
-                                viewModel.togglePosterLibrary(item, base)
-                            }
-                        },
-                        modifier = Modifier.graphicsLayer {
-                            // Dim and shrink the hero as the rows scroll over it (read in the layer: no recomposition).
-                            val f = if (listState.firstVisibleItemIndex > 0) 1f
-                            else (listState.firstVisibleItemScrollOffset / heroHeightPx).coerceIn(0f, 1f)
-                            alpha = 1f - 0.65f * f
-                            scaleX = 1f - 0.05f * f
-                            scaleY = 1f - 0.05f * f
-                            transformOrigin = TransformOrigin(0.5f, 0f)
-                        }
-                    )
-                }
-            }
-
             if (uiState.continueWatchingEnabled && uiState.continueWatchingItems.isNotEmpty()) {
                 item(key = "apple_cw", contentType = "cw") {
                     Column {
@@ -181,7 +211,11 @@ fun AppleHomeContent(
                                 key = { it.appleKey() },
                                 contentType = { "cwCard" }
                             ) { cw ->
-                                AppleContinueCard(cw, onClick = { onContinueWatchingClick(cw) })
+                                AppleContinueCard(
+                                    cw,
+                                    onClick = { onContinueWatchingClick(cw) },
+                                    onFocused = { rowFocus = cw.toHeroDisplay() }
+                                )
                             }
                         }
                     }
@@ -200,11 +234,33 @@ fun AppleHomeContent(
                         HeroBackdropState.update(item.backdropUrl)
                         onNavigateToDetail(item.id, item.apiType, row.addonBaseUrl)
                     },
-                    onItemLongPress = { item -> onCatalogItemLongPress(item, row.addonBaseUrl) }
+                    onItemLongPress = { item -> onCatalogItemLongPress(item, row.addonBaseUrl) },
+                    onItemFocused = { item -> rowFocus = item.toHeroDisplay() }
                 )
             }
         }
     }
+}
+
+private fun ContinueWatchingItem.toHeroDisplay(): HeroDisplay = when (this) {
+    is ContinueWatchingItem.InProgress -> HeroDisplay(
+        key = "cw_${progress.contentId}",
+        backdrops = listOfNotNull(customLandscapePoster, progress.backdrop, episodeThumbnail, progress.poster).filter { it.isNotBlank() },
+        name = progress.name,
+        logo = null,
+        meta = if (progress.season != null && progress.episode != null) "Continue \u00b7 S${progress.season} E${progress.episode}" else "Continue Watching",
+        rating = null,
+        synopsis = null
+    )
+    is ContinueWatchingItem.NextUp -> HeroDisplay(
+        key = "nu_${info.contentId}",
+        backdrops = listOfNotNull(customLandscapePoster, info.backdrop, info.thumbnail, info.poster).filter { it.isNotBlank() },
+        name = info.name,
+        logo = null,
+        meta = "Up next \u00b7 S${info.season} E${info.episode}",
+        rating = null,
+        synopsis = null
+    )
 }
 
 @Composable
@@ -226,7 +282,7 @@ private fun ContinueWatchingItem.appleKey(): String = when (this) {
 }
 
 @Composable
-private fun AppleContinueCard(item: ContinueWatchingItem, onClick: () -> Unit) {
+private fun AppleContinueCard(item: ContinueWatchingItem, onClick: () -> Unit, onFocused: () -> Unit) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val widthDp = 240.dp
@@ -260,6 +316,7 @@ private fun AppleContinueCard(item: ContinueWatchingItem, onClick: () -> Unit) {
     Column(modifier = Modifier.width(widthDp)) {
         AppleFocusSurface(
             onClick = onClick,
+            onFocused = onFocused,
             shape = CardShape,
             modifier = Modifier.width(widthDp).height(heightDp)
         ) {
@@ -306,7 +363,8 @@ private fun AppleCatalogRow(
     row: CatalogRow,
     viewModel: HomeViewModel,
     onItemClick: (MetaPreview) -> Unit,
-    onItemLongPress: (MetaPreview) -> Unit
+    onItemLongPress: (MetaPreview) -> Unit,
+    onItemFocused: (MetaPreview) -> Unit
 ) {
     val isPlaceholder = row.isLoading && row.items.firstOrNull()?.id?.startsWith("__placeholder_") == true
     if (isPlaceholder) {
@@ -340,7 +398,8 @@ private fun AppleCatalogRow(
                 ApplePosterCard(
                     item = item,
                     onClick = { onItemClick(item) },
-                    onLongClick = { onItemLongPress(item) }
+                    onLongClick = { onItemLongPress(item) },
+                    onFocused = { onItemFocused(item) }
                 )
             }
         }
@@ -348,7 +407,7 @@ private fun AppleCatalogRow(
 }
 
 @Composable
-private fun ApplePosterCard(item: MetaPreview, onClick: () -> Unit, onLongClick: () -> Unit) {
+private fun ApplePosterCard(item: MetaPreview, onClick: () -> Unit, onLongClick: () -> Unit, onFocused: () -> Unit) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val landscape = item.posterShape == PosterShape.LANDSCAPE
@@ -364,6 +423,7 @@ private fun ApplePosterCard(item: MetaPreview, onClick: () -> Unit, onLongClick:
         AppleFocusSurface(
             onClick = onClick,
             onLongClick = onLongClick,
+            onFocused = onFocused,
             shape = CardShape,
             modifier = Modifier.width(widthDp).height(heightDp)
         ) {

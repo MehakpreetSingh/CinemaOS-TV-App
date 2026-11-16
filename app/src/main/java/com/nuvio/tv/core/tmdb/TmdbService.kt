@@ -68,16 +68,24 @@ class TmdbService @Inject constructor(
         try {
             Log.d(TAG, "Looking up TMDB ID for IMDB: $imdbId (type: $mediaType)")
             
-            val response = tmdbApi.findByExternalId(
+            val response = if (TMDB_API_KEY.isBlank()) null else tmdbApi.findByExternalId(
                 externalId = imdbId,
                 apiKey = TMDB_API_KEY,
                 externalSource = "imdb_id"
             )
-            
-            if (!response.isSuccessful) {
-                Log.e(TAG, "TMDB API error: ${response.code()} - ${response.message()}")
-                requestDeferred.complete(null)
-                return@withContext null
+
+            if (response == null || !response.isSuccessful) {
+                if (response != null) Log.e(TAG, "TMDB API error: ${response.code()} - ${response.message()}")
+                // No (valid) TMDB key in this build: Cinemeta exposes the TMDB id as moviedb_id.
+                val fallback = cinemetaTmdbId(imdbId, normalizedType)
+                if (fallback != null) {
+                    cacheMutex.withLock {
+                        imdbToTmdbCache[cacheKey] = fallback
+                        tmdbToImdbCache["$fallback:$normalizedType"] = imdbId
+                    }
+                }
+                requestDeferred.complete(fallback)
+                return@withContext fallback
             }
             
             val body = response.body()
@@ -197,6 +205,21 @@ class TmdbService @Inject constructor(
         }
     }
     
+    private fun cinemetaTmdbId(imdbId: String, normalizedType: String): Int? = try {
+        val kind = if (normalizedType == "tv") "series" else "movie"
+        val conn = java.net.URL("https://v3-cinemeta.strem.io/meta/$kind/$imdbId.json")
+            .openConnection() as java.net.HttpURLConnection
+        conn.connectTimeout = 8000
+        conn.readTimeout = 8000
+        val text = conn.inputStream.bufferedReader().use { it.readText() }
+        val id = org.json.JSONObject(text).optJSONObject("meta")?.optInt("moviedb_id", 0) ?: 0
+        Log.d(TAG, "Cinemeta moviedb_id for $imdbId = $id")
+        id.takeIf { it > 0 }
+    } catch (e: Exception) {
+        Log.w(TAG, "Cinemeta TMDB lookup failed for $imdbId: ${e.message}")
+        null
+    }
+
     /**
      * Get a TMDB ID from a video ID string.
      * Handles both IMDB IDs (tt...) and TMDB IDs.

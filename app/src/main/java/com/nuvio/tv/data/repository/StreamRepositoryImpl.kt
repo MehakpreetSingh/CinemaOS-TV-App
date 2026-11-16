@@ -267,8 +267,14 @@ class StreamRepositoryImpl @Inject constructor(
                             when (streamsResult) {
                                 is NetworkResult.Success -> {
                                     if (streamsResult.data.isNotEmpty()) {
-                                        val namedStreams = streamsResult.data.map {
-                                            it.copy(addonName = addon.displayName, addonLogo = addon.logo)
+                                        val namedStreams = streamsResult.data
+                                            .filter { it.isPlayableEntry() }
+                                            .map {
+                                                it.copy(addonName = addon.displayName, addonLogo = addon.logo)
+                                            }
+                                        if (namedStreams.isEmpty()) {
+                                            attemptedFailures += buildMissingStreamFailure(addon)
+                                            return@launch
                                         }
                                         resultChannel.send(
                                             AddonStreams(
@@ -542,6 +548,15 @@ class StreamRepositoryImpl @Inject constructor(
     /**
      * Stream local plugin results - each scraper sends results individually
      */
+    /** Drops promo/info entries (donation, Discord...) that have nothing to play. */
+    private fun Stream.isPlayableEntry(): Boolean =
+        !isExternal() &&
+            !Regex("donation needed|join the discord", RegexOption.IGNORE_CASE)
+                .containsMatchIn(listOfNotNull(name, title).joinToString(" ")) && (
+            getStreamUrl() != null || serverTarget != null || infoHash != null ||
+                youTubeIdToResolve() != null || isTorrent() || isDirectDebrid()
+            )
+
     private fun String.canRunLocalPlugins(): Boolean {
         return startsWith("kitsu:", ignoreCase = true) ||
             startsWith("anilist:", ignoreCase = true) ||

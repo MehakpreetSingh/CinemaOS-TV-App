@@ -151,7 +151,20 @@ object StreamAutoPlaySelector {
 
         return when (mode) {
             StreamAutoPlayMode.MANUAL -> null
-            StreamAutoPlayMode.FIRST_STREAM -> candidateStreams.firstOrNull { isPlayable(it) }
+            StreamAutoPlayMode.FIRST_STREAM -> {
+                // CinemaOS phone-app order: best quality first (capped at 1080p so heavy 4K
+                // files do not win on weak TV boxes), CinemaOS providers before other addons,
+                // and provider order MovieBox > Movy > Castle > Wing within a quality.
+                val playable = candidateStreams.filter { isPlayable(it) }
+                playable.withIndex().maxWithOrNull(
+                    compareBy<IndexedValue<Stream>>(
+                        { autoPlayQualityRank(it.value) },
+                        { if (it.value.addonName !in installedAddonNames) 1 else 0 },
+                        { autoPlayProviderRank(it.value.addonName) },
+                        { -it.index }
+                    )
+                )?.value
+            }
             StreamAutoPlayMode.REGEX_MATCH -> {
                 val pattern = regexPattern.trim()
 
@@ -202,4 +215,23 @@ object StreamAutoPlaySelector {
 
         }
     }
+}
+
+private fun autoPlayQualityRank(stream: Stream): Int {
+    val text = listOfNotNull(stream.name, stream.title, stream.description).joinToString(" ")
+    val rank = when {
+        Regex("4k|2160|uhd", RegexOption.IGNORE_CASE).containsMatchIn(text) -> 2160
+        else -> Regex("(\\d{3,4})\\s*p", RegexOption.IGNORE_CASE).find(text)
+            ?.groupValues?.get(1)?.toIntOrNull()
+            ?: if (Regex("hd", RegexOption.IGNORE_CASE).containsMatchIn(text)) 720 else 1
+    }
+    return minOf(rank, 1080)
+}
+
+private fun autoPlayProviderRank(addonName: String): Int = when {
+    addonName.contains("MovieBox", true) -> 4
+    addonName.contains("Movy", true) -> 3
+    addonName.contains("Castle", true) -> 2
+    addonName.contains("Wing", true) -> 1
+    else -> 0
 }
