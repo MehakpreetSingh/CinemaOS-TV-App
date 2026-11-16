@@ -45,17 +45,29 @@ async function isAnimeTmdb(id) {
 async function isVideo(url, headers) {
   try {
     var h = {};
-    Object.keys(headers || {}).forEach(function (k) { h[k] = headers[k]; });
+    var HDRS = headers || {};
+    Object.keys(HDRS).forEach(function (k) { h[k] = HDRS[k]; });
     h.Range = 'bytes=0-63';
     var r = await fetch(url, { headers: h });
     var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
     if (!r.ok || /text\/html|application\/json/i.test(ct)) return false;
     // server ignored Range (200): never read the body (could be GBs) - judge by headers alone
-    if (r.status === 200) return /^video\/|octet-stream/i.test(ct);
+    if (r.status === 200) return false; // no Range support: ExoPlayer cannot seek / read MKV cues
     var b = new Uint8Array(await r.arrayBuffer());
     var mkv = b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
     var mp4 = b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70;
-    return mkv || mp4 || /^video\//i.test(ct);
+    if (!(mkv || mp4 || /^video\//i.test(ct))) return false;
+    // ExoPlayer reads the END of MKV/MP4 (cues / moov): hosts that 403 a tail Range are unplayable
+    var cr = (r.headers.get('content-range') || '').match(/\/(\d+)$/);
+    var total = cr ? parseInt(cr[1], 10) : 0;
+    if (total > 2097152) {
+      var t = {};
+      Object.keys(HDRS).forEach(function (k) { t[k] = HDRS[k]; });
+      t.Range = 'bytes=' + (total - 1048576) + '-'; // open-ended like ExoPlayer, last 1 MB
+      var tr = await fetch(url, { headers: t });
+      if (tr.status !== 206 && tr.status !== 200) return false;
+    }
+    return true;
   } catch (e) {
     return false;
   }
