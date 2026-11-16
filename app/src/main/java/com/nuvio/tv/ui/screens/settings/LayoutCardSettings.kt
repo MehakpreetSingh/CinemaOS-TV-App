@@ -167,8 +167,8 @@ internal fun LayoutContinueWatchingSection(
 }
 
 internal fun LayoutSettingsUiState.focusedPosterHasOptions(): Boolean {
-    // The Apple home has no focus-expand / trailer behaviour.
-    if (selectedLayout == HomeLayout.CINEMAOS) return false
+    // The CinemaOS home supports focus-expand for portrait cards.
+    if (selectedLayout == HomeLayout.CINEMAOS) return !modernLandscapePostersEnabled
     val modernLandscape = selectedLayout == HomeLayout.MODERN && modernLandscapePostersEnabled
     return selectedLayout != HomeLayout.GRID && (!modernLandscape || AppFeaturePolicy.inAppTrailerPlaybackEnabled)
 }
@@ -181,7 +181,8 @@ internal fun LayoutFocusedPosterSection(
     val isModern = uiState.selectedLayout == HomeLayout.MODERN
     val isLandscapeActive = uiState.modernLandscapePostersEnabled
     val isModernLandscape = isModern && isLandscapeActive
-    val showAutoplayRow = AppFeaturePolicy.inAppTrailerPlaybackEnabled &&
+    val showAutoplayRow = uiState.selectedLayout != HomeLayout.CINEMAOS &&
+        AppFeaturePolicy.inAppTrailerPlaybackEnabled &&
         (uiState.focusedPosterBackdropExpandEnabled || isModernLandscape)
 
     if (!isModernLandscape) {

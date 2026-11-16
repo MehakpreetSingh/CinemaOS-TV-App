@@ -175,26 +175,6 @@ internal fun AppleHeroSection(
                 }
             }
         }
-
-        // Page indicator dots
-        if (count > 1) {
-            Row(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 48.dp, bottom = 22.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                for (i in 0 until minOf(count, 10)) {
-                    val w by animateDpAsState(if (i == safeIndex) 20.dp else 6.dp, tween(200), label = "dot")
-                    Box(
-                        modifier = Modifier
-                            .width(w)
-                            .height(6.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = if (i == safeIndex) 0.95f else 0.4f))
-                    )
-                }
-            }
-        }
     }
 }
 

@@ -89,7 +89,9 @@ private data class AppleCardStyle(
     val landscape: Boolean,
     val showLabels: Boolean,
     val alwaysLogo: Boolean,
-    val showRatings: Boolean
+    val showRatings: Boolean,
+    val expandFocused: Boolean = false,
+    val expandDelayMs: Long = 3000L
 )
 
 /**
@@ -164,7 +166,9 @@ fun AppleHomeContent(
         uiState.modernLandscapePostersEnabled,
         uiState.posterLabelsEnabled,
         uiState.alwaysShowLandscapeClearlogo,
-        showRatings
+        showRatings,
+        uiState.focusedPosterBackdropExpandEnabled,
+        uiState.focusedPosterBackdropExpandDelaySeconds
     ) {
         AppleCardStyle(
             scale = (uiState.posterCardWidthDp / 126f).coerceIn(0.8f, 1.4f),
@@ -172,16 +176,27 @@ fun AppleHomeContent(
             landscape = uiState.modernLandscapePostersEnabled,
             showLabels = uiState.posterLabelsEnabled,
             alwaysLogo = uiState.alwaysShowLandscapeClearlogo,
-            showRatings = showRatings
+            showRatings = showRatings,
+            expandFocused = uiState.focusedPosterBackdropExpandEnabled,
+            expandDelayMs = uiState.focusedPosterBackdropExpandDelaySeconds.coerceAtLeast(0) * 1000L
         )
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val baseRowsHeight = if (cardStyle.landscape) {
+    // Tallest row drives the window: catalog cards, plus Continue Watching poster cards (title + episode label below).
+    val cwPosterRow = uiState.continueWatchingCardStyle == ContinueWatchingCardStyle.POSTER &&
+        uiState.continueWatchingItems.isNotEmpty()
+    val catalogRowHeight = if (cardStyle.landscape) {
         135.dp * cardStyle.scale + 28.dp + 36.dp + 24.dp
     } else {
-        195.dp * cardStyle.scale + 26.dp + 28.dp + 36.dp + 24.dp
+        195.dp * cardStyle.scale + 26.dp + 28.dp + 36.dp + 24.dp + 20.dp
     }
+    val cwRowHeight = if (cwPosterRow) {
+        195.dp * cardStyle.scale + 42.dp + 28.dp + 36.dp + 24.dp
+    } else {
+        0.dp
+    }
+    val baseRowsHeight = if (catalogRowHeight > cwRowHeight) catalogRowHeight else cwRowHeight
     val rowsHeight = baseRowsHeight.coerceAtMost(screenHeight - HeroBlockMinHeight)
     val heroHeight = screenHeight - rowsHeight
 
@@ -599,6 +614,7 @@ private fun AppleContinueCard(
         progress = fraction,
         blur = blur,
         belowLabel = if (posterCard) title else null,
+        belowSubtitle = if (posterCard) subtitle else null,
         onClick = onClick,
         onLongClick = onLongClick,
         onFocused = onFocused
@@ -676,9 +692,21 @@ private fun ApplePosterCard(
 ) {
     val s = style.scale
     val landscape = style.landscape
-    val widthDp = (if (landscape) 240.dp else 130.dp) * s
+    var focusedNow by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+    LaunchedEffect(focusedNow, style.expandFocused, style.expandDelayMs) {
+        if (focusedNow && style.expandFocused && !landscape) {
+            delay(style.expandDelayMs.coerceAtLeast(150L))
+            expanded = true
+        } else {
+            expanded = false
+        }
+    }
+    val expandedNow = expanded && !landscape
+    val targetWidth = if (landscape) 240.dp * s else if (expandedNow) 240.dp * s else 130.dp * s
+    val widthDp by androidx.compose.animation.core.animateDpAsState(targetWidth, androidx.compose.animation.core.tween(300), label = "posterExpand")
     val heightDp = (if (landscape) 135.dp else 195.dp) * s
-    val url = if (landscape) (item.landscapePoster ?: item.background ?: item.poster) else item.poster
+    val url = if (landscape || expandedNow) (item.landscapePoster ?: item.background ?: item.poster) else item.poster
     AppleArtCard(
         width = widthDp,
         height = heightDp,
@@ -687,7 +715,7 @@ private fun ApplePosterCard(
         title = item.name,
         logoUrl = item.logo,
         subtitle = null,
-        overlay = landscape && style.showLabels,
+        overlay = (landscape || expandedNow) && style.showLabels,
         alwaysLogo = style.alwaysLogo,
         rating = item.imdbRating.takeIf { style.showRatings },
         progress = 0f,
@@ -695,7 +723,8 @@ private fun ApplePosterCard(
         belowLabel = if (!landscape && style.showLabels) item.name else null,
         onClick = onClick,
         onLongClick = onLongClick,
-        onFocused = onFocused
+        onFocused = onFocused,
+        onFocusChange = { focusedNow = it }
     )
 }
 
@@ -769,7 +798,9 @@ private fun AppleArtCard(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
     onFocused: () -> Unit,
-    emoji: String? = null
+    emoji: String? = null,
+    belowSubtitle: String? = null,
+    onFocusChange: ((Boolean) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -784,6 +815,7 @@ private fun AppleArtCard(
             onClick = onClick,
             onLongClick = onLongClick,
             onFocused = onFocused,
+            onFocusChange = onFocusChange,
             shape = shape,
             modifier = Modifier.width(width).height(height)
         ) {
@@ -890,6 +922,15 @@ private fun AppleArtCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            if (!belowSubtitle.isNullOrBlank()) {
+                Text(
+                    text = belowSubtitle,
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.45f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }

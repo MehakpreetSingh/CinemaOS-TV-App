@@ -37,6 +37,7 @@ internal fun AppleFocusSurface(
     shape: Shape = RoundedCornerShape(12.dp),
     onLongClick: (() -> Unit)? = null,
     onFocused: () -> Unit = {},
+    onFocusChange: ((Boolean) -> Unit)? = null,
     containerColor: Color = Color(0xFF1C1C1E),
     focusedContainerColor: Color = containerColor,
     contentColor: Color = Color.White,
@@ -64,6 +65,7 @@ internal fun AppleFocusSurface(
                 val nowFocused = it.isFocused
                 if (nowFocused != focused) {
                     focused = nowFocused
+                    onFocusChange?.invoke(nowFocused)
                     if (nowFocused) onFocused()
                 }
             }

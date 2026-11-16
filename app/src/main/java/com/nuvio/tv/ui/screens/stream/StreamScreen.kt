@@ -423,10 +423,7 @@ fun StreamScreen(
                 logoUrl = uiState.logo,
                 title = uiState.title,
                 message = stringResource(R.string.stream_finding_source),
-                year = uiState.year,
-                season = uiState.season,
-                episode = uiState.episode,
-                episodeTitle = uiState.episodeName,
+                subText = findingSourcesSubText(uiState),
                 modifier = Modifier.fillMaxSize()
             )
         } else if (showOverlay) {
@@ -441,10 +438,7 @@ fun StreamScreen(
                     null
                 },
                 progress = uiState.directAutoPlayProgress,
-                year = uiState.year,
-                season = uiState.season,
-                episode = uiState.episode,
-                episodeTitle = uiState.episodeName,
+                subText = playingSourceSubText(uiState),
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -1670,4 +1664,25 @@ internal fun PlayerChoiceDialog(
             }
         }
     }
+}
+
+
+/** "3 of 7 providers done · 12 sources" while the scrapers are still running. */
+private fun findingSourcesSubText(uiState: StreamScreenUiState): String? {
+    val chips = uiState.sourceChips
+    if (chips.isEmpty()) return null
+    val done = chips.count { it.status != com.nuvio.tv.ui.components.SourceChipStatus.LOADING }
+    val sources = uiState.allStreams.size
+    return buildString {
+        append("$done of ${chips.size} providers done")
+        if (sources > 0) append(" \u00B7 $sources sources")
+    }
+}
+
+/** "Playing MovieBox \u00B7 1080p" once a stream was chosen. */
+private fun playingSourceSubText(uiState: StreamScreenUiState): String? {
+    val stream = uiState.autoPlayStream ?: return findingSourcesSubText(uiState)
+    val provider = stream.pluginSourceName?.takeIf { it.isNotBlank() } ?: stream.addonName
+    val quality = stream.quality?.takeIf { it.isNotBlank() }
+    return "Playing $provider" + (quality?.let { " \u00B7 $it" } ?: "")
 }

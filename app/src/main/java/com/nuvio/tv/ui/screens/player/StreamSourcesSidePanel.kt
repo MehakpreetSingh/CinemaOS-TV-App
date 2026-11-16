@@ -104,9 +104,13 @@ internal fun StreamSourcesSidePanel(
         }
     }
 
-    val streamKeys = remember(uiState.sourceFilteredStreams) {
+    // Same provider grouping as the stream screen: one block per provider, labelled by header.
+    val displayStreams = remember(uiState.sourceFilteredStreams) {
+        com.nuvio.tv.ui.screens.stream.groupStreamsByProvider(uiState.sourceFilteredStreams)
+    }
+    val streamKeys = remember(displayStreams) {
         val seen = mutableMapOf<String, Int>()
-        uiState.sourceFilteredStreams.map { stream ->
+        displayStreams.map { stream ->
             val base = stream.stableKey(0)
             val count = seen.getOrDefault(base, 0)
             seen[base] = count + 1
@@ -115,7 +119,7 @@ internal fun StreamSourcesSidePanel(
     }
     val firstStreamKey = streamKeys.firstOrNull()
     val currentStreamIndex = remember(
-        uiState.sourceFilteredStreams,
+        displayStreams,
         uiState.currentStreamInfoHash,
         uiState.currentStreamFileIdx,
         uiState.currentStreamAddonName,
@@ -125,7 +129,7 @@ internal fun StreamSourcesSidePanel(
         currentFilename
     ) {
         findCurrentStreamIndex(
-            streams = uiState.sourceFilteredStreams,
+            streams = displayStreams,
             currentStreamInfoHash = uiState.currentStreamInfoHash,
             currentStreamFileIdx = uiState.currentStreamFileIdx,
             currentStreamAddonName = uiState.currentStreamAddonName,
@@ -385,7 +389,7 @@ internal fun StreamSourcesSidePanel(
                     )
                 }
 
-                uiState.sourceFilteredStreams.isEmpty() && uiState.isLoadingSourceStreams -> {
+                displayStreams.isEmpty() && uiState.isLoadingSourceStreams -> {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -396,7 +400,7 @@ internal fun StreamSourcesSidePanel(
                     }
                 }
 
-                uiState.sourceFilteredStreams.isEmpty() -> {
+                displayStreams.isEmpty() -> {
                     Text(
                         text = stringResource(R.string.sources_no_streams),
                         style = MaterialTheme.typography.bodyLarge,
@@ -412,8 +416,8 @@ internal fun StreamSourcesSidePanel(
                             streamListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
                         }
                     }
-                    LaunchedEffect(lastVisibleIndex.value, uiState.sourceFilteredStreams.size) {
-                        if (lastVisibleIndex.value >= uiState.sourceFilteredStreams.size - 20) {
+                    LaunchedEffect(lastVisibleIndex.value, displayStreams.size) {
+                        if (lastVisibleIndex.value >= displayStreams.size - 20) {
                             onExpandStreams()
                         }
                     }
@@ -489,9 +493,23 @@ internal fun StreamSourcesSidePanel(
                                 }
                             }
                     ) {
-                        itemsIndexed(uiState.sourceFilteredStreams, key = { index, _ ->
+                        itemsIndexed(displayStreams, key = { index, _ ->
                             streamKeys[index]
                         }) { index, stream ->
+                            Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)) {
+                            com.nuvio.tv.ui.screens.stream.streamProviderHeader(
+                                stream,
+                                displayStreams.getOrNull(index - 1)
+                            )?.let { providerName ->
+                                Text(
+                                    text = providerName,
+                                    modifier = Modifier.padding(start = NuvioTheme.spacing.lg),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = NuvioTheme.extendedColors.textSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
                             StreamItem(
                                 stream = stream,
                                 focusRequester = if (index == 0) {
@@ -518,6 +536,7 @@ internal fun StreamSourcesSidePanel(
                                     requestChipFocus(idx)
                                 }} else null
                             )
+                            }
                         }
                         if (uiState.isLoadingSourceStreams) {
                             item(key = "loading-more") {

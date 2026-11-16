@@ -50,6 +50,9 @@ class AddonPreferences @Inject constructor(
     private val userSetNamesKey = stringPreferencesKey("addon_user_set_names")
     private val addonEnabledStatesKey = stringPreferencesKey("installed_addon_enabled_states")
     private val defaultsSeededV1Key = booleanPreferencesKey("default_addons_seeded_anime_v1")
+    private val hdhubRemovedKey = booleanPreferencesKey("raw_hdhub_addon_removed_v1")
+    private val seededHdhubUrl =
+        "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
     private val manifestSuffix = "/manifest.json"
 
     private fun canonicalizeUrl(url: String): String {
@@ -98,13 +101,25 @@ class AddonPreferences @Inject constructor(
     }
 
     /**
-     * One-time (flag-guarded) append of the current default addons (Anime Kitsu, HDHub) to stores
+     * One-time (flag-guarded) append of the current default addons (Anime Kitsu) to stores
      * created before they became defaults. A later manual removal sticks because the flag is set.
      */
     suspend fun seedDefaultAddonsOnce() {
         val active = profileManager.activeProfile
         if (active != null && !active.isPrimary && active.usesPrimaryAddons) return
         store().edit { preferences ->
+            // One-time: drop the raw HDHub addon we previously seeded (replaced by the cinemaos-hdhub plugin).
+            if (preferences[hdhubRemovedKey] != true) {
+                val cur = getCurrentList(preferences)
+                val keep = cur.filterNot { canonicalizeUrl(it).equals(canonicalizeUrl(seededHdhubUrl), ignoreCase = true) }
+                if (keep.size != cur.size) {
+                    preferences[orderedUrlsKey] = gson.toJson(keep)
+                    val states = getCurrentEnabledStates(preferences).toMutableMap()
+                    states.remove(canonicalizeUrl(seededHdhubUrl))
+                    preferences[addonEnabledStatesKey] = gson.toJson(states)
+                }
+                preferences[hdhubRemovedKey] = true
+            }
             if (preferences[defaultsSeededV1Key] == true) return@edit
             val current = getCurrentList(preferences)
             val toAdd = getDefaultAddons().filter { def ->
@@ -267,8 +282,7 @@ class AddonPreferences @Inject constructor(
         "https://v3-cinemeta.strem.io",
         "https://opensubtitles-v3.strem.io",
         // Anime Kitsu (Stremio catalog/meta addon powering the Anime tab)
-        "https://anime-kitsu.strem.fun",
-        // HDHub (third-party Stremio addon; the path segment is a public, non-secret config blob)
-        "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
+        "https://anime-kitsu.strem.fun"
+        // HDHub now ships as the cinemaos-hdhub plugin (filters dead links like the phone app)
     )
 }

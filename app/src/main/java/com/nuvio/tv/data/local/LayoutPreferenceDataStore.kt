@@ -107,6 +107,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val blurUnwatchedEpisodesKey = booleanPreferencesKey("blur_unwatched_episodes")
     private val randomEpisodeEnabledKey = booleanPreferencesKey("random_episode_enabled")
     private val startupSplashEnabledKey = booleanPreferencesKey("startup_splash_enabled")
+    private val cinemaOsLandscapeMigratedKey = booleanPreferencesKey("cinemaos_landscape_migrated_v1")
     private val alwaysShowLandscapeClearlogoKey = booleanPreferencesKey("always_show_landscape_clearlogo")
     private val heroDescriptionAutoScrollEnabledKey = booleanPreferencesKey("hero_description_auto_scroll_enabled")
     private val episodeOptionsOverlayStyleKey = stringPreferencesKey("episode_options_overlay_style")
@@ -511,6 +512,12 @@ class LayoutPreferenceDataStore @Inject constructor(
             if (prefs[cinemaOsLayoutMigratedKey] == true) return@edit
             prefs[layoutKey] = HomeLayout.CINEMAOS.name
             prefs[cinemaOsLayoutMigratedKey] = true
+        }
+        store().edit { prefs ->
+            if (prefs[cinemaOsLandscapeMigratedKey] == true) return@edit
+            prefs[modernLandscapePostersEnabledKey] = true
+            prefs[alwaysShowLandscapeClearlogoKey] = true
+            prefs[cinemaOsLandscapeMigratedKey] = true
         }
     }
 

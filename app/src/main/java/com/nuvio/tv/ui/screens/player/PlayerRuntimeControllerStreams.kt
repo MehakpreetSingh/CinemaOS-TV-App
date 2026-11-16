@@ -163,22 +163,19 @@ private data class SourceStreamsRequest(
     val episode: Int?
 )
 
-private fun PlayerRuntimeController.currentSourceStreamsRequest(): SourceStreamsRequest? =
-    if (contentType in listOf("series", "tv") && currentSeason != null && currentEpisode != null) {
-        SourceStreamsRequest(
-            type = contentType ?: return null,
-            videoId = currentVideoId ?: contentId ?: return null,
-            season = currentSeason,
-            episode = currentEpisode
-        )
+// Must produce the same repository key the stream screen searched with, so the panel reuses
+// that search instead of starting a new one: same video id and season/episode for any type
+// (anime/other types included), not only "series"/"tv".
+private fun PlayerRuntimeController.currentSourceStreamsRequest(): SourceStreamsRequest? {
+    val videoId = currentVideoId?.takeIf { it.isNotBlank() } ?: contentId ?: return null
+    val season = currentSeason
+    val episode = currentEpisode
+    return if (season != null && episode != null) {
+        SourceStreamsRequest(type = contentType ?: return null, videoId = videoId, season = season, episode = episode)
     } else {
-        SourceStreamsRequest(
-            type = contentType ?: "movie",
-            videoId = contentId ?: return null,
-            season = null,
-            episode = null
-        )
+        SourceStreamsRequest(type = contentType ?: "movie", videoId = videoId, season = null, episode = null)
     }
+}
 
 internal fun PlayerRuntimeController.loadSourceStreams(forceRefresh: Boolean) {
     streamRepository.setLocalPluginSearchPaused(false)

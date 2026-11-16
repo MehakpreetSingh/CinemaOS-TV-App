@@ -79,6 +79,60 @@
         "anime"
       ],
       "enabled": true
+    },
+    {
+      "id": "cinemaos-hdhub",
+      "name": "CinemaOS \u00b7 HDHub",
+      "description": "HDHub direct links, dead links filtered, 1080p first",
+      "version": "1.0.0",
+      "filename": "cinemaos-hdhub.js",
+      "supportedTypes": [
+        "movie",
+        "tv"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-animesalt",
+      "name": "CinemaOS \u00b7 AnimeSalt",
+      "description": "AnimeSalt anime HLS (multi-audio)",
+      "version": "1.0.0",
+      "filename": "cinemaos-animesalt.js",
+      "supportedTypes": [
+        "movie",
+        "tv",
+        "series",
+        "anime"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-animeworld",
+      "name": "CinemaOS \u00b7 AnimeWorld",
+      "description": "AnimeWorld anime (Hindi / multi-audio)",
+      "version": "1.0.0",
+      "filename": "cinemaos-animeworld.js",
+      "supportedTypes": [
+        "movie",
+        "tv",
+        "series",
+        "anime"
+      ],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-kickassanime",
+      "name": "CinemaOS \u00b7 KickAssAnime",
+      "description": "KickAssAnime HLS with soft subs",
+      "version": "1.0.0",
+      "filename": "cinemaos-kickassanime.js",
+      "supportedTypes": [
+        "movie",
+        "tv",
+        "series",
+        "anime"
+      ],
+      "enabled": true
     }
   ]
 }

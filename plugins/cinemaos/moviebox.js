@@ -637,6 +637,7 @@ async function scrape(tmdbId, type, season, episode) {
 }
 
 async function getStreams(tmdbId, mediaType, season, episode) {
+  if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(String(tmdbId || ''))) return []; // anime ids belong to the anime plugins
   var type = mediaType === 'movie' ? 'movie' : 'tv';
   var s = Number(season) || 1;
   var e = Number(episode) || 1;

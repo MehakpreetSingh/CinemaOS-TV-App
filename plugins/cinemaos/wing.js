@@ -26,6 +26,7 @@ function langsOf(name) {
 }
 
 async function getStreams(tmdbId, mediaType, season, episode) {
+  if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(String(tmdbId || ''))) return []; // anime ids belong to the anime plugins
   try {
     var id = String(tmdbId || '').trim();
     if (!/^\d+$/.test(id)) return [];

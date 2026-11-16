@@ -1352,6 +1352,16 @@ fun PlayerScreen(
             title = uiState.title,
             message = uiState.loadingMessage.takeIf { uiState.showPlayerLoadingStatus || uiState.isTorrentStream },
             progress = uiState.loadingProgress,
+            subText = run {
+                val provider = uiState.currentStreamAddonName?.takeIf { it.isNotBlank() }
+                val name = uiState.currentStreamName?.takeIf { it.isNotBlank() && it != provider }
+                when {
+                    provider != null && name != null -> "Playing $provider \u00B7 $name"
+                    provider != null -> "Playing $provider"
+                    name != null -> "Playing $name"
+                    else -> null
+                }
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(2f)

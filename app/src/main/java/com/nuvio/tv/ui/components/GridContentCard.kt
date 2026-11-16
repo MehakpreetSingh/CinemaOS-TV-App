@@ -61,6 +61,43 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 
+@dagger.hilt.EntryPoint
+@dagger.hilt.InstallIn(dagger.hilt.components.SingletonComponent::class)
+internal interface CardLogoEntryPoint {
+    fun tmdbService(): com.nuvio.tv.core.tmdb.TmdbService
+    fun tmdbMetadataService(): com.nuvio.tv.core.tmdb.TmdbMetadataService
+}
+
+private val resolvedLogoCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+/** Same TMDB enrichment Home uses to get clearlogos, for grid items (Search/Discover/Library) lacking one. */
+@Composable
+private fun rememberResolvedCardLogo(item: MetaPreview, enabled: Boolean): String? {
+    val existing = item.logo
+    if (!existing.isNullOrBlank()) return existing
+    val key = "${item.id}:${item.apiType}"
+    var resolved by remember(key) { mutableStateOf(resolvedLogoCache[key]) }
+    val context = LocalContext.current
+    androidx.compose.runtime.LaunchedEffect(key, enabled) {
+        if (!enabled || resolved != null) return@LaunchedEffect
+        val entry = runCatching {
+            dagger.hilt.android.EntryPointAccessors.fromApplication(
+                context.applicationContext,
+                CardLogoEntryPoint::class.java
+            )
+        }.getOrNull() ?: return@LaunchedEffect
+        val logo = runCatching {
+            val tmdbId = entry.tmdbService().ensureTmdbId(item.id, item.apiType) ?: return@runCatching null
+            entry.tmdbMetadataService().fetchEnrichment(tmdbId = tmdbId, contentType = item.type)?.logo
+        }.getOrNull()
+        if (!logo.isNullOrBlank()) {
+            resolvedLogoCache[key] = logo
+            resolved = logo
+        }
+    }
+    return resolved
+}
+
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun GridContentCard(
@@ -246,12 +283,12 @@ fun GridContentCard(
                 }
 
                 // Landscape clearlogo overlay on backdrop cards
-                val isLandscapeBackdropCard = globalLandscape &&
-                    effectiveLandscapePoster.isNullOrBlank()
+                val isLandscapeBackdropCard = globalLandscape
+                val cardLogo = rememberResolvedCardLogo(item, enabled = globalLandscape)
                 val showLandscapeClearlogo = isLandscapeBackdropCard &&
-                    !item.logo.isNullOrBlank()
+                    !cardLogo.isNullOrBlank()
                 if (showLandscapeClearlogo) {
-                    var landscapeLogoFailed by remember(item.logo) { mutableStateOf(false) }
+                    var landscapeLogoFailed by remember(cardLogo) { mutableStateOf(false) }
                     if (!landscapeLogoFailed) {
                         Box(
                             modifier = Modifier
@@ -267,9 +304,9 @@ fun GridContentCard(
                                     onDrawBehind { drawRect(gradient) }
                                 }
                         )
-                        val logoRequest = remember(item.logo) {
+                        val logoRequest = remember(cardLogo) {
                             ImageRequest.Builder(context)
-                                .data(item.logo)
+                                .data(cardLogo)
                                 .crossfade(true)
                                 .build()
                         }

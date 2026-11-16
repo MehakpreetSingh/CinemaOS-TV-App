@@ -224,6 +224,7 @@ async function castle(type, title, year, season, episode) {
 }
 
 async function getStreams(tmdbId, mediaType, season, episode) {
+  if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(String(tmdbId || ''))) return []; // anime ids belong to the anime plugins
   try {
     var type = mediaType === 'movie' ? 'movie' : 'tv';
     var tmdb = await tmdbDetails(type, tmdbId);
