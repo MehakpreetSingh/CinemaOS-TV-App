@@ -56,7 +56,10 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
             if (res == null) { Log.d(TAG, "shard $shard: no response (${System.currentTimeMillis() - t0} ms)"); return@parallelUntil null }
             if (!res.ok) { Log.d(TAG, "shard $shard: HTTP ${res.code} ${res.text.take(80)}"); return@parallelUntil null }
             val plain = runCatching { decrypt(res.text, seed, tmdbNum.toInt()) }
-                .onFailure { Log.d(TAG, "shard $shard: decrypt failed ${it.message} len=${res.text.length}") }.getOrNull() ?: return@parallelUntil null
+                .onFailure {
+                    val raw = runCatching { Base64.decode(res.text.trim().replace('-', '+').replace('_', '/').let { b -> b + "=".repeat((4 - b.length % 4) % 4) }, Base64.DEFAULT) }.getOrNull()
+                    Log.d(TAG, "shard $shard: decrypt failed ${it.message} len=${res.text.length} ct=${res.header("content-type")} head='${res.text.take(48)}' tail='${res.text.takeLast(12)}' rawN=${raw?.size} seedLen=${seed.length} tmdb=$tmdbNum")
+                }.getOrNull() ?: return@parallelUntil null
             Log.d(TAG, "shard $shard ok in ${System.currentTimeMillis() - t0} ms: ${plain.take(120)}")
             ShardResult(shard, JSONObject(plain))
         }
