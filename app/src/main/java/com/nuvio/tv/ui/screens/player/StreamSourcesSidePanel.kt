@@ -193,10 +193,8 @@ private fun StreamSourcesPanelContent(
         kept.groupBy { it.addonName }
             .map { (prov, list) ->
                 val sorted = list.sortedByDescending { it.sourceQuality() }
-                // Collapse duplicate links of the same provider + quality into one row
-                // (alternates stay in allStreams for fallback). Unknown quality is not collapsed.
-                val rows = sorted.groupBy { if (it.sourceQuality() > 0) it.sourceQuality() else -System.identityHashCode(it) }
-                    .values.map { l -> l.firstOrNull { it === currentStream } ?: l.first() }
+                // Every distinct link is its own row (the quality panel keeps its own per-quality grouping).
+                val rows = sorted.distinctBy { it.getStreamUrl() ?: System.identityHashCode(it) }
                 prov to rows
             }
             .sortedWith(

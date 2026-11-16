@@ -108,6 +108,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay as coroutineDelay
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch as coroutineLaunch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -402,6 +405,31 @@ fun StreamScreen(
 
     val showOverlay = uiState.showDirectAutoPlayOverlay || uiState.externalPlayerOverlayVisible
 
+    // There is no separate source-list page: when auto-play did not pick a link (manual mode, no match,
+    // timeout) keep the loading screen and open the player with the best link; every other link is in
+    // the player's Sources panel.
+    var forwardFailed by remember { mutableStateOf(false) }
+    var forwardStarted by remember { mutableStateOf(false) }
+    val forwardToPlayer = uiState.autoPlayDecided && !showOverlay && !forwardFailed &&
+        playerPreference == PlayerPreference.INTERNAL &&
+        (uiState.isLoading || uiState.allStreams.isNotEmpty())
+    LaunchedEffect(forwardToPlayer, uiState.allStreams.isNotEmpty()) {
+        if (!forwardToPlayer || uiState.allStreams.isEmpty() || forwardStarted) return@LaunchedEffect
+        forwardStarted = true
+        // Let the slower sources land first (bounded) so the best link wins.
+        withTimeoutOrNull(8_000L) { snapshotFlow { uiState.isLoading }.first { !it } }
+        val stream = uiState.filteredStreams.firstOrNull() ?: uiState.allStreams.firstOrNull()
+        val info = stream?.let { viewModel.resolveStreamForPlayback(it) }
+        if (stream != null && info != null && info.url != null && !info.isTorrent && !info.isExternal) {
+            viewModel.persistBingeGroupForStream(stream)
+            viewModel.onInternalPlayerLaunching()
+            onAutoPlayResolved(info)
+        } else {
+            forwardFailed = true
+            forwardStarted = false
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -416,7 +444,7 @@ fun StreamScreen(
             }
         )
 
-        if (!uiState.autoPlayDecided || showOverlay) {
+        if (!uiState.autoPlayDecided || showOverlay || forwardToPlayer) {
             // One LoadingOverlay call site for both phases so the glass loader never restarts.
             LoadingOverlay(
                 visible = true,

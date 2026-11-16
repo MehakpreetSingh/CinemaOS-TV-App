@@ -137,6 +137,9 @@ private fun Stream.isReadyForDebridPreparation(): Boolean =
 internal fun PlayerRuntimeController.showSourcesPanel(qualityMode: Boolean = false) {
     _uiState.update {
         it.copy(
+            // After a playback error the panel replaces the error screen so another link can be picked.
+            showLoadingOverlay = if (it.error != null) false else it.showLoadingOverlay,
+            error = null,
             showSourcesPanel = true,
             sourcesPanelQualityMode = qualityMode,
             showControls = true,

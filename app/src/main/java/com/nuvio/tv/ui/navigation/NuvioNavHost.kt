@@ -1057,34 +1057,8 @@ private fun PlaybackNavHost(
                             }
                         }
                         playerBackOpensCurrentEpisodeStreams(episodeChangedInPlace, autoPlayEnabled) -> {
-                            // manual stream switch to next episode — go to Stream of current episode
-                            val videoId = currentVideoId ?: args?.getString("videoId").orEmpty()
-                            if (videoId.isNotBlank() && contentType.isNotBlank()) {
-                                navController.navigate(
-                                    Screen.Stream.createRoute(
-                                        videoId = videoId,
-                                        contentType = contentType,
-                                        title = args?.getString("title").orEmpty(),
-                                        poster = args?.getString("poster"),
-                                        backdrop = args?.getString("backdrop"),
-                                        logo = args?.getString("logo"),
-                                        season = focusSeason,
-                                        episode = focusEpisode,
-                                        year = args?.getString("year"),
-                                        contentId = contentId.takeIf { it.isNotBlank() },
-                                        contentName = args?.getString("contentName"),
-                                        manualSelection = true,
-                                        returnToDetailOnBack = returnToDetailOnBack,
-                                        returnToHomeOnBack = returnToHomeOnBack,
-                                        profileId = args?.getString("profileId")?.toIntOrNull()
-                                    )
-                                ) {
-                                    popUpTo(Screen.Stream.route) { inclusive = true }
-                                    launchSingleTop = true
-                                }
-                            } else {
-                                navController.popBackStack()
-                            }
+                            // No separate stream page: go back to the details page
+                            returnToDetail()
                         }
                         else -> {
                             val returnedToStream = popBackToStream()

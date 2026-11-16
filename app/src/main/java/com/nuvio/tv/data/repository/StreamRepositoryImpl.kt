@@ -389,14 +389,10 @@ class StreamRepositoryImpl @Inject constructor(
                             // plugin work. The next-episode scraper has to keep running.
                             runPlugins()
                         } else {
-                            localPluginSearchPaused
-                                .transformLatest { paused ->
-                                    if (!paused) {
-                                        runPlugins()
-                                        emit(Unit)
-                                    }
-                                }
-                                .first()
+                            // Pause only delays a search from starting. Cancelling one already running
+                            // dropped slow sources (Movy) as playback began, and the panel then re-searched.
+                            localPluginSearchPaused.first { paused -> !paused }
+                            runPlugins()
                         }
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
@@ -436,14 +432,10 @@ class StreamRepositoryImpl @Inject constructor(
                             if (continuePluginOnly) {
                                 runNative()
                             } else {
-                                localPluginSearchPaused
-                                    .transformLatest { paused ->
-                                        if (!paused) {
-                                            runNative()
-                                            emit(Unit)
-                                        }
-                                    }
-                                    .first()
+                                // Pause only delays a search from starting. Cancelling one already running
+                                // dropped slow sources (Movy) as playback began, and the panel then re-searched.
+                                localPluginSearchPaused.first { paused -> !paused }
+                                runNative()
                             }
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e

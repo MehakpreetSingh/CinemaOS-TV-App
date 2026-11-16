@@ -280,11 +280,14 @@ fun PlayerScreen(
             completed
         )
     }
-    val exitPlayerFromError: () -> Unit = exitPlayerFromError@{
-        if (exitDispatched) return@exitPlayerFromError
-        exitDispatched = true
-        viewModel.stopAndRelease()
-        onPlaybackErrorBack()
+    // Once the first video has played, switching links keeps the video screen and shows only the small spinner.
+    var hasStartedPlayback by remember { mutableStateOf(false) }
+    LaunchedEffect(uiState.showLoadingOverlay, uiState.error) {
+        if (!uiState.showLoadingOverlay && uiState.error == null && !uiState.currentStreamUrl.isNullOrBlank()) hasStartedPlayback = true
+    }
+    val exitPlayerFromError: () -> Unit = {
+        // No separate stream page: stay in the player and offer the other links in its Sources panel.
+        viewModel.onEvent(PlayerEvent.OnShowSourcesPanel)
     }
     val dismissStreamInfoOverlay = {
         viewModel.onEvent(PlayerEvent.OnDismissStreamInfo)
@@ -1347,7 +1350,7 @@ fun PlayerScreen(
         }
 
         LoadingOverlay(
-            visible = uiState.showLoadingOverlay && uiState.error == null && !postPlayRecommendationState.isVisible,
+            visible = uiState.showLoadingOverlay && !hasStartedPlayback && uiState.error == null && !postPlayRecommendationState.isVisible,
             backdropUrl = uiState.backdrop,
             logoUrl = uiState.logo,
             title = uiState.title,
@@ -1453,8 +1456,9 @@ fun PlayerScreen(
         // isBuffering state changes only recompose this small subtree instead
         // of the entire PlayerScreen.
         PlayerBufferingIndicator(
-            isBuffering = uiState.isBuffering && !postPlayRecommendationState.isVisible,
-            showLoadingOverlay = uiState.showLoadingOverlay,
+            isBuffering = (uiState.isBuffering || (hasStartedPlayback && uiState.showLoadingOverlay)) &&
+                !postPlayRecommendationState.isVisible,
+            showLoadingOverlay = uiState.showLoadingOverlay && !hasStartedPlayback,
             isTorrentStream = uiState.isTorrentStream,
             torrentBufferingMessage = uiState.torrentBufferingMessage,
             torrentBufferingProgress = uiState.torrentBufferingProgress,
