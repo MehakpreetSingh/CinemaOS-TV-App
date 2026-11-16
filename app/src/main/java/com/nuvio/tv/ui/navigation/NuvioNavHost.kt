@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 
@@ -92,11 +94,19 @@ fun NuvioNavHost(
 private fun NavGraphBuilder.rootComposable(
     route: String,
     withInset: Boolean = true,
+    withTopInset: Boolean = true,
     content: @Composable (NavBackStackEntry) -> Unit
 ) {
     composable(route) { backStackEntry ->
         val inset = if (withInset) LocalRootContentInset.current else 0.dp
-        Box(modifier = Modifier.padding(start = inset)) {
+        val topInset = if (withTopInset) com.nuvio.tv.LocalRootTopInset.current else 0.dp
+        // Opaque page background (same colour as the scaffold) so page swaps never dip to black.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(com.nuvio.tv.ui.theme.NuvioTheme.colors.Background)
+                .padding(start = inset, top = topInset)
+        ) {
             content(backStackEntry)
         }
     }
@@ -114,6 +124,10 @@ private fun PlaybackNavHost(
     fun isStreamToPlayer(from: String, to: String): Boolean {
         return from.startsWith("stream/") && to.startsWith("player/")
     }
+
+    fun isRootRoute(route: String): Boolean =
+        route == Screen.Home.route || route == Screen.Search.route || route == Screen.Library.route ||
+            route == Screen.Settings.route || route == Screen.Discover.route
 
     fun isPlayerToStream(from: String, to: String): Boolean {
         return from.startsWith("player/") && to.startsWith("stream/")
@@ -161,6 +175,8 @@ private fun PlaybackNavHost(
                 ?.getString("autoPlayNav")
                 ?.toBooleanStrictOrNull() == true
             if (isStreamToPlayer(from, to) && isAutoPlayNav) {
+                ExitTransition.None
+            } else if (isRootRoute(from) && isRootRoute(to)) {
                 ExitTransition.None
             } else {
                 fadeOut(animationSpec = tween(200))
@@ -216,7 +232,7 @@ private fun PlaybackNavHost(
             )
         }
 
-        rootComposable(Screen.Home.route) {
+        rootComposable(Screen.Home.route, withTopInset = false) {
             fun createContinueWatchingRoute(
                 item: ContinueWatchingItem,
                 manualSelection: Boolean = false,

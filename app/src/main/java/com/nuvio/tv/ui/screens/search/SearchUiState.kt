@@ -16,7 +16,8 @@ internal fun shouldShowDiscoverInSearch(
     query: String,
     submittedQuery: String
 ): Boolean =
-    discoverLocation == DiscoverLocation.IN_SEARCH &&
+    // CinemaOS: Discover is its own tab; Search shows only search UI.
+    false && discoverLocation == DiscoverLocation.IN_SEARCH &&
         query.trim().length < MIN_SEARCH_QUERY_LENGTH &&
         submittedQuery.isBlank()
 

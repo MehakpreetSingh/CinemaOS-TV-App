@@ -38,6 +38,7 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -152,6 +153,7 @@ internal fun AppleHeroSection(
                     modifier = Modifier
                         .width(112.dp)
                         .height(40.dp)
+                        .focusRequester(com.nuvio.tv.LocalContentFocusRequester.current)
                         .onPreviewKeyEvent { e ->
                             if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft && count > 1) {
                                 goPrev(); true

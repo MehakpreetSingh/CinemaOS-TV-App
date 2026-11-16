@@ -220,6 +220,9 @@ import kotlinx.coroutines.launch
 
 val LocalSidebarExpanded = compositionLocalOf { false }
 val LocalRootContentInset = compositionLocalOf { 0.dp }
+
+/** Top inset root pages reserve for the floating nav bar (0 unless the Cinema top bar is active). */
+val LocalRootTopInset = compositionLocalOf { 0.dp }
 val LocalContentFocusRequester = compositionLocalOf { FocusRequester.Default }
 
 data class SplashBackground(
@@ -1061,7 +1064,7 @@ open class MainActivity : ComponentActivity() {
                         if (discoverLocation == null) return@LaunchedEffect
                         val onDiscoverRoute = currentRoute == Screen.Discover.route ||
                             currentRoute?.startsWith("${Screen.Discover.route}/") == true
-                        if (discoverLocation == DiscoverLocation.OFF && onDiscoverRoute) {
+                        if (!CINEMAOS_DISCOVER_TAB && discoverLocation == DiscoverLocation.OFF && onDiscoverRoute) {
                             navController.navigate(Screen.Home.route) {
                                 popUpTo(navController.graph.startDestinationId) { saveState = false }
                                 launchSingleTop = true
@@ -1075,7 +1078,7 @@ open class MainActivity : ComponentActivity() {
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
-                            if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
+                            if (CINEMAOS_DISCOVER_TAB || discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(Screen.Discover.route)
                             }
                         }
@@ -1102,7 +1105,7 @@ open class MainActivity : ComponentActivity() {
                                     icon = Icons.Default.Home
                                 )
                             )
-                            if (discoverLocation == DiscoverLocation.IN_SIDEBAR) {
+                            if (CINEMAOS_DISCOVER_TAB || discoverLocation == DiscoverLocation.IN_SIDEBAR) {
                                 add(
                                     DrawerItem(
                                         route = Screen.Discover.route,
@@ -1863,6 +1866,9 @@ private fun LegacySidebarButton(
 /** CinemaOS default navigation: floating glass pill top bar. Set false to fall back to the sidebar modes. */
 private const val USE_CINEMA_TOP_BAR = true
 
+/** CinemaOS: Discover is always a top-bar tab (and Search shows only search UI). */
+private const val CINEMAOS_DISCOVER_TAB = true
+
 /** CinemaOS: no first-run setup and no profile picker. Flip to restore upstream flows. */
 private const val CINEMAOS_SHOW_ONBOARDING = false
 private const val CINEMAOS_SHOW_PROFILES = false
@@ -1911,10 +1917,11 @@ private fun CinemaTopBarScaffold(
             }
     ) {
         // Home runs full-bleed behind the bar; other root screens sit below it.
-        val topInset = if (showBar && currentRoute != Screen.Home.route) 72.dp else 0.dp
-        Box(modifier = Modifier.fillMaxSize().padding(top = topInset)) {
+        // The inset is applied inside each root page (see rootComposable), not as a route-tied box here.
+        Box(modifier = Modifier.fillMaxSize()) {
             CompositionLocalProvider(
                 LocalSidebarExpanded provides false,
+                LocalRootTopInset provides 72.dp,
                 LocalContentFocusRequester provides contentFocusRequester
             ) {
                 NuvioNavHost(
@@ -1940,6 +1947,7 @@ private fun CinemaTopBarScaffold(
                     )
                 },
                 onBarFocusChanged = { barHasFocus = it },
+                contentFocusRequester = contentFocusRequester,
                 modifier = Modifier.align(Alignment.TopStart)
             )
         }

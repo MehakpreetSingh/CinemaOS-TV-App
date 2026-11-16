@@ -1,6 +1,18 @@
 package com.nuvio.tv.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -64,7 +76,7 @@ data class CinemaTopBarItem(val route: String, val label: String)
  * pill with black text, focused-inactive = white@15% pill), frosted gradient strip fading downward,
  * clock on the right.
  */
-@OptIn(ExperimentalTvMaterial3Api::class)
+@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun CinemaTopBar(
     items: List<CinemaTopBarItem>,
@@ -72,10 +84,12 @@ fun CinemaTopBar(
     focusRequesters: Map<String, FocusRequester>,
     onItemClick: (String) -> Unit,
     onBarFocusChanged: (Boolean) -> Unit,
+    contentFocusRequester: FocusRequester? = null,
     profileName: String? = null,
     onProfileClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
     var now by remember { mutableStateOf(java.util.Date()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -101,7 +115,20 @@ fun CinemaTopBar(
                 .background(Color.Black.copy(alpha = 0.4f))
                 .border(1.dp, Color.White.copy(alpha = 0.10f), CircleShape)
                 .padding(4.dp)
-                .selectableGroup(),
+                .selectableGroup()
+                .focusProperties {
+                    // Coming back up from content lands on the current page's nav item.
+                    enter = { selectedRoute?.let { focusRequesters[it] } ?: FocusRequester.Default }
+                }
+                .focusGroup()
+                .onPreviewKeyEvent { e ->
+                    if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionDown) {
+                        val ok = contentFocusRequester != null &&
+                            runCatching { contentFocusRequester.requestFocus() }.getOrDefault(false)
+                        if (!ok) focusManager.moveFocus(FocusDirection.Down)
+                        true
+                    } else false
+                },
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -131,7 +158,12 @@ fun CinemaTopBar(
             style = TextStyle(
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFFA1A1AA)
+                color = Color.White.copy(alpha = 0.85f),
+                shadow = Shadow(
+                    color = Color.Black.copy(alpha = 0.6f),
+                    offset = Offset(0f, 2f),
+                    blurRadius = 6f
+                )
             )
         )
     }
