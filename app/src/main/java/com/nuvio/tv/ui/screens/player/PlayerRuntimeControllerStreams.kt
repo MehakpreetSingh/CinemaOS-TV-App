@@ -289,7 +289,7 @@ internal fun PlayerRuntimeController.loadSourceStreams(forceRefresh: Boolean) {
                             sourceAvailableAddons = mergedAvailableAddons,
                             sourceChips = mergeSourceChipStatuses(
                                 existing = it.sourceChips,
-                                succeededNames = addonStreams.map { group -> group.addonName }
+                                succeededNamesRaw = addonStreams.map { group -> group.addonName }
                             ),
                             sourceStreamsError = null
                         )
@@ -1397,7 +1397,7 @@ internal fun PlayerRuntimeController.loadStreamsForEpisode(
                             episodeAvailableAddons = availableAddons,
                             episodeSourceChips = mergeSourceChipStatuses(
                                 existing = it.episodeSourceChips,
-                                succeededNames = addonStreams.map { group -> group.addonName }
+                                succeededNamesRaw = addonStreams.map { group -> group.addonName }
                             ),
                             episodeStreamsError = null
                         )
