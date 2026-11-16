@@ -233,38 +233,12 @@ fun LoadingOverlay(
                 }
 
                 if (minimal) {
-                    val spin = rememberInfiniteTransition(label = "minimalSpin")
-                    val angle by spin.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(durationMillis = 900, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "minimalSpinAngle"
-                    )
-                    androidx.compose.foundation.Canvas(
+                    RnLoadingSpinner(
+                        diameter = 28.dp,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .offset(y = if (showLogo || !title.isNullOrBlank()) 120.dp else 0.dp)
-                            .size(28.dp)
-                    ) {
-                        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
-                        drawArc(
-                            color = Color.White.copy(alpha = 0.15f),
-                            startAngle = 0f,
-                            sweepAngle = 360f,
-                            useCenter = false,
-                            style = stroke
-                        )
-                        drawArc(
-                            color = Color.White,
-                            startAngle = angle - 90f,
-                            sweepAngle = 90f,
-                            useCenter = false,
-                            style = stroke
-                        )
-                    }
+                    )
                 }
 
                 // The horizontal progress bar is suppressed when the show logo
@@ -373,5 +347,28 @@ fun LoadingOverlay(
                 }
             }
         }
+    }
+}
+
+/**
+ * RN loader spinner: white arc over a faint ring (LoadingScreen.tsx Spinner, 900ms linear;
+ * VideoPlayer.tsx:1278 uses the same white ActivityIndicator while the video starts).
+ */
+@Composable
+fun RnLoadingSpinner(diameter: androidx.compose.ui.unit.Dp = 28.dp, modifier: Modifier = Modifier) {
+    val spin = rememberInfiniteTransition(label = "rnSpin")
+    val angle by spin.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rnSpinAngle"
+    )
+    androidx.compose.foundation.Canvas(modifier = modifier.size(diameter)) {
+        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = (diameter.value / 11f).dp.toPx())
+        drawArc(color = Color.White.copy(alpha = 0.15f), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
+        drawArc(color = Color.White, startAngle = angle - 90f, sweepAngle = 90f, useCenter = false, style = stroke)
     }
 }

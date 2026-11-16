@@ -422,7 +422,8 @@ fun StreamScreen(
                 backdropUrl = uiState.backdrop ?: uiState.poster,
                 logoUrl = uiState.logo,
                 title = uiState.title,
-                message = stringResource(R.string.stream_finding_source),
+                // RN-style loader while sources are searched: dimmed backdrop + spinner only.
+                minimal = true,
                 modifier = Modifier.fillMaxSize()
             )
         } else if (showOverlay) {

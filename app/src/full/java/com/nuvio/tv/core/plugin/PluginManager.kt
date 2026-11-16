@@ -305,6 +305,7 @@ class PluginManager @Inject constructor(
     }
     
     private val seedMutex = Mutex()
+    @Volatile private var defaultReposRefreshed = false
 
     /**
      * Installs the bundled default plugin repositories (CinemaOS scrapers) once per profile.
@@ -312,7 +313,19 @@ class PluginManager @Inject constructor(
      */
     suspend fun ensureDefaultRepositories() = seedMutex.withLock {
         try {
-            if (dataStore.isDefaultReposSeeded()) return@withLock
+            if (dataStore.isDefaultReposSeeded()) {
+                // Seeded once, then never updated: refresh default repos once per app launch
+                // so new/changed CinemaOS scrapers (e.g. anime) reach existing installs.
+                if (!defaultReposRefreshed) {
+                    defaultReposRefreshed = true
+                    val repos = dataStore.repositories.first()
+                    for (url in DEFAULT_REPOSITORY_MANIFESTS) {
+                        repos.firstOrNull { normalizeUrl(it.url) == normalizeUrl(url) }
+                            ?.let { refreshRepository(it.id) }
+                    }
+                }
+                return@withLock
+            }
             var allOk = true
             for (url in DEFAULT_REPOSITORY_MANIFESTS) {
                 val existing = dataStore.repositories.first()

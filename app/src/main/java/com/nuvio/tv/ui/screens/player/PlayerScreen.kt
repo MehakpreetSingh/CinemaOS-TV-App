@@ -1915,52 +1915,25 @@ fun PlayerScreen(
             }
         }
 
-        // Sources panel scrim
-        AnimatedVisibility(
+        // Sources panel: full overlay, same scaffold as the Audio/Subtitle menus
+        StreamSourcesSidePanel(
             visible = uiState.showSourcesPanel && uiState.error == null,
-            enter = fadeIn(animationSpec = tween(120)),
-            exit = fadeOut(animationSpec = tween(120))
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f))
-            )
-        }
-
-        // Sources panel (slides in from right)
-        AnimatedVisibility(
-            visible = uiState.showSourcesPanel && uiState.error == null,
-            enter = slideInHorizontally(
-                animationSpec = tween(220),
-                initialOffsetX = { it }
-            ),
-            exit = slideOutHorizontally(
-                animationSpec = tween(220),
-                targetOffsetX = { it }
-            ),
+            uiState = uiState,
+            currentFilename = viewModel.playerStreamFilename(),
+            streamsFocusRequester = sourceStreamsFocusRequester,
+            onClose = {
+                if (uiState.currentStreamUrl.isNullOrBlank()) {
+                    exitPlayer()
+                } else {
+                    viewModel.onEvent(PlayerEvent.OnDismissSourcesPanel)
+                }
+            },
+            onReload = { viewModel.onEvent(PlayerEvent.OnReloadSourceStreams) },
+            onAddonFilterSelected = { viewModel.onEvent(PlayerEvent.OnSourceAddonFilterSelected(it)) },
+            onStreamSelected = { viewModel.onEvent(PlayerEvent.OnSourceStreamSelected(it)) },
+            onExpandStreams = { viewModel.controller.expandSourceFilteredStreamsIfNeeded() },
             modifier = playerControlsDim
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                StreamSourcesSidePanel(
-                    uiState = uiState,
-                    currentFilename = viewModel.playerStreamFilename(),
-                    streamsFocusRequester = sourceStreamsFocusRequester,
-                    onClose = {
-                        if (uiState.currentStreamUrl.isNullOrBlank()) {
-                            exitPlayer()
-                        } else {
-                            viewModel.onEvent(PlayerEvent.OnDismissSourcesPanel)
-                        }
-                    },
-                    onReload = { viewModel.onEvent(PlayerEvent.OnReloadSourceStreams) },
-                    onAddonFilterSelected = { viewModel.onEvent(PlayerEvent.OnSourceAddonFilterSelected(it)) },
-                    onStreamSelected = { viewModel.onEvent(PlayerEvent.OnSourceStreamSelected(it)) },
-                    onExpandStreams = { viewModel.controller.expandSourceFilteredStreamsIfNeeded() },
-                    modifier = Modifier.align(Alignment.CenterEnd)
-                )
-            }
-        }
+        )
 
         AnimatedVisibility(
             visible = uiState.showPartyPanel && uiState.error == null,
@@ -4567,7 +4540,8 @@ private fun PlayerBufferingIndicator(
                 }
             }
         } else {
-            LoadingIndicator()
+            // RN VideoPlayer.tsx:1278-1281 - plain white large spinner
+            RnLoadingSpinner(diameter = 36.dp)
         }
     }
 }
