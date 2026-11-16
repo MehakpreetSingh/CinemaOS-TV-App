@@ -167,6 +167,8 @@ internal fun LayoutContinueWatchingSection(
 }
 
 internal fun LayoutSettingsUiState.focusedPosterHasOptions(): Boolean {
+    // The Apple home has no focus-expand / trailer behaviour.
+    if (selectedLayout == HomeLayout.CINEMAOS) return false
     val modernLandscape = selectedLayout == HomeLayout.MODERN && modernLandscapePostersEnabled
     return selectedLayout != HomeLayout.GRID && (!modernLandscape || AppFeaturePolicy.inAppTrailerPlaybackEnabled)
 }

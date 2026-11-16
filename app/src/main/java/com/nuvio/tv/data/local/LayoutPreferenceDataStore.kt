@@ -157,11 +157,11 @@ class LayoutPreferenceDataStore @Inject constructor(
         value?.takeIf { it > 0 } ?: defaultValue
 
     val selectedLayout: Flow<HomeLayout> = profileFlow { prefs ->
-        val layoutName = prefs[layoutKey] ?: HomeLayout.MODERN.name
+        val layoutName = prefs[layoutKey] ?: HomeLayout.CINEMAOS.name
         try {
             HomeLayout.valueOf(layoutName)
         } catch (e: IllegalArgumentException) {
-            HomeLayout.MODERN
+            HomeLayout.CINEMAOS
         }
     }
 
@@ -239,7 +239,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val modernLandscapePostersEnabled: Flow<Boolean> = profileFlow { prefs ->
-        prefs[modernLandscapePostersEnabledKey] ?: false
+        prefs[modernLandscapePostersEnabledKey] ?: true
     }
 
     val modernHeroFullScreenBackdropEnabled: Flow<Boolean> = profileFlow { prefs ->
@@ -353,7 +353,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     }
 
     val alwaysShowLandscapeClearlogo: Flow<Boolean> = profileFlow { prefs ->
-        prefs[alwaysShowLandscapeClearlogoKey] ?: false
+        prefs[alwaysShowLandscapeClearlogoKey] ?: true
     }
 
     val heroDescriptionAutoScrollEnabled: Flow<Boolean> = profileFlow { prefs ->

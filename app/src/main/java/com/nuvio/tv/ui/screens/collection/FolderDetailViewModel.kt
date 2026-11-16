@@ -252,6 +252,7 @@ class FolderDetailViewModel @Inject constructor(
 
             val addons = addonRepository.getInstalledAddons().first().enabledAddons()
             val homeLayout = layoutPreferenceDataStore.selectedLayout.first()
+                .let { if (it == HomeLayout.CINEMAOS) HomeLayout.CLASSIC else it }
             val homeImdbRatingsVisibility = layoutPreferenceDataStore.homeImdbRatingsVisibility.first()
             val posterLabelsEnabled = layoutPreferenceDataStore.posterLabelsEnabled.first()
             val catalogAddonNameEnabled = layoutPreferenceDataStore.catalogAddonNameEnabled.first()

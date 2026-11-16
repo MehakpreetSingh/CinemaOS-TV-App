@@ -60,7 +60,8 @@ fun LayoutSettingsContent(
     val context = LocalContext.current
     val sections = visibleLayoutSections(
         essentialMode = essentialMode,
-        focusedPosterHasOptions = uiState.focusedPosterHasOptions()
+        focusedPosterHasOptions = uiState.focusedPosterHasOptions(),
+        cinemaOsHome = uiState.selectedLayout == com.nuvio.tv.domain.model.HomeLayout.CINEMAOS
     )
     var expandedSections by rememberSaveable(essentialMode) {
         mutableStateOf(if (essentialMode) listOf(LayoutSection.HOME_LAYOUT.name) else emptyList())

@@ -70,9 +70,6 @@ private data class HomePosterOptionsTarget(
 
 private const val HOME_STABLE_GATE_TIMEOUT_MS = 5_000L
 
-/** CinemaOS: render the Apple TV style home instead of Nuvio's layouts. */
-private const val CINEMAOS_APPLE_HOME = true
-
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -364,15 +361,19 @@ fun HomeScreen(
                                 )
                         }
                     ) {
-                        if (CINEMAOS_APPLE_HOME) {
-                            com.nuvio.tv.ui.screens.home.apple.AppleHomeContent(
+                        when (uiState.homeLayout) {
+                            HomeLayout.CINEMAOS -> com.nuvio.tv.ui.screens.home.apple.AppleHomeContent(
                                 viewModel = viewModel,
                                 uiState = uiState,
                                 onNavigateToDetail = onNavigateToDetailStable,
                                 onContinueWatchingClick = onContinueWatchingClickStable,
-                                onCatalogItemLongPress = onCatalogItemLongPress
+                                onCatalogItemLongPress = onCatalogItemLongPress,
+                                onNavigateToFolderDetail = onNavigateToFolderDetailStable,
+                                onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginningStable,
+                                onContinueWatchingPlayManually = onContinueWatchingPlayManuallyStable,
+                                showContinueWatchingManualPlayOption = effectiveAutoplayEnabled
                             )
-                        } else when (uiState.homeLayout) {
+
                             HomeLayout.CLASSIC -> ClassicHomeRoute(
                                 viewModel = viewModel,
                                 uiState = uiState,

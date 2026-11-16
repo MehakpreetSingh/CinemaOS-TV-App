@@ -59,7 +59,7 @@ fun LayoutSelectionScreen(
     onContinue: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    var selectedLayout by remember { mutableStateOf(HomeLayout.MODERN) }
+    var selectedLayout by remember { mutableStateOf(HomeLayout.CINEMAOS) }
     val continueFocusRequester = remember { FocusRequester() }
 
     LaunchedEffect(uiState.selectedLayout) {
@@ -104,6 +104,12 @@ fun LayoutSelectionScreen(
                     .weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxl, Alignment.CenterHorizontally)
             ) {
+                LayoutOptionCard(
+                    layout = HomeLayout.CINEMAOS,
+                    isSelected = selectedLayout == HomeLayout.CINEMAOS,
+                    onSelect = { selectedLayout = HomeLayout.CINEMAOS },
+                    modifier = Modifier.weight(1f)
+                )
                 LayoutOptionCard(
                     layout = HomeLayout.MODERN,
                     isSelected = selectedLayout == HomeLayout.MODERN,
@@ -214,7 +220,7 @@ private fun LayoutOptionCard(
                         HomeLayout.GRID -> GridLayoutPreview(
                             modifier = Modifier.fillMaxSize()
                         )
-                        HomeLayout.MODERN -> ModernLayoutPreview(
+                        HomeLayout.MODERN, HomeLayout.CINEMAOS -> ModernLayoutPreview(
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -224,6 +230,7 @@ private fun LayoutOptionCard(
 
                 Text(
                     text = when (layout) {
+                        HomeLayout.CINEMAOS -> stringResource(R.string.layout_cinemaos)
                         HomeLayout.CLASSIC -> stringResource(R.string.layout_classic)
                         HomeLayout.GRID -> stringResource(R.string.layout_grid)
                         HomeLayout.MODERN -> stringResource(R.string.layout_modern)
@@ -236,6 +243,7 @@ private fun LayoutOptionCard(
 
             Text(
                 text = when (layout) {
+                    HomeLayout.CINEMAOS -> stringResource(R.string.layout_cinemaos_desc)
                     HomeLayout.CLASSIC -> stringResource(R.string.layout_classic_desc)
                     HomeLayout.GRID -> stringResource(R.string.layout_grid_desc)
                     HomeLayout.MODERN -> stringResource(R.string.layout_modern_desc)

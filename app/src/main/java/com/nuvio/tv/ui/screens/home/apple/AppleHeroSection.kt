@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -109,9 +110,9 @@ internal fun AppleHeroSection(
     Box(modifier = modifier.fillMaxWidth().height(height)) {
         Column(
             modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 48.dp, bottom = 10.dp)
-                .fillMaxWidth(0.5f)
+                .align(Alignment.TopStart)
+                .padding(start = 48.dp, top = com.nuvio.tv.LocalRootTopInset.current + 14.dp)
+                .widthIn(max = 420.dp)
         ) {
             Crossfade(
                 targetState = display,
@@ -259,12 +260,12 @@ private fun HeroTextBlock(item: HeroDisplay) {
     val context = LocalContext.current
     var logoFailed by remember(item.key) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(modifier = Modifier.height(48.dp).fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
+        Box(modifier = Modifier.height(90.dp).widthIn(max = 300.dp), contentAlignment = Alignment.CenterStart) {
             if (!item.logo.isNullOrBlank() && !logoFailed) {
                 val request = remember(item.logo) {
                     ImageRequest.Builder(context)
                         .data(item.logo)
-                        .size(width = 640, height = 256)
+                        .size(width = 600, height = 180)
                         .crossfade(true)
                         .build()
                 }
@@ -274,7 +275,7 @@ private fun HeroTextBlock(item: HeroDisplay) {
                     contentScale = ContentScale.Fit,
                     alignment = Alignment.CenterStart,
                     onError = { logoFailed = true },
-                    modifier = Modifier.fillMaxHeight().fillMaxWidth(0.6f)
+                    modifier = Modifier.fillMaxSize()
                 )
             } else {
                 Text(
@@ -282,7 +283,7 @@ private fun HeroTextBlock(item: HeroDisplay) {
                     fontSize = 28.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }

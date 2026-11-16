@@ -42,14 +42,14 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class LayoutSettingsUiState(
-    val selectedLayout: HomeLayout = HomeLayout.MODERN,
+    val selectedLayout: HomeLayout = HomeLayout.CINEMAOS,
     val hasChosen: Boolean = false,
     val availableCatalogs: List<CatalogInfo> = emptyList(),
     val heroCatalogKeys: List<String> = emptyList(),
     val sidebarCollapsedByDefault: Boolean = false,
     val modernSidebarEnabled: Boolean = false,
     val modernSidebarBlurEnabled: Boolean = false,
-    val modernLandscapePostersEnabled: Boolean = false,
+    val modernLandscapePostersEnabled: Boolean = true,
     val modernHeroFullScreenBackdropEnabled: Boolean = false,
     val heroSectionEnabled: Boolean = true,
     val discoverLocation: DiscoverLocation = DiscoverLocation.IN_SEARCH,
@@ -92,7 +92,7 @@ data class LayoutSettingsUiState(
     val customPosterUrlPattern: String = "",
     val customPosterEnabledScreens: Set<com.nuvio.tv.core.poster.CustomPosterScreen> =
         com.nuvio.tv.core.poster.CustomPosterScreen.ALL,
-    val alwaysShowLandscapeClearlogo: Boolean = false,
+    val alwaysShowLandscapeClearlogo: Boolean = true,
     val heroDescriptionAutoScrollEnabled: Boolean = false,
 )
 

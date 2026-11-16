@@ -34,13 +34,17 @@ internal enum class LayoutSection(
 
 internal fun visibleLayoutSections(
     essentialMode: Boolean,
-    focusedPosterHasOptions: Boolean
+    focusedPosterHasOptions: Boolean,
+    cinemaOsHome: Boolean = false
 ): List<LayoutSection> =
     if (essentialMode) {
         listOf(LayoutSection.HOME_LAYOUT)
     } else {
         LayoutSection.entries.filter { section ->
-            section != LayoutSection.FOCUSED_POSTER || focusedPosterHasOptions
+            (section != LayoutSection.FOCUSED_POSTER || focusedPosterHasOptions) &&
+                // CinemaOS uses the top bar, so the sidebar options do nothing; the Apple home has no
+                // card-depth styling either.
+                (!cinemaOsHome || (section != LayoutSection.SIDEBAR && section != LayoutSection.CARD_DEPTH))
         }
     }
 

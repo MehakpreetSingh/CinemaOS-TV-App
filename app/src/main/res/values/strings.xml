@@ -1048,6 +1048,8 @@
 
     <string name="layout_title">Layout Settings</string>
     <string name="layout_subtitle">Adjust home layout, content visibility, and poster behavior</string>
+    <string name="layout_cinemaos">CinemaOS (Apple)</string>
+    <string name="layout_cinemaos_desc">Apple TV style home with a full-bleed backdrop and landscape cards</string>
     <string name="layout_classic">Classic View</string>
     <string name="layout_grid">Grid View</string>
     <string name="layout_modern">Modern View</string>

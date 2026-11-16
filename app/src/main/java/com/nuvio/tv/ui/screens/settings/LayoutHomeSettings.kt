@@ -62,7 +62,7 @@ internal fun LayoutHomeLayoutSection(
             .settingsOptionRow(firstHomeLayoutFocusRequester),
         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
     ) {
-        listOf(HomeLayout.MODERN, HomeLayout.GRID, HomeLayout.CLASSIC).forEachIndexed { index, layout ->
+        listOf(HomeLayout.CINEMAOS, HomeLayout.MODERN, HomeLayout.GRID, HomeLayout.CLASSIC).forEachIndexed { index, layout ->
             LayoutCard(
                 layout = layout,
                 isSelected = uiState.selectedLayout == layout,
@@ -191,7 +191,9 @@ internal fun LayoutHomeContentSection(
         }
     )
     // Classic and Grid only show descriptions in the hero carousel.
-    if (uiState.selectedLayout == HomeLayout.MODERN || uiState.heroSectionEnabled) {
+    if (uiState.selectedLayout == HomeLayout.MODERN ||
+        (uiState.selectedLayout != HomeLayout.CINEMAOS && uiState.heroSectionEnabled)
+    ) {
         SettingsToggleRow(
             title = stringResource(R.string.layout_hero_description_auto_scroll),
             subtitle = stringResource(R.string.layout_hero_description_auto_scroll_sub),
@@ -304,7 +306,7 @@ private fun LayoutCard(
                         modifier = Modifier.fillMaxWidth(),
                         animated = animatePreview
                     )
-                    HomeLayout.MODERN -> ModernLayoutPreview(
+                    HomeLayout.MODERN, HomeLayout.CINEMAOS -> ModernLayoutPreview(
                         modifier = Modifier.fillMaxWidth(),
                         animated = animatePreview
                     )
@@ -329,6 +331,7 @@ private fun LayoutCard(
                 }
                 Text(
                     text = when (layout) {
+                        HomeLayout.CINEMAOS -> stringResource(R.string.layout_cinemaos)
                         HomeLayout.CLASSIC -> stringResource(R.string.layout_classic)
                         HomeLayout.GRID -> stringResource(R.string.layout_grid)
                         HomeLayout.MODERN -> stringResource(R.string.layout_modern)

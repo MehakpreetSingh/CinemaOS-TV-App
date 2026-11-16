@@ -423,6 +423,10 @@ fun StreamScreen(
                 logoUrl = uiState.logo,
                 title = uiState.title,
                 message = stringResource(R.string.stream_finding_source),
+                year = uiState.year,
+                season = uiState.season,
+                episode = uiState.episode,
+                episodeTitle = uiState.episodeName,
                 modifier = Modifier.fillMaxSize()
             )
         } else if (showOverlay) {
@@ -437,6 +441,10 @@ fun StreamScreen(
                     null
                 },
                 progress = uiState.directAutoPlayProgress,
+                year = uiState.year,
+                season = uiState.season,
+                episode = uiState.episode,
+                episodeTitle = uiState.episodeName,
                 modifier = Modifier.fillMaxSize()
             )
         } else {

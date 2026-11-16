@@ -56,7 +56,7 @@ class ExperienceModeSelectionViewModel @Inject constructor(
     suspend fun choose(mode: ExperienceMode) {
         experienceModeDataStore.setMode(mode)
         if (mode == ExperienceMode.ESSENTIAL) {
-            layoutPreferenceDataStore.setLayout(HomeLayout.MODERN)
+            layoutPreferenceDataStore.setLayout(HomeLayout.CINEMAOS)
         }
     }
 }
