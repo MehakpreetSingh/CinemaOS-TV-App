@@ -202,6 +202,15 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
      * Callers probe many candidates concurrently.
      */
     suspend fun isVideo(url: String, headers: Map<String, String> = emptyMap(), timeoutMs: Long = 7_000): Boolean {
+        probeCache[url]?.let { if (System.currentTimeMillis() - it.first < 600_000) return it.second }
+        val ok = isVideoUncached(url, headers, timeoutMs)
+        probeCache[url] = System.currentTimeMillis() to ok
+        return ok
+    }
+
+    private val probeCache = ConcurrentHashMap<String, Pair<Long, Boolean>>()
+
+    private suspend fun isVideoUncached(url: String, headers: Map<String, String>, timeoutMs: Long): Boolean {
         val h = headers.toMutableMap().also { it["Range"] = "bytes=0-63" }
         val head = fetch(url, h, timeoutMs = timeoutMs, maxBytes = 64) ?: return false
         val ct = head.header("content-type")
@@ -210,7 +219,8 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
         val b = head.body
         if (!looksLikeVideo(b, ct)) return false
         val total = Regex("/(\\d+)$").find(head.header("content-range"))?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-        if (total > 2_097_152L) {
+        // PixelDrain rate-limits repeated ranged reads per file (403 on the player's own cues read afterwards), so only the head is probed there
+        if (total > 2_097_152L && !hostOf(url).contains("pixeldrain", ignoreCase = true)) {
             val t = headers.toMutableMap().also { it["Range"] = "bytes=${total - 1_048_576L}-" }
             val tail = fetch(url, t, timeoutMs = timeoutMs, maxBytes = 1) ?: return false
             if (tail.code != 206 && tail.code != 200) return false
