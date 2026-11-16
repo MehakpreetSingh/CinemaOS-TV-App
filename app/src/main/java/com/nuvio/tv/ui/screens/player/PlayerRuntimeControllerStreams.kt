@@ -643,7 +643,17 @@ private fun PlayerRuntimeController.applySelectedStreamState(
         url = playbackRequest.url,
         filename = currentFilename,
         responseHeaders = currentStreamResponseHeaders
-    )
+    ).let { inferred ->
+        // Plugin `type` hint (like RN's source.type): needed for tokenized HLS/DASH URLs with no extension.
+        val hinted = when (stream.behaviorHints?.streamType?.trim()?.lowercase()) {
+            "hls", "m3u8" -> androidx.media3.common.MimeTypes.APPLICATION_M3U8
+            "dash", "mpd" -> androidx.media3.common.MimeTypes.APPLICATION_MPD
+            else -> null
+        }
+        val inferredAdaptive = inferred == androidx.media3.common.MimeTypes.APPLICATION_M3U8 ||
+            inferred == androidx.media3.common.MimeTypes.APPLICATION_MPD
+        if (hinted != null && !inferredAdaptive) hinted else inferred
+    }
     // A source switch mints a new debrid link for the same file, and without a file index a
     // multi-file torrent could hand one file's bytes to another, so that case keys on the url.
     val fileIdx = stream.getEffectiveFileIdx()

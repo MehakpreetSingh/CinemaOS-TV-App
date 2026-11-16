@@ -222,7 +222,9 @@ data class StreamBehaviorHints(
     // Extra audio delay for this stream (ms, >0 = audio later), added on top of the user's/device delay.
     val audioDelayMs: Int? = null,
     // When set, audioDelayMs only applies to audio and embedded subtitle tracks in this language.
-    val audioDelayLanguage: String? = null
+    val audioDelayLanguage: String? = null,
+    // Plugin-declared stream type ("hls", "dash", "mp4"...): MIME hint for URLs without a usable extension.
+    val streamType: String? = null
 )
 
 @Immutable
