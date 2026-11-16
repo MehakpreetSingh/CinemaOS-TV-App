@@ -195,6 +195,7 @@ class StreamRepositoryImpl @Inject constructor(
         while (true) {
             val profileId = profileManager.activeProfileId.value
             val addons = addonRepository.getInstalledAddons().first().enabledAddons()
+            pluginManager.ensureDefaultRepositories()
             val pluginsEnabled = pluginManager.pluginsEnabled.first()
             val enabledScrapers = if (pluginsEnabled) pluginManager.enabledScrapers.first() else emptyList()
             val groupPluginsByRepository = pluginsEnabled && pluginManager.groupStreamsByRepository.first()

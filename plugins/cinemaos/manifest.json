@@ -1,0 +1,35 @@
+{
+  "name": "CinemaOS Sources",
+  "version": "1.0.0",
+  "description": "CinemaOS on-device scrapers ported from the CinemaOS phone app",
+  "author": "CinemaOS",
+  "scrapers": [
+    {
+      "id": "cinemaos-moviebox",
+      "name": "CinemaOS · MovieBox",
+      "description": "MovieBox streams (MP4 / DASH, multi-language)",
+      "version": "1.0.0",
+      "filename": "moviebox.js",
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-movy",
+      "name": "CinemaOS · Movy",
+      "description": "Movy (movy.sx) HLS / MP4 streams",
+      "version": "1.0.0",
+      "filename": "movy.js",
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
+    },
+    {
+      "id": "cinemaos-castle",
+      "name": "CinemaOS · Castle",
+      "description": "Castle multi-audio HLS streams",
+      "version": "1.0.0",
+      "filename": "castle.js",
+      "supportedTypes": ["movie", "tv"],
+      "enabled": true
+    }
+  ]
+}

@@ -240,6 +240,8 @@ class AddonPreferences @Inject constructor(
 
     private fun getDefaultAddons(): Set<String> = setOf(
         "https://v3-cinemeta.strem.io",
-        "https://opensubtitles-v3.strem.io"
+        "https://opensubtitles-v3.strem.io",
+        // HDHub (third-party Stremio addon; the path segment is a public, non-secret config blob)
+        "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
     )
 }

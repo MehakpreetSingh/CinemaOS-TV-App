@@ -78,6 +78,7 @@ class PluginDataStore @Inject constructor(
     private val repositoriesKey = stringPreferencesKey("repositories")
     private val scrapersKey = stringPreferencesKey("scrapers")
     private val pluginsEnabledKey = booleanPreferencesKey("plugins_enabled")
+    private val defaultReposSeededKey = booleanPreferencesKey("default_repos_seeded_v1")
     private val groupStreamsByRepositoryKey = booleanPreferencesKey(GROUP_STREAMS_BY_REPOSITORY)
     private val pluginProviderPlaysKey = stringPreferencesKey("plugin_provider_plays")
     private val scraperSettingsKey = stringPreferencesKey("scraper_settings")
@@ -198,6 +199,13 @@ class PluginDataStore @Inject constructor(
         store().edit { prefs ->
             prefs[pluginsEnabledKey] = enabled
         }
+    }
+
+    suspend fun isDefaultReposSeeded(): Boolean =
+        store().data.map { prefs -> prefs[defaultReposSeededKey] ?: false }.first()
+
+    suspend fun markDefaultReposSeeded() {
+        store().edit { prefs -> prefs[defaultReposSeededKey] = true }
     }
 
     val groupStreamsByRepository: Flow<Boolean> = profileState { pid ->

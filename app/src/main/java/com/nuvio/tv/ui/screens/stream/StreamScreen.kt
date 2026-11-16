@@ -468,6 +468,7 @@ fun StreamScreen(
                     streams = uiState.filteredStreams,
                     availableAddons = uiState.availableAddons,
                     sourceChips = uiState.sourceChips,
+                    streamCounts = uiState.addonStreams.associate { it.addonName to it.streams.size },
                     selectedAddonFilter = uiState.selectedAddonFilter,
                     showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
                     showAddonLogo = streamBadgeSettings.showAddonLogo,
@@ -765,6 +766,7 @@ private fun RightStreamSection(
     streams: List<Stream>,
     availableAddons: List<String>,
     sourceChips: List<SourceChipItem>,
+    streamCounts: Map<String, Int> = emptyMap(),
     selectedAddonFilter: String?,
     showFileSizeBadges: Boolean,
     showAddonLogo: Boolean,
@@ -949,6 +951,7 @@ private fun RightStreamSection(
                             externalFocusRequesters = chipFocusRequesters,
                             externalOrderedNames = orderedAddonNames,
                             chipListState = chipListState,
+                            streamCounts = streamCounts,
                             debugTag = "StreamScreen"
                         )
                     }

@@ -279,6 +279,7 @@ internal fun AddonFilterChips(
     onUpKey: (() -> Unit)? = null,
     onFocusIndexChanged: (Int) -> Unit = {},
     chipListState: LazyListState = rememberLazyListState(),
+    streamCounts: Map<String, Int> = emptyMap(),
     debugTag: String = "AddonFilterChips"
 ) {
     val isRtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
@@ -483,6 +484,8 @@ internal fun AddonFilterChips(
                 isSelected = selectedAddon == addon,
                 status = chipStatus,
                 isSelectable = isSelectable,
+                showStatusIndicator = true,
+                count = streamCounts[addon],
                 onClick = { if (isSelectable) onAddonSelected(addon) },
                 modifier = Modifier
                     .focusRequester(focusRequesters[requesterIdx])

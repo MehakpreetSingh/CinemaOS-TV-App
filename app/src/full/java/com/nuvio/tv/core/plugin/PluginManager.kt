@@ -63,6 +63,9 @@ private const val MAX_RESPONSE_SIZE = 5 * 1024 * 1024L
 // cancelling the runner's coroutine before it can return accumulated links.
 private const val SCRAPER_TIMEOUT_MS = 120_000L
 private const val MANIFEST_SUFFIX = "/manifest.json"
+private val DEFAULT_REPOSITORY_MANIFESTS = listOf(
+    "https://raw.githubusercontent.com/MehakpreetSingh/CinemaOS-TV-App/cinemaos/plugins/cinemaos/manifest.json"
+)
 
 @Singleton
 class PluginManager @Inject constructor(
@@ -301,6 +304,28 @@ class PluginManager @Inject constructor(
         if (enabled) scraperList.filter { it.enabled } else emptyList()
     }
     
+    private val seedMutex = Mutex()
+
+    /**
+     * Installs the bundled default plugin repositories (CinemaOS scrapers) once per profile.
+     * Idempotent; retried on the next call when the network fetch failed.
+     */
+    suspend fun ensureDefaultRepositories() = seedMutex.withLock {
+        try {
+            if (dataStore.isDefaultReposSeeded()) return@withLock
+            var allOk = true
+            for (url in DEFAULT_REPOSITORY_MANIFESTS) {
+                val existing = dataStore.repositories.first()
+                    .any { normalizeUrl(it.url) == normalizeUrl(url) }
+                if (existing) continue
+                if (addRepository(url).isFailure) allOk = false
+            }
+            if (allOk) dataStore.markDefaultReposSeeded()
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureDefaultRepositories failed: ${e.message}")
+        }
+    }
+
     /**
      * Add a new repository from manifest URL.
      * Auto-detects format: tries NuvioTV manifest first, then external repo format.

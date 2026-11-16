@@ -22,6 +22,8 @@ class PluginManager {
 
     fun flushPendingSync() = Unit
 
+    suspend fun ensureDefaultRepositories() = Unit
+
     fun discardPendingSync() = Unit
 
     suspend fun addRepository(manifestUrl: String): Result<PluginRepository> =
