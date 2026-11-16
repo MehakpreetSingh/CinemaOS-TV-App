@@ -1,6 +1,7 @@
 package com.nuvio.tv.core.scrapers
 
 import android.util.Base64
+import android.util.Log
 import com.nuvio.tv.domain.model.LocalScraperResult
 import com.nuvio.tv.domain.model.Subtitle
 import kotlinx.coroutines.async
@@ -31,6 +32,7 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
             val i = async { http.tmdbBrief(type, req.tmdbId) }
             s.await() to i.await()
         }
+        Log.d(TAG, "seed=${seed?.take(8)} title='${info.title}' year=${info.year} imdb=${info.imdbId} tmdb=$tmdbNum")
         if (seed == null) return emptyList()
         val params = qs(
             "title" to info.title,
@@ -49,9 +51,13 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
             timeoutMs = 8_000,
             enough = { got -> got.count { sourceCount(it.data) > 0 } >= 2 }
         ) { shard ->
-            val res = http.fetch("$API/$shard/sources?$params", shardHeaders, timeoutMs = 8_000) ?: return@parallelUntil null
-            if (!res.ok) return@parallelUntil null
-            val plain = runCatching { decrypt(res.text, seed, tmdbNum.toInt()) }.getOrNull() ?: return@parallelUntil null
+            val t0 = System.currentTimeMillis()
+            val res = http.fetch("$API/$shard/sources?$params", shardHeaders, timeoutMs = 8_000)
+            if (res == null) { Log.d(TAG, "shard $shard: no response (${System.currentTimeMillis() - t0} ms)"); return@parallelUntil null }
+            if (!res.ok) { Log.d(TAG, "shard $shard: HTTP ${res.code} ${res.text.take(80)}"); return@parallelUntil null }
+            val plain = runCatching { decrypt(res.text, seed, tmdbNum.toInt()) }
+                .onFailure { Log.d(TAG, "shard $shard: decrypt failed ${it.message} len=${res.text.length}") }.getOrNull() ?: return@parallelUntil null
+            Log.d(TAG, "shard $shard ok in ${System.currentTimeMillis() - t0} ms: ${plain.take(120)}")
             ShardResult(shard, JSONObject(plain))
         }
 
@@ -110,7 +116,9 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
     private suspend fun getSeed(tmdbId: Long): String? {
         val headers = mapOf("User-Agent" to UA) + SITE_HEADERS
         repeat(2) {
-            val res = http.fetch("$API/seed?mediaId=$tmdbId", headers, timeoutMs = 5_000, maxBytes = 64 * 1024) ?: return null
+            val res = http.fetch("$API/seed?mediaId=$tmdbId", headers, timeoutMs = 5_000, maxBytes = 64 * 1024)
+            Log.d(TAG, "seed fetch: ${res?.code} ${res?.text?.take(60)}")
+            if (res == null) return null
             if (res.code == 429 && it == 0) { kotlinx.coroutines.delay(1_200); return@repeat }
             if (!res.ok) return null
             return runCatching { JSONObject(res.text).str("seed") }.getOrNull()
@@ -201,6 +209,7 @@ class MovyScraper(private val http: CinemaHttp) : CinemaScraper {
     }
 
     companion object {
+        private const val TAG = "MovyScraper"
         private const val API = "https://api.wecollege.net"
         private val SHARDS = listOf("miami", "boise", "atlanta", "phoenix")
         private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
