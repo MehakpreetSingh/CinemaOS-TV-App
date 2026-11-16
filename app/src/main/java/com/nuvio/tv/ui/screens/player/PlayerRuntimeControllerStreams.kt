@@ -479,7 +479,9 @@ private suspend fun PlayerRuntimeController.updateSourceChipsForFetchStart(
     }
 
     val ordered = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(
-        (serverSourceNames(type, videoId) + addonNames + pluginNames).distinct(),
+        (serverSourceNames(type, videoId) + addonNames + pluginNames +
+            if (com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(type, videoId)) emptyList()
+            else com.nuvio.tv.ui.components.ProviderContentFilter.nativeMovieProviderNames).distinct(),
         com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(type, videoId)
     )
     _uiState.update {
@@ -583,6 +585,9 @@ private suspend fun PlayerRuntimeController.updateEpisodeSourceChipsForFetchStar
         addAll(serverSourceNames(type, videoId))
         addAll(addonNames)
         addAll(pluginNames)
+        if (!com.nuvio.tv.ui.components.ProviderContentFilter.isAnimeContent(type, videoId)) {
+            addAll(com.nuvio.tv.ui.components.ProviderContentFilter.nativeMovieProviderNames)
+        }
     }.distinct()
     _uiState.update {
         it.copy(

@@ -5,6 +5,9 @@ object ProviderContentFilter {
     private val animeProviders = listOf("anikoto", "animeworld", "kickassanime", "animesalt", "megaplay")
     private val movieProviders = listOf("movy", "hdhub", "wing", "moviebox")
 
+    /** Native Kotlin providers (NativeCinemaScrapers) in priority order; seeded as chips at search start. */
+    val nativeMovieProviderNames = listOf("CinemaOS · Movy", "CinemaOS · HdHub", "CinemaOS · Wing", "CinemaOS · MovieBox")
+
     fun isAnimeProvider(name: String): Boolean {
         val n = name.lowercase()
         return animeProviders.any { n.contains(it) }

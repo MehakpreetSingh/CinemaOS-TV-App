@@ -1093,7 +1093,8 @@ class StreamScreenViewModel @Inject constructor(
         }
 
         val orderedNames = com.nuvio.tv.ui.components.ProviderContentFilter.filterNames(
-            (directDebridSourceNames + serverSourceNames + addonNames + pluginNames).distinct(),
+            (directDebridSourceNames + serverSourceNames + addonNames + pluginNames +
+                if (isAnimeContent) emptyList() else com.nuvio.tv.ui.components.ProviderContentFilter.nativeMovieProviderNames).distinct(),
             isAnimeContent
         )
         if (orderedNames.isEmpty()) {
