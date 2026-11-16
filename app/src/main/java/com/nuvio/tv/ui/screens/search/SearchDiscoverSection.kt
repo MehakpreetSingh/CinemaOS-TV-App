@@ -138,7 +138,8 @@ internal fun DiscoverSection(
     ) {
         Text(
             text = stringResource(R.string.discover_title),
-            style = MaterialTheme.typography.headlineMedium,
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
             color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent
         )
 
@@ -343,19 +344,19 @@ private fun DiscoverDropdownPicker(
                     if (blockFocus) Modifier.focusProperties { canFocus = false }
                     else Modifier
                 ),
-            shape = CardDefaults.shape(shape = RoundedCornerShape(14.dp)),
+            shape = CardDefaults.shape(shape = RoundedCornerShape(50)),
             colors = CardDefaults.colors(
-                containerColor = NuvioTheme.colors.BackgroundCard,
-                focusedContainerColor = NuvioTheme.colors.FocusBackground
+                containerColor = Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.White.copy(alpha = 0.2f)
             ),
             border = CardDefaults.border(
                 border = Border(
                     border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(50)
                 ),
                 focusedBorder = Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(14.dp)
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
+                    shape = RoundedCornerShape(50)
                 )
             ),
             scale = CardDefaults.scale(

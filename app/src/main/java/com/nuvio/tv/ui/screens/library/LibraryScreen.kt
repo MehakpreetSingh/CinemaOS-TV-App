@@ -341,9 +341,9 @@ fun LibraryScreen(
             ) {
                 Text(
                     text = stringResource(R.string.library_title),
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.headlineLarge,
                     color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
                 )
                 Text(
@@ -753,9 +753,12 @@ private fun LibraryViewModeRow(
                             role = Role.Tab
                             this.selected = selected
                         },
+                    shape = ButtonDefaults.shape(androidx.compose.foundation.shape.CircleShape),
                     colors = ButtonDefaults.colors(
-                        containerColor = if (selected) NuvioTheme.colors.FocusBackground else NuvioTheme.colors.BackgroundCard,
-                        contentColor = NuvioTheme.colors.TextPrimary
+                        containerColor = if (selected) Color.White.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.08f),
+                        contentColor = if (selected) Color(0xFF09090B) else NuvioTheme.colors.TextPrimary,
+                        focusedContainerColor = Color.White,
+                        focusedContentColor = Color(0xFF09090B)
                     )
                 ) {
                     Text(
@@ -1374,19 +1377,19 @@ private fun LibraryDropdownPicker(
                 )
                 .onSizeChanged { anchorSize = it }
                 .onFocusChanged { isFocused = it.isFocused },
-            shape = CardDefaults.shape(shape = RoundedCornerShape(14.dp)),
+            shape = CardDefaults.shape(shape = RoundedCornerShape(50)),
             colors = CardDefaults.colors(
-                containerColor = NuvioTheme.colors.BackgroundCard,
-                focusedContainerColor = NuvioTheme.colors.FocusBackground
+                containerColor = Color.White.copy(alpha = 0.08f),
+                focusedContainerColor = Color.White.copy(alpha = 0.2f)
             ),
             border = CardDefaults.border(
                 border = androidx.tv.material3.Border(
                     border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = RoundedCornerShape(50)
                 ),
                 focusedBorder = androidx.tv.material3.Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(14.dp)
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
+                    shape = RoundedCornerShape(50)
                 )
             ),
             scale = CardDefaults.scale(
