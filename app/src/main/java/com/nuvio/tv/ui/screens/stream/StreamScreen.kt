@@ -416,31 +416,28 @@ fun StreamScreen(
             }
         )
 
-        if (!uiState.autoPlayDecided) {
+        if (!uiState.autoPlayDecided || showOverlay) {
+            // One LoadingOverlay call site for both phases so the glass loader never restarts.
             LoadingOverlay(
                 visible = true,
                 backdropUrl = uiState.backdrop ?: uiState.poster,
                 logoUrl = uiState.logo,
                 title = uiState.title,
-                // RN-style loader while sources are searched: dimmed backdrop + spinner only.
                 minimal = true,
                 providerChips = uiState.sourceChips,
                 providerCounts = uiState.allStreams.groupingBy { it.addonName }.eachCount(),
                 foundCount = uiState.allStreams.size,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else if (showOverlay) {
-            LoadingOverlay(
-                visible = true,
-                backdropUrl = uiState.backdrop ?: uiState.poster,
-                logoUrl = uiState.logo,
-                title = uiState.title,
-                // Stream chosen: minimal RN-style loader + "Starting <provider> · <quality>".
-                minimal = true,
-                startingText = uiState.autoPlayStream?.let { st ->
-                    val prov = st.pluginSourceName?.takeIf { it.isNotBlank() } ?: st.addonName
-                    "Starting $prov" + (st.quality?.takeIf { it.isNotBlank() }?.let { " \u00B7 $it" } ?: "")
-                },
+                startingText = if (uiState.autoPlayDecided) {
+                    uiState.autoPlayStream?.let { st ->
+                        val prov = st.pluginSourceName?.takeIf { it.isNotBlank() } ?: st.addonName
+                        "Starting $prov" + (st.quality?.takeIf { it.isNotBlank() }?.let { " \u00B7 $it" } ?: "")
+                    }
+                } else null,
+                seasonEpisodeText = if (uiState.isEpisode) {
+                    "S%02d \u00B7 E%02d".format(uiState.season, uiState.episode)
+                } else null,
+                yearText = uiState.year,
+                episodeTitle = uiState.episodeName,
                 modifier = Modifier.fillMaxSize()
             )
         } else {

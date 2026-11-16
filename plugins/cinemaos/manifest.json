@@ -29,18 +29,6 @@
       "enabled": true
     },
     {
-      "id": "cinemaos-castle",
-      "name": "CinemaOS \u00b7 Castle",
-      "description": "Castle multi-audio HLS streams",
-      "version": "1.0.0",
-      "filename": "castle.js",
-      "supportedTypes": [
-        "movie",
-        "tv"
-      ],
-      "enabled": true
-    },
-    {
       "id": "cinemaos-wing",
       "name": "CinemaOS \u00b7 Wing",
       "description": "Wing direct download links (MKV/MP4, up to 4K)",

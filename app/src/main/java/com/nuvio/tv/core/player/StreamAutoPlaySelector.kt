@@ -31,10 +31,13 @@ object StreamAutoPlaySelector {
         val (directDebridEntries, remainingEntries) = streams.partition {
             it.streams.any { stream -> stream.isDirectDebrid() }
         }
-        if (installedOrder.isEmpty()) return directDebridEntries + remainingEntries
+        if (installedOrder.isEmpty()) {
+            return directDebridEntries + remainingEntries.sortedByDescending { autoPlayProviderRank(it.addonName) }
+        }
         val (addonEntries, pluginEntries) = remainingEntries.partition { it.addonName in addonRankByName }
         val orderedAddons = addonEntries.sortedBy { addonRankByName.getValue(it.addonName) }
-        return directDebridEntries + orderedAddons + pluginEntries
+        return directDebridEntries + orderedAddons +
+            pluginEntries.sortedByDescending { autoPlayProviderRank(it.addonName) }
     }
 
     private fun isPlayable(stream: Stream): Boolean {
@@ -153,13 +156,13 @@ object StreamAutoPlaySelector {
         return when (mode) {
             StreamAutoPlayMode.MANUAL -> null
             StreamAutoPlayMode.FIRST_STREAM -> {
-                // CinemaOS phone-app order: best quality first (capped at 1080p so heavy 4K
-                // files do not win on weak TV boxes), CinemaOS providers before other addons,
-                // and provider order MovieBox > Movy > Castle > Wing within a quality.
+                // Best quality this device can actually play first (display max + decoder support,
+                // see DeviceVideoCapabilities), CinemaOS providers before other addons, then
+                // provider order HdHub > Wing > Movy > MovieBox within a quality.
                 val playable = candidateStreams.filter { isPlayable(it) }
                 if (isAnimeContent) {
                     // Anime: only the CinemaOS anime scrapers may be auto-picked (never HDHub /
-                    // MovieBox / Movy / Castle / Wing), ranked Anikoto > AnimeWorld > KickAssAnime
+                    // MovieBox / Movy / Wing), ranked Anikoto > AnimeWorld > KickAssAnime
                     // > AnimeSalt > MegaPlay, then quality. First one that arrives wins.
                     return playable.withIndex()
                         .filter { animeProviderRank(it.value.addonName) > 0 }
@@ -174,6 +177,8 @@ object StreamAutoPlaySelector {
                 playable.withIndex().maxWithOrNull(
                     compareBy<IndexedValue<Stream>>(
                         { autoPlayQualityRank(it.value) },
+                        // Prefer a stream that fits the device natively over a downscaled bigger one.
+                        { if (DeviceVideoCapabilities.declaredHeight(it.value) <= DeviceVideoCapabilities.get().maxDisplayHeight) 1 else 0 },
                         { if (it.value.addonName !in installedAddonNames) 1 else 0 },
                         { autoPlayProviderRank(it.value.addonName) },
                         { -it.index }
@@ -232,16 +237,7 @@ object StreamAutoPlaySelector {
     }
 }
 
-private fun autoPlayQualityRank(stream: Stream): Int {
-    val text = listOfNotNull(stream.name, stream.title, stream.description).joinToString(" ")
-    val rank = when {
-        Regex("4k|2160|uhd", RegexOption.IGNORE_CASE).containsMatchIn(text) -> 2160
-        else -> Regex("(\\d{3,4})\\s*p", RegexOption.IGNORE_CASE).find(text)
-            ?.groupValues?.get(1)?.toIntOrNull()
-            ?: if (Regex("hd", RegexOption.IGNORE_CASE).containsMatchIn(text)) 720 else 1
-    }
-    return minOf(rank, 1080)
-}
+private fun autoPlayQualityRank(stream: Stream): Int = DeviceVideoCapabilities.playableHeight(stream)
 
 fun animeProviderRank(addonName: String): Int = when {
     addonName.contains("Anikoto", true) -> 5
@@ -252,10 +248,11 @@ fun animeProviderRank(addonName: String): Int = when {
     else -> 0
 }
 
-private fun autoPlayProviderRank(addonName: String): Int = when {
-    addonName.contains("MovieBox", true) -> 4
-    addonName.contains("Movy", true) -> 3
-    addonName.contains("Castle", true) -> 2
-    addonName.contains("Wing", true) -> 1
+/** Movie/TV provider priority: HdHub > Wing > Movy > MovieBox. */
+fun autoPlayProviderRank(addonName: String): Int = when {
+    addonName.contains("HdHub", true) -> 4
+    addonName.contains("Wing", true) -> 3
+    addonName.contains("Movy", true) -> 2
+    addonName.contains("MovieBox", true) -> 1
     else -> 0
 }

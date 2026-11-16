@@ -201,6 +201,7 @@ private fun StreamSourcesPanelContent(
             }
             .sortedWith(
                 compareByDescending<Pair<String, List<Stream>>> { it.first == currentProvider }
+                    .thenByDescending { it.first.let { n -> com.nuvio.tv.core.player.autoPlayProviderRank(n) } }
                     .thenByDescending { (_, l) -> l.maxOf { it.sourceQuality() } }
             )
     }
@@ -443,10 +444,8 @@ private fun StreamSourcesPanelContent(
                             val active = s === currentStream
                             val isRightTarget = i == rightTargetIdx
                             val title = s.getDisplayNameOrNull() ?: s.name ?: s.addonName
-                            val meta = listOfNotNull(
-                                s.pluginSourceName?.takeIf { it.isNotBlank() && it != s.addonName },
-                                formatSize(s.behaviorHints?.videoSize)
-                            ).joinToString(" · ")
+                            val meta = s.pluginSourceName?.takeIf { it.isNotBlank() && it != s.addonName }.orEmpty()
+                            val specs = remember(s) { s.sourceSpecs() }
                             val titleColor = if (active) NuvioTheme.colors.OnSecondary else Color.White
                             androidx.tv.material3.Card(
                                 onClick = { onStreamSelected(s) },
@@ -482,6 +481,11 @@ private fun StreamSourcesPanelContent(
                                             color = titleColor,
                                             maxLines = 2,
                                             overflow = TextOverflow.Ellipsis
+                                        )
+                                        SourceSpecChips(
+                                            specs = specs,
+                                            selected = active,
+                                            modifier = Modifier.padding(top = 4.dp)
                                         )
                                         if (meta.isNotBlank()) {
                                             Text(
@@ -658,7 +662,7 @@ private fun StreamQualityPanel(
     ) {
         Column(
             modifier = Modifier
-                .width(460.dp)
+                .width(560.dp)
                 .align(Alignment.BottomStart)
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Bottom
@@ -685,11 +689,16 @@ private fun StreamQualityPanel(
                     itemsIndexed(items = qualities, key = { _, q -> q }) { i, q ->
                         val active = q == currentQuality
                         val count = candidates.count { it.sourceQuality() == q }
+                        val pick = remember(candidates, allStreams, q, currentStream) {
+                            candidates.filter { it.sourceQuality() == q }
+                                .let { l -> l.firstOrNull { it !== currentStream } ?: l.firstOrNull() }
+                                ?: allStreams.filter { !it.isExternal() && it.sourceQuality() == q }.firstOrNull()
+                        }
+                        val shownStream = if (active && currentStream != null) currentStream else pick
+                        val specs = remember(shownStream) { shownStream?.sourceSpecs().orEmpty() }
+                        val fg = if (active) NuvioTheme.colors.OnSecondary else Color.White
                         androidx.tv.material3.Card(
                             onClick = {
-                                val pick = candidates.filter { it.sourceQuality() == q }
-                                    .let { l -> l.firstOrNull { it !== currentStream } ?: l.firstOrNull() }
-                                    ?: allStreams.filter { !it.isExternal() && it.sourceQuality() == q }.firstOrNull()
                                 if (pick != null && pick !== currentStream) onStreamSelected(pick) else onClose()
                             },
                             modifier = Modifier.fillMaxWidth().focusRequester(requesters[i]),
@@ -705,14 +714,35 @@ private fun StreamQualityPanel(
                                 modifier = Modifier.fillMaxWidth()
                                     .padding(horizontal = NuvioTheme.spacing.md, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(64.dp)
+                                        .background(
+                                            if (active) NuvioTheme.colors.OnSecondary.copy(alpha = 0.16f)
+                                            else Color.White.copy(alpha = 0.12f),
+                                            RoundedCornerShape(10.dp)
+                                        )
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = qualityLabel(q) ?: "Auto",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = if (active) NuvioTheme.colors.OnSecondary else Color.White
+                                        text = com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(q),
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = fg
                                     )
+                                }
+                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = listOfNotNull(
+                                            if (q > 0) "${q}p" else "Auto",
+                                            formatSize(shownStream?.behaviorHints?.videoSize)
+                                        ).joinToString(" \u00B7 "),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = fg
+                                    )
+                                    SourceSpecChips(specs = specs, selected = active, maxChips = 6)
                                     Text(
                                         text = listOfNotNull(provider, "$count link${if (count > 1) "s" else ""}")
                                             .joinToString(" \u00B7 "),
@@ -723,7 +753,7 @@ private fun StreamQualityPanel(
                                         overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                                if (active) Text(text = "\u2713", color = NuvioTheme.colors.OnSecondary)
+                                if (active) Text(text = "\u2713", style = MaterialTheme.typography.titleLarge, color = fg)
                             }
                         }
                     }

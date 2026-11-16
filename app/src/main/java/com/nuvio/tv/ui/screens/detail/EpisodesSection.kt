@@ -30,7 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -411,7 +413,9 @@ fun EpisodesRow(
     scrollToEpisodeId: String? = null,
     onScrollToEpisodeHandled: () -> Unit = {},
     anchorEpisodeId: String? = null,
-    windowResetKey: String? = null
+    windowResetKey: String? = null,
+    rangePillsFocusRequester: FocusRequester = remember { FocusRequester() },
+    onRangePillsVisibleChanged: (Boolean) -> Unit = {}
 ) {
     val allEpisodes = remember(episodes) { episodes.distinctBy { it.id } }
     // Long absolute-numbered series (anime): page the list into ranges of EPISODE_RANGE_SIZE.
@@ -424,6 +428,10 @@ fun EpisodesRow(
     }
     var selectedRange by remember(allEpisodes.size) { mutableStateOf(targetRange) }
     LaunchedEffect(targetRange, targetEpisodeId) { selectedRange = targetRange }
+    val currentOnRangePillsVisibleChanged by rememberUpdatedState(onRangePillsVisibleChanged)
+    LaunchedEffect(showRanges) { currentOnRangePillsVisibleChanged(showRanges) }
+    DisposableEffect(Unit) { onDispose { currentOnRangePillsVisibleChanged(false) } }
+    val episodeUpFocusRequester = if (showRanges) rangePillsFocusRequester else upFocusRequester
     val dedupedEpisodes = remember(allEpisodes, selectedRange, showRanges) {
         if (!showRanges) allEpisodes
         else allEpisodes.drop(selectedRange.coerceIn(0, rangeCount - 1) * EPISODE_RANGE_SIZE).take(EPISODE_RANGE_SIZE)
@@ -530,6 +538,7 @@ fun EpisodesRow(
                 Card(
                     onClick = { selectedRange = r },
                     modifier = Modifier
+                        .then(if (isSelected) Modifier.focusRequester(rangePillsFocusRequester) else Modifier)
                         .focusProperties { up = upFocusRequester }
                         .onFocusChanged {
                             pillFocused = it.isFocused
@@ -609,7 +618,7 @@ fun EpisodesRow(
                 cardMetrics = cardMetrics,
                 onClick = episodeOnClick,
                 onLongPress = episodeOnLongPress,
-                upFocusRequester = upFocusRequester,
+                upFocusRequester = episodeUpFocusRequester,
                 downFocusRequester = downFocusRequester,
                 focusRequester = episodeFocusRequester,
                 isFocusEnabled = restoreEpisodeId.isNullOrBlank() || isRestoreTarget,

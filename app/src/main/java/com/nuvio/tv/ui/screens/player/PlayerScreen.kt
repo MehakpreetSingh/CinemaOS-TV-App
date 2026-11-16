@@ -1356,6 +1356,14 @@ fun PlayerScreen(
             progress = if (uiState.isTorrentStream) uiState.loadingProgress else null,
             subText = null,
             minimal = !uiState.isTorrentStream,
+            providerChips = uiState.sourceChips,
+            providerCounts = uiState.sourceAllStreams.groupingBy { it.addonName }.eachCount(),
+            foundCount = uiState.sourceAllStreams.size,
+            seasonEpisodeText = if (uiState.currentSeason != null && uiState.currentEpisode != null) {
+                "S%02d \u00B7 E%02d".format(uiState.currentSeason, uiState.currentEpisode)
+            } else null,
+            yearText = uiState.releaseYear,
+            episodeTitle = uiState.currentEpisodeTitle,
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(2f)
@@ -3036,8 +3044,29 @@ private fun PlayerControlsOverlay(
                         onFocused = onResetHideTimer
                     )
 
+                    val qualityBadgeText = remember(
+                        uiState.sourceAllStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx,
+                        uiState.currentStreamAddonName, uiState.currentStreamUrl, uiState.currentStreamName,
+                        uiState.currentStreamDescription, uiState.videoHeight
+                    ) {
+                        val idx = findCurrentStreamIndex(
+                            streams = uiState.sourceAllStreams,
+                            currentStreamInfoHash = uiState.currentStreamInfoHash,
+                            currentStreamFileIdx = uiState.currentStreamFileIdx,
+                            currentStreamAddonName = uiState.currentStreamAddonName,
+                            currentStreamUrl = uiState.currentStreamUrl,
+                            currentStreamName = uiState.currentStreamName,
+                            currentStreamDescription = uiState.currentStreamDescription,
+                            currentFilename = null
+                        )
+                        val declared = uiState.sourceAllStreams.getOrNull(idx)
+                            ?.let { com.nuvio.tv.core.player.DeviceVideoCapabilities.declaredHeight(it) } ?: 0
+                        val h = if (declared > 0) declared else (uiState.videoHeight ?: 0)
+                        com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(h).takeIf { h > 0 } ?: "HD"
+                    }
                     ControlButton(
                         icon = Icons.Default.HighQuality,
+                        badgeText = qualityBadgeText,
                         contentDescription = "Quality",
                         onClick = onShowQualityPanel,
                         upFocusRequester = progressUpTarget,
@@ -3287,6 +3316,7 @@ private fun ReportControlButton(
 private fun ControlButton(
     icon: ImageVector,
     iconPainter: Painter? = null,
+    badgeText: String? = null,
     contentDescription: String,
     onClick: () -> Unit,
     focusRequester: FocusRequester? = null,
@@ -3347,7 +3377,13 @@ private fun ControlButton(
         ),
         shape = IconButtonDefaults.shape(shape = CircleShape)
     ) {
-        if (iconPainter != null) {
+        if (badgeText != null) {
+            Text(
+                text = badgeText,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold),
+                maxLines = 1
+            )
+        } else if (iconPainter != null) {
             Icon(
                 painter = iconPainter,
                 contentDescription = contentDescription,

@@ -183,16 +183,16 @@ fun AppleHomeContent(
     }
 
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    // Row heading (AppleRowTitle: bar+eyebrow+22sp title) is ~64dp. Tallest row drives the window: catalog cards, plus Continue Watching poster cards (title + episode label below).
+    // Row heading (AppleRowTitle: bar+eyebrow+22sp title) is ~44dp. Tallest row drives the window: catalog cards, plus Continue Watching poster cards (title + episode label below).
     val cwPosterRow = uiState.continueWatchingCardStyle == ContinueWatchingCardStyle.POSTER &&
         uiState.continueWatchingItems.isNotEmpty()
     val catalogRowHeight = if (cardStyle.landscape) {
-        135.dp * cardStyle.scale + 28.dp + 64.dp + 24.dp
+        135.dp * cardStyle.scale + 28.dp + 44.dp + 24.dp
     } else {
-        195.dp * cardStyle.scale + 26.dp + 28.dp + 64.dp + 24.dp + 20.dp
+        195.dp * cardStyle.scale + 26.dp + 28.dp + 44.dp + 24.dp + 20.dp
     }
     val cwRowHeight = if (cwPosterRow) {
-        195.dp * cardStyle.scale + 42.dp + 28.dp + 64.dp + 24.dp
+        195.dp * cardStyle.scale + 42.dp + 28.dp + 44.dp + 24.dp
     } else {
         0.dp
     }
@@ -498,27 +498,20 @@ private fun ContinueWatchingItem.appleKey(): String = when (this) {
     is ContinueWatchingItem.NextUp -> "nu_${info.contentId}_${info.season}_${info.episode}"
 }
 @Composable
-private fun AppleRowTitle(title: String, from: String? = null) {
-    // Mirrors the website's DetailsSectionHeader: 3x14 bar + tracked eyebrow, bold title below.
-    Column(modifier = Modifier.padding(start = RowInset, top = 8.dp, bottom = 4.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(14.dp)
-                    .clip(RoundedCornerShape(50))
-                    .background(Color(0xFFFAFAFA))
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = (from?.takeIf { it.isNotBlank() } ?: "CinemaOS").uppercase(),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 1.76.sp,
-                color = Color.White.copy(alpha = 0.5f),
-                maxLines = 1
-            )
-        }
+private fun AppleRowTitle(title: String) {
+    // CinemaOS-V3 heading style: 3x20 bar + bold title (no addon eyebrow).
+    Row(
+        modifier = Modifier.padding(start = RowInset, top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(22.dp)
+                .clip(RoundedCornerShape(50))
+                .background(Color(0xFFFAFAFA))
+        )
+        Spacer(Modifier.width(10.dp))
         Text(
             text = title,
             fontSize = 22.sp,
@@ -527,7 +520,7 @@ private fun AppleRowTitle(title: String, from: String? = null) {
             color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp).widthIn(max = 600.dp)
+            modifier = Modifier.widthIn(max = 600.dp)
         )
     }
 }
@@ -677,10 +670,7 @@ private fun AppleCatalogRow(
         if (name.isBlank()) "" else if (showTypeSuffix && typeLabel.isNotEmpty()) "$name - $typeLabel" else name
     }
     Column {
-        AppleRowTitle(
-            title = title,
-            from = if (showAddonName && title.isNotBlank()) stringResource(R.string.catalog_from_addon, row.addonName) else null
-        )
+        AppleRowTitle(title = title)
         LazyRow(
             state = rowState,
             contentPadding = PaddingValues(horizontal = RowInset, vertical = 14.dp),

@@ -1353,6 +1353,8 @@ private fun MetaDetailsContent(
         }
     }
     val selectedSeasonFocusRequester = remember { FocusRequester() }
+    val rangePillsFocusRequester = remember { FocusRequester() }
+    var rangePillsVisible by remember { mutableStateOf(false) }
     val heroPlayButtonFocusRequester = remember { FocusRequester() }
     var synopsisTruncated by remember(meta.id, meta.description) { mutableStateOf(false) }
     val heroPlayFocusRequester = if (synopsisTruncated) null else heroPlayButtonFocusRequester
@@ -2551,7 +2553,7 @@ private fun MetaDetailsContent(
                             onSeasonLongPress = { seasonOptionsDialogSeason = it },
                             selectedTabFocusRequester = selectedSeasonFocusRequester,
                             upFocusRequester = heroPlayFocusRequester,
-                            downFocusRequester = seasonDownFocusRequester,
+                            downFocusRequester = if (rangePillsVisible) rangePillsFocusRequester else seasonDownFocusRequester,
                             isFocusEnabled = pendingRestoreType != RestoreTarget.EPISODE
                         )
                     }
@@ -2570,6 +2572,8 @@ private fun MetaDetailsContent(
                     }
                     Box(modifier = Modifier.bringIntoViewResponder(episodeRowStayVerticalResponder)) {
                         EpisodesRow(
+                            rangePillsFocusRequester = rangePillsFocusRequester,
+                            onRangePillsVisibleChanged = { rangePillsVisible = it },
                             episodes = episodesForSeason,
                             episodeProgressMap = episodeProgressMap,
                             episodeRatings = visibleEpisodeImdbRatings,
