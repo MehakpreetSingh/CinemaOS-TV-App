@@ -390,7 +390,7 @@ fun ContentCard(
                     shape = cardShape
                 )
             ),
-            scale = CardDefaults.scale(focusedScale = 1.08f)
+            scale = CardDefaults.scale(focusedScale = if (globalLandscape) 1.03f else 1.08f)
         ) {
             Box(
                 modifier = Modifier

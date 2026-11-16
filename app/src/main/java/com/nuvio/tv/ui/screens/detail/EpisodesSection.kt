@@ -375,6 +375,8 @@ fun SeasonTabs(
     }
 }
 
+private const val EPISODE_RANGE_SIZE = 50
+
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun EpisodesRow(
@@ -411,7 +413,21 @@ fun EpisodesRow(
     anchorEpisodeId: String? = null,
     windowResetKey: String? = null
 ) {
-    val dedupedEpisodes = remember(episodes) { episodes.distinctBy { it.id } }
+    val allEpisodes = remember(episodes) { episodes.distinctBy { it.id } }
+    // Long absolute-numbered series (anime): page the list into ranges of EPISODE_RANGE_SIZE.
+    val rangeCount = (allEpisodes.size + EPISODE_RANGE_SIZE - 1) / EPISODE_RANGE_SIZE
+    val showRanges = allEpisodes.size > EPISODE_RANGE_SIZE
+    val targetEpisodeId = restoreEpisodeId ?: scrollToEpisodeId ?: anchorEpisodeId
+    val targetRange = remember(allEpisodes, targetEpisodeId) {
+        val idx = allEpisodes.indexOfFirst { it.id == targetEpisodeId }
+        if (idx >= 0) idx / EPISODE_RANGE_SIZE else 0
+    }
+    var selectedRange by remember(allEpisodes.size) { mutableStateOf(targetRange) }
+    LaunchedEffect(targetRange, targetEpisodeId) { selectedRange = targetRange }
+    val dedupedEpisodes = remember(allEpisodes, selectedRange, showRanges) {
+        if (!showRanges) allEpisodes
+        else allEpisodes.drop(selectedRange.coerceIn(0, rangeCount - 1) * EPISODE_RANGE_SIZE).take(EPISODE_RANGE_SIZE)
+    }
     var optionsEpisode by remember { mutableStateOf<Video?>(null) }
     val isOverlayOpen = optionsEpisode != null
     val cardMetrics = rememberEpisodeCardMetrics(posterCardCornerRadiusDp)
@@ -498,6 +514,47 @@ fun EpisodesRow(
         anchorPlaced = true
     }
 
+    Column {
+    if (showRanges) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = cardMetrics.rowHorizontalPadding, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        ) {
+            items(rangeCount, key = { it }) { r ->
+                val isSelected = r == selectedRange
+                var pillFocused by remember { mutableStateOf(false) }
+                val first = r * EPISODE_RANGE_SIZE + 1
+                val last = minOf((r + 1) * EPISODE_RANGE_SIZE, allEpisodes.size)
+                val firstNum = allEpisodes[first - 1].episode ?: first
+                val lastNum = allEpisodes[last - 1].episode ?: last
+                Card(
+                    onClick = { selectedRange = r },
+                    modifier = Modifier
+                        .focusProperties { up = upFocusRequester }
+                        .onFocusChanged {
+                            pillFocused = it.isFocused
+                            if (it.isFocused && !isSelected) selectedRange = r
+                        },
+                    shape = CardDefaults.shape(shape = RoundedCornerShape(50)),
+                    colors = CardDefaults.colors(
+                        containerColor = if (isSelected) NuvioTheme.colors.SurfaceVariant else NuvioTheme.colors.BackgroundCard,
+                        focusedContainerColor = NuvioTheme.colors.Secondary
+                    )
+                ) {
+                    Text(
+                        text = "$firstNum-$lastNum",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = when {
+                            pillFocused -> NuvioTheme.colors.OnSecondary
+                            isSelected -> NuvioTheme.colors.TextPrimary
+                            else -> NuvioTheme.extendedColors.textSecondary
+                        },
+                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 18.dp)
+                    )
+                }
+            }
+        }
+    }
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -561,6 +618,7 @@ fun EpisodesRow(
             )
         }
     }
+    } // Column
 
     optionsEpisode?.let { selectedEpisode ->
         val selectedWatched = selectedEpisode.season?.let { season ->

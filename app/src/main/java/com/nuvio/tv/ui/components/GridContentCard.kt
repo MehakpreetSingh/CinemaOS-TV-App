@@ -76,16 +76,20 @@ internal fun rememberResolvedCardLogo(item: MetaPreview, enabled: Boolean): Stri
     val existing = item.logo
     if (!existing.isNullOrBlank()) return existing
     val key = "${item.id}:${item.apiType}"
-    var resolved by remember(key) { mutableStateOf(resolvedLogoCache[key]) }
+    // TMDB may be unavailable (no API key in this build); Metahub serves clearlogos by IMDb id without a key.
+    val imdbId = (item.imdbId ?: item.id.substringBefore(':')).takeIf { it.startsWith("tt") }
+    val metahubLogo = imdbId?.let { "https://images.metahub.space/logo/medium/$it/img" }
+    var resolved by remember(key) { mutableStateOf(resolvedLogoCache[key] ?: metahubLogo) }
     val context = LocalContext.current
     androidx.compose.runtime.LaunchedEffect(key, enabled) {
-        if (!enabled || resolved != null) return@LaunchedEffect
+        if (!enabled || resolvedLogoCache[key] != null) return@LaunchedEffect
         val entry = runCatching {
             dagger.hilt.android.EntryPointAccessors.fromApplication(
                 context.applicationContext,
                 CardLogoEntryPoint::class.java
             )
         }.getOrNull() ?: return@LaunchedEffect
+        if (entry.tmdbService().apiKey().isBlank()) return@LaunchedEffect
         val logo = runCatching {
             val tmdbId = entry.tmdbService().ensureTmdbId(item.id, item.apiType) ?: return@runCatching null
             entry.tmdbMetadataService().fetchEnrichment(tmdbId = tmdbId, contentType = item.type)?.logo

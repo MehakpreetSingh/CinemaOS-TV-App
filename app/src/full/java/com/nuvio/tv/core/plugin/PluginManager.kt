@@ -313,27 +313,24 @@ class PluginManager @Inject constructor(
      */
     suspend fun ensureDefaultRepositories() = seedMutex.withLock {
         try {
-            if (dataStore.isDefaultReposSeeded()) {
-                // Seeded once, then never updated: refresh default repos once per app launch
-                // so new/changed CinemaOS scrapers (e.g. anime) reach existing installs.
-                if (!defaultReposRefreshed) {
-                    defaultReposRefreshed = true
-                    val repos = dataStore.repositories.first()
-                    for (url in DEFAULT_REPOSITORY_MANIFESTS) {
-                        repos.firstOrNull { normalizeUrl(it.url) == normalizeUrl(url) }
-                            ?.let { refreshRepository(it.id) }
-                    }
-                }
-                return@withLock
-            }
+            // CinemaOS built-in sources: plugins are always globally on, and the default
+            // repository is re-added whenever it is missing (removed by the user, sync, wipe).
+            if (!dataStore.pluginsEnabled.first()) dataStore.setPluginsEnabled(true)
             var allOk = true
             for (url in DEFAULT_REPOSITORY_MANIFESTS) {
                 val existing = dataStore.repositories.first()
-                    .any { normalizeUrl(it.url) == normalizeUrl(url) }
-                if (existing) continue
+                    .firstOrNull { normalizeUrl(it.url) == normalizeUrl(url) }
+                if (existing != null) {
+                    // Refresh once per app launch so new/changed scrapers reach existing installs.
+                    if (!defaultReposRefreshed) refreshRepository(existing.id)
+                    continue
+                }
                 if (addRepository(url).isFailure) allOk = false
             }
-            if (allOk) dataStore.markDefaultReposSeeded()
+            if (allOk) {
+                defaultReposRefreshed = true
+                dataStore.markDefaultReposSeeded()
+            }
         } catch (e: Exception) {
             Log.w(TAG, "ensureDefaultRepositories failed: ${e.message}")
         }

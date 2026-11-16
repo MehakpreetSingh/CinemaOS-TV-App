@@ -814,7 +814,7 @@ fun SearchScreen(
                                 catalogRow = catalogRow,
                                 posterCardStyle = posterCardStyle,
                                 showSeeAll = hasEnoughForSeeAll,
-                                showPosterLabels = uiState.posterLabelsEnabled,
+                                showPosterLabels = uiState.posterLabelsEnabled && !com.nuvio.tv.ui.components.LocalLandscapePosterMode.current,
                                 showAddonName = uiState.catalogAddonNameEnabled,
                                 showCatalogTypeSuffix = uiState.catalogTypeSuffixEnabled,
                                 enableRowFocusRestorer = true,

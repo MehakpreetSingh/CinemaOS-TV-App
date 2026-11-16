@@ -1,5 +1,6 @@
 package com.nuvio.tv.core.streams
 
+import com.nuvio.tv.core.build.AppFeaturePolicy
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.Meta
 import com.nuvio.tv.domain.model.ScraperInfo
@@ -35,5 +36,10 @@ internal data class PlaybackAvailability(
         cachedMeta(type, contentId)?.videos?.any { it.id == videoId && it.streams.isNotEmpty() } == true ||
         addons.any { it.enabled && it.supportsStreamResource(type, videoId) } ||
         scrapers.any { it.enabled && it.supportsType(type) } ||
+        // CinemaOS built-in scrapers are always available (seeded on launch), so the gate must
+        // not depend on whether the plugin list has been fetched yet.
+        (AppFeaturePolicy.pluginsEnabled && type.lowercase() in BUILT_IN_SOURCE_TYPES) ||
         serverStreams(type, videoId)
 }
+
+private val BUILT_IN_SOURCE_TYPES = setOf("movie", "series", "tv", "show", "anime", "other")

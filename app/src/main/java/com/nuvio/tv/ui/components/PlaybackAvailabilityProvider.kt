@@ -9,6 +9,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.tv.core.build.AppFeaturePolicy
+import com.nuvio.tv.core.plugin.PluginManager
 import com.nuvio.tv.core.streams.PlaybackAvailability
 import com.nuvio.tv.data.local.PluginDataStore
 import com.nuvio.tv.data.mediaserver.ServerRepository
@@ -21,6 +22,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 internal val LocalPlaybackAvailability = compositionLocalOf { PlaybackAvailability() }
@@ -31,8 +33,14 @@ internal class PlaybackAvailabilityViewModel @Inject constructor(
     pluginDataStore: PluginDataStore,
     metaRepository: MetaRepository,
     serverRepository: ServerRepository,
-    serverStreams: ServerStreams
+    serverStreams: ServerStreams,
+    pluginManager: PluginManager
 ) : ViewModel() {
+    init {
+        // Seed/re-add the built-in CinemaOS scraper repository on every launch.
+        viewModelScope.launch { pluginManager.ensureDefaultRepositories() }
+    }
+
     private val enabledScrapers = if (AppFeaturePolicy.pluginsEnabled) {
         combine(pluginDataStore.scrapers, pluginDataStore.pluginsEnabled) { scrapers, enabled ->
             if (enabled) scrapers.filter { it.enabled } else emptyList()
