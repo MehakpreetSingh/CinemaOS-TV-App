@@ -108,9 +108,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay as coroutineDelay
 import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
-import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.launch as coroutineLaunch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -416,8 +413,7 @@ fun StreamScreen(
     LaunchedEffect(forwardToPlayer, uiState.allStreams.isNotEmpty()) {
         if (!forwardToPlayer || uiState.allStreams.isEmpty() || forwardStarted) return@LaunchedEffect
         forwardStarted = true
-        // Let the slower sources land first (bounded) so the best link wins.
-        withTimeoutOrNull(8_000L) { snapshotFlow { uiState.isLoading }.first { !it } }
+        // First playable link opens the player at once; the rest keep loading in the background.
         val stream = uiState.filteredStreams.firstOrNull() ?: uiState.allStreams.firstOrNull()
         val info = stream?.let { viewModel.resolveStreamForPlayback(it) }
         if (stream != null && info != null && info.url != null && !info.isTorrent && !info.isExternal) {

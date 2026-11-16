@@ -281,10 +281,8 @@ fun PlayerScreen(
         )
     }
     // Once the first video has played, switching links keeps the video screen and shows only the small spinner.
-    var hasStartedPlayback by remember { mutableStateOf(false) }
-    LaunchedEffect(uiState.showLoadingOverlay, uiState.error) {
-        if (!uiState.showLoadingOverlay && uiState.error == null && !uiState.currentStreamUrl.isNullOrBlank()) hasStartedPlayback = true
-    }
+    // The full-screen loader belongs to the stream screen; here only torrents keep their progress overlay.
+    val hasStartedPlayback = !uiState.isTorrentStream
     val exitPlayerFromError: () -> Unit = {
         // No separate stream page: stay in the player and offer the other links in its Sources panel.
         viewModel.onEvent(PlayerEvent.OnShowSourcesPanel)
