@@ -4,6 +4,7 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,14 +68,18 @@ internal data class HeroDisplay(
     val logo: String?,
     val meta: String,
     val rating: Float?,
-    val synopsis: String?
+    val synopsis: String?,
+    val ageRating: String? = null,
+    val status: String? = null,
+    val language: String? = null
 )
 
 internal fun MetaPreview.toHeroDisplay(): HeroDisplay {
     val type = if (apiType.equals("movie", true)) "Movie" else "TV Show"
     val parts = buildList {
         add(type)
-        addAll(genres.take(2))
+        addAll(genres.take(1))
+        runtime?.takeIf { it.isNotBlank() }?.let { add(it) }
         releaseInfo?.takeIf { it.isNotBlank() }?.let { add(it.take(4)) }
     }
     return HeroDisplay(
@@ -82,9 +87,12 @@ internal fun MetaPreview.toHeroDisplay(): HeroDisplay {
         backdrops = listOfNotNull(background, landscapePoster, poster).filter { it.isNotBlank() }.distinct(),
         name = name,
         logo = logo,
-        meta = parts.joinToString(" \u00b7 "),
+        meta = parts.joinToString(" \u2022 "),
         rating = imdbRating,
-        synopsis = description
+        synopsis = description,
+        ageRating = ageRating,
+        status = status?.takeIf { it.isNotBlank() },
+        language = language
     )
 }
 
@@ -112,7 +120,7 @@ internal fun AppleHeroSection(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(start = 48.dp, top = com.nuvio.tv.LocalRootTopInset.current + 14.dp)
-                .widthIn(max = 420.dp)
+                .widthIn(max = 560.dp)
         ) {
             Crossfade(
                 targetState = display,
@@ -126,51 +134,56 @@ internal fun AppleHeroSection(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Desktop home has a single white "View Details" pill; Left/Right cycle the carousel.
                 AppleFocusSurface(
-                    onClick = onPlay,
+                    onClick = onInfo,
                     onFocused = onHeroFocused,
                     shape = CircleShape,
-                    containerColor = HeroButtonBg,
+                    containerColor = Color.White,
+                    contentColor = Color(0xFF09090B),
                     focusedContainerColor = Color.White,
                     focusedContentColor = Color(0xFF09090B),
+                    focusedScale = 1.06f,
                     modifier = Modifier
-                        .width(112.dp)
-                        .height(36.dp)
+                        .height(40.dp)
+                        .widthIn(min = 128.dp)
                         .focusRequester(com.nuvio.tv.LocalContentFocusRequester.current)
                         .onPreviewKeyEvent { e ->
-                            if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionLeft && count > 1) {
-                                goPrev(); true
+                            if (e.type == KeyEventType.KeyDown && count > 1) {
+                                when (e.key) {
+                                    Key.DirectionLeft -> { goPrev(); true }
+                                    Key.DirectionRight -> { goNext(); true }
+                                    else -> false
+                                }
                             } else false
                         }
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Filled.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Play", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                if (canToggleLibrary) {
-                    HeroCircleButton(
-                        icon = if (inLibrary) Icons.Filled.Check else Icons.Filled.Add,
-                        onClick = onToggleLibrary,
-                        onFocused = onHeroFocused
+                    Text(
+                        "View Details",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.align(Alignment.Center).padding(horizontal = 22.dp)
                     )
                 }
-                HeroCircleButton(icon = Icons.Filled.Info, onClick = onInfo, onFocused = onHeroFocused)
-                if (count > 1) {
-                    HeroCircleButton(
-                        icon = Icons.Filled.ChevronRight,
-                        onClick = { goNext() },
-                        onFocused = onHeroFocused,
-                        modifier = Modifier.onPreviewKeyEvent { e ->
-                            if (e.type == KeyEventType.KeyDown && e.key == Key.DirectionRight) {
-                                goNext(); true
-                            } else false
-                        }
+            }
+        }
+        if (count > 1) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 48.dp, bottom = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (i in 0 until count) {
+                    val active = i == safeIndex
+                    val w by animateDpAsState(if (active) 22.dp else 6.dp, tween(250), label = "dotW")
+                    Box(
+                        modifier = Modifier
+                            .width(w)
+                            .height(6.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = if (active) 1f else 0.7f))
                     )
                 }
             }
@@ -212,35 +225,11 @@ internal fun AppleBackdrop(display: HeroDisplay?, modifier: Modifier = Modifier)
 }
 
 @Composable
-private fun HeroCircleButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onFocused: () -> Unit = {}
-) {
-    AppleFocusSurface(
-        onClick = onClick,
-        onFocused = onFocused,
-        shape = CircleShape,
-        containerColor = HeroButtonBg,
-        focusedContainerColor = Color.White,
-        focusedContentColor = Color(0xFF09090B),
-        modifier = modifier.size(36.dp)
-    ) {
-        Icon(
-            icon,
-            contentDescription = null,
-            modifier = Modifier.size(22.dp).align(Alignment.Center)
-        )
-    }
-}
-
-@Composable
 private fun HeroTextBlock(item: HeroDisplay) {
     val context = LocalContext.current
     var logoFailed by remember(item.key) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(modifier = Modifier.height(90.dp).widthIn(max = 300.dp), contentAlignment = Alignment.CenterStart) {
+        Box(modifier = Modifier.height(96.dp).widthIn(max = 340.dp), contentAlignment = Alignment.CenterStart) {
             if (!item.logo.isNullOrBlank() && !logoFailed) {
                 val request = remember(item.logo) {
                     ImageRequest.Builder(context)
@@ -268,29 +257,52 @@ private fun HeroTextBlock(item: HeroDisplay) {
                 )
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(
-                text = item.meta,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color.White.copy(alpha = 0.85f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            val rating = item.rating
-            if (rating != null && rating > 0f) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White.copy(alpha = 0.22f))
-                        .padding(horizontal = 6.dp, vertical = 1.dp)
-                ) {
+        Text(
+            text = item.meta,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        val rating = item.rating?.takeIf { it > 0f }
+        val tag = listOfNotNull(item.ageRating?.takeIf { it.isNotBlank() }, item.status?.takeIf { it.isNotBlank() }?.uppercase())
+        if (tag.isNotEmpty() || rating != null || !item.language.isNullOrBlank()) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                if (tag.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier
+                            .border(1.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(5.dp))
+                            .padding(horizontal = 7.dp, vertical = 1.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        tag.forEachIndexed { i, t ->
+                            if (i > 0) Box(Modifier.width(1.dp).height(10.dp).background(Color.White.copy(alpha = 0.6f)))
+                            Text(t, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                        }
+                    }
+                }
+                if (rating != null) {
+                    Text("\u2022", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color(0xFFF5C518))
+                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                    ) {
+                        Text("IMDb", fontSize = 9.sp, fontWeight = FontWeight.ExtraBold, color = Color.Black)
+                    }
                     Text(
                         text = String.format(java.util.Locale.US, "%.1f", rating),
-                        fontSize = 11.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color(0xFFF5C518)
                     )
+                }
+                if (!item.language.isNullOrBlank()) {
+                    Text("\u2022", fontSize = 11.sp, color = Color.White.copy(alpha = 0.7f))
+                    Text(item.language.take(3).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                 }
             }
         }

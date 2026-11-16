@@ -1350,18 +1350,11 @@ fun PlayerScreen(
             backdropUrl = uiState.backdrop,
             logoUrl = uiState.logo,
             title = uiState.title,
-            message = uiState.loadingMessage.takeIf { uiState.showPlayerLoadingStatus || uiState.isTorrentStream },
-            progress = uiState.loadingProgress,
-            subText = run {
-                val provider = uiState.currentStreamAddonName?.takeIf { it.isNotBlank() }
-                val name = uiState.currentStreamName?.takeIf { it.isNotBlank() && it != provider }
-                when {
-                    provider != null && name != null -> "Playing $provider \u00B7 $name"
-                    provider != null -> "Playing $provider"
-                    name != null -> "Playing $name"
-                    else -> null
-                }
-            },
+            // Torrent progress keeps its text; every other stream gets the RN-style minimal spinner.
+            message = uiState.loadingMessage.takeIf { uiState.isTorrentStream },
+            progress = if (uiState.isTorrentStream) uiState.loadingProgress else null,
+            subText = null,
+            minimal = !uiState.isTorrentStream,
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(2f)

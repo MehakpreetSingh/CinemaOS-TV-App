@@ -50,7 +50,7 @@ class AddonPreferences @Inject constructor(
     private val userSetNamesKey = stringPreferencesKey("addon_user_set_names")
     private val addonEnabledStatesKey = stringPreferencesKey("installed_addon_enabled_states")
     private val defaultsSeededV1Key = booleanPreferencesKey("default_addons_seeded_anime_v1")
-    private val hdhubRemovedKey = booleanPreferencesKey("raw_hdhub_addon_removed_v1")
+    private val hdhubRemovedKey = booleanPreferencesKey("raw_hdhub_addon_removed_v2")
     private val seededHdhubUrl =
         "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyJ9"
     private val manifestSuffix = "/manifest.json"
@@ -111,10 +111,12 @@ class AddonPreferences @Inject constructor(
             // One-time: drop the raw HDHub addon we previously seeded (replaced by the cinemaos-hdhub plugin).
             if (preferences[hdhubRemovedKey] != true) {
                 val cur = getCurrentList(preferences)
-                val keep = cur.filterNot { canonicalizeUrl(it).equals(canonicalizeUrl(seededHdhubUrl), ignoreCase = true) }
+                val isRawHdhub: (String) -> Boolean = { u -> u.contains("hdhub.thevolecitor", ignoreCase = true) || canonicalizeUrl(u).equals(canonicalizeUrl(seededHdhubUrl), ignoreCase = true) }
+                val keep = cur.filterNot(isRawHdhub)
                 if (keep.size != cur.size) {
                     preferences[orderedUrlsKey] = gson.toJson(keep)
                     val states = getCurrentEnabledStates(preferences).toMutableMap()
+                    cur.filter(isRawHdhub).forEach { states.remove(canonicalizeUrl(it)) }
                     states.remove(canonicalizeUrl(seededHdhubUrl))
                     preferences[addonEnabledStatesKey] = gson.toJson(states)
                 }

@@ -25,6 +25,26 @@ function langsOf(name) {
   return found;
 }
 
+// a.111477.xyz 307s to an HTML "bulk download" page (403 to players) - never playable.
+var BAD_HOST = /^https?:\/\/(a|p)\.111477\.xyz\//i;
+
+// Range-probe a link: only a 200/206 whose first bytes look like MKV/MP4 (or a video/* type) counts as playable.
+async function isVideo(url) {
+  try {
+    var r = await fetch(url, { headers: { Range: 'bytes=0-63' } });
+    var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+    if (!r.ok || /text\/html|application\/json/i.test(ct)) return false;
+    // server ignored Range (200): never read the body (could be GBs) - judge by headers alone
+    if (r.status === 200) return /^video\/|octet-stream/i.test(ct);
+    var b = new Uint8Array(await r.arrayBuffer());
+    var mkv = b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
+    var mp4 = b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70;
+    return mkv || mp4 || /^video\//i.test(ct);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function getStreams(tmdbId, mediaType, season, episode) {
   if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(String(tmdbId || ''))) return []; // anime ids belong to the anime plugins
   try {
@@ -65,7 +85,25 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     out.sort(function (a, b) {
       return (parseInt(b.quality, 10) || 0) - (parseInt(a.quality, 10) || 0);
     });
-    return out;
+    out = out.filter(function (x) { return !BAD_HOST.test(x.url); });
+    // Probe the top candidates in parallel; no timers, so resolve as soon as 8 are verified (or all settled).
+    var cands = out.slice(0, 24);
+    var verified = await new Promise(function (resolve) {
+      var okList = [], done = 0, fin = false;
+      function finish() { if (!fin) { fin = true; resolve(okList.slice()); } }
+      if (!cands.length) return finish();
+      cands.forEach(function (c) {
+        isVideo(c.url).then(function (ok) {
+          done++;
+          if (ok) okList.push(c);
+          if (okList.length >= 4 || done >= cands.length) finish();
+        });
+      });
+    });
+    verified.sort(function (a, b) {
+      return (parseInt(b.quality, 10) || 0) - (parseInt(a.quality, 10) || 0);
+    });
+    return verified;
   } catch (err) {
     console.error('wing error: ' + (err && err.message ? err.message : err));
     return [];

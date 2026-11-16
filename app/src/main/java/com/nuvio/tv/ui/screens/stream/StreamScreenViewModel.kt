@@ -150,6 +150,10 @@ class StreamScreenViewModel @Inject constructor(
     private val manualSelection: Boolean = savedStateHandle.get<String>("manualSelection")
         ?.toBooleanStrictOrNull()
         ?: false
+    private val isAnimeContent: Boolean =
+        contentType.equals("anime", ignoreCase = true) ||
+            videoId.startsWith("kitsu:") || videoId.startsWith("mal:") || videoId.startsWith("anilist:") ||
+            genres?.contains("anime", ignoreCase = true) == true
     private val streamCacheKey: String = "${contentType.lowercase()}|$videoId"
     private val partyKey: String = com.nuvio.tv.core.party.partyMediaKey(
         metaType = contentType,
@@ -637,7 +641,10 @@ class StreamScreenViewModel @Inject constructor(
                 // configured timeout has elapsed. This gives slower addons a
                 // chance to return higher-quality streams before the selector
                 // picks from whatever is available.
-                val shouldAutoSelect = !autoPlayHandledForSession && !resolvedAutoPlayTarget && isAllLoaded
+                // CinemaOS: like the phone app, start as soon as the first acceptable source
+                // arrives (later results only populate the sources panel).
+                val shouldAutoSelect = !autoPlayHandledForSession && !resolvedAutoPlayTarget &&
+                    (isAllLoaded || playerSettings.streamAutoPlayMode != StreamAutoPlayMode.MANUAL)
                 val selectedAutoPlayStream = if (earlyBingeGroupMatch != null) {
                     earlyBingeGroupMatch
                 } else if (!shouldAutoSelect) {
@@ -652,7 +659,8 @@ class StreamScreenViewModel @Inject constructor(
                         selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                         selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                         preferredBingeGroup = persistedBingeGroup,
-                        preferBingeGroupInSelection = persistedBingeGroup != null
+                        preferBingeGroupInSelection = persistedBingeGroup != null,
+                        isAnimeContent = isAnimeContent
                     )
                 }
                 if (selectedAutoPlayStream != null) {

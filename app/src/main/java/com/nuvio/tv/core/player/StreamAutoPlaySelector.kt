@@ -103,7 +103,8 @@ object StreamAutoPlaySelector {
         selectedPlugins: Set<String>,
         preferredBingeGroup: String? = null,
         preferBingeGroupInSelection: Boolean = false,
-        bingeGroupOnly: Boolean = false
+        bingeGroupOnly: Boolean = false,
+        isAnimeContent: Boolean = false
     ): Stream? {
         if (streams.isEmpty()) return null
 
@@ -156,6 +157,20 @@ object StreamAutoPlaySelector {
                 // files do not win on weak TV boxes), CinemaOS providers before other addons,
                 // and provider order MovieBox > Movy > Castle > Wing within a quality.
                 val playable = candidateStreams.filter { isPlayable(it) }
+                if (isAnimeContent) {
+                    // Anime: only the CinemaOS anime scrapers may be auto-picked (never HDHub /
+                    // MovieBox / Movy / Castle / Wing), ranked Anikoto > AnimeWorld > KickAssAnime
+                    // > AnimeSalt > MegaPlay, then quality. First one that arrives wins.
+                    return playable.withIndex()
+                        .filter { animeProviderRank(it.value.addonName) > 0 }
+                        .maxWithOrNull(
+                            compareBy<IndexedValue<Stream>>(
+                                { animeProviderRank(it.value.addonName) },
+                                { autoPlayQualityRank(it.value) },
+                                { -it.index }
+                            )
+                        )?.value
+                }
                 playable.withIndex().maxWithOrNull(
                     compareBy<IndexedValue<Stream>>(
                         { autoPlayQualityRank(it.value) },
@@ -226,6 +241,15 @@ private fun autoPlayQualityRank(stream: Stream): Int {
             ?: if (Regex("hd", RegexOption.IGNORE_CASE).containsMatchIn(text)) 720 else 1
     }
     return minOf(rank, 1080)
+}
+
+fun animeProviderRank(addonName: String): Int = when {
+    addonName.contains("Anikoto", true) -> 5
+    addonName.contains("AnimeWorld", true) -> 4
+    addonName.contains("KickAss", true) -> 3
+    addonName.contains("AnimeSalt", true) -> 2
+    addonName.contains("MegaPlay", true) -> 1
+    else -> 0
 }
 
 private fun autoPlayProviderRank(addonName: String): Int = when {

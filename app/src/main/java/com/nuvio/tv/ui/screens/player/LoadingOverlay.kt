@@ -64,6 +64,8 @@ fun LoadingOverlay(
     message: String? = null,
     progress: Float? = null,
     subText: String? = null,
+    // CinemaOS: RN-style minimal loading (dimmed backdrop, title/logo, small spinner ring, no text lines)
+    minimal: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var logoLoadFailed by remember(logoUrl) { mutableStateOf(false) }
@@ -230,10 +232,45 @@ fun LoadingOverlay(
 
                 }
 
+                if (minimal) {
+                    val spin = rememberInfiniteTransition(label = "minimalSpin")
+                    val angle by spin.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 900, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "minimalSpinAngle"
+                    )
+                    androidx.compose.foundation.Canvas(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .offset(y = if (showLogo || !title.isNullOrBlank()) 120.dp else 0.dp)
+                            .size(28.dp)
+                    ) {
+                        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.5.dp.toPx())
+                        drawArc(
+                            color = Color.White.copy(alpha = 0.15f),
+                            startAngle = 0f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            style = stroke
+                        )
+                        drawArc(
+                            color = Color.White,
+                            startAngle = angle - 90f,
+                            sweepAngle = 90f,
+                            useCenter = false,
+                            style = stroke
+                        )
+                    }
+                }
+
                 // The horizontal progress bar is suppressed when the show logo
                 // is acting as the fill indicator. The text message stays visible.
                 val showHorizontalBar = progress != null && !showLogo
-                if (!message.isNullOrBlank() || showHorizontalBar || !subText.isNullOrBlank()) {
+                if (!minimal && (!message.isNullOrBlank() || showHorizontalBar || !subText.isNullOrBlank())) {
                     val messageOffset = if (showLogo || !title.isNullOrBlank()) 120.dp else 86.dp
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,

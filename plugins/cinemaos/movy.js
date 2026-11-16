@@ -149,6 +149,44 @@ async function tmdbInfo(type, id) {
   }
 }
 
+// Host health memo (module state survives between calls in the same runtime): a CDN that failed a probe is skipped for 10 min.
+var deadHosts = {};
+function hostOf(u) { var m = String(u).match(/^https?:\/\/([^\/]+)/i); return m ? m[1] : ''; }
+
+function resolveUrl(base, ref) {
+  ref = ref.trim();
+  if (/^https?:/i.test(ref)) return ref;
+  if (ref.charAt(0) === '/') return base.match(/^https?:\/\/[^\/]+/i)[0] + ref;
+  return base.replace(/[?#].*$/, '').replace(/[^\/]*$/, '') + ref;
+}
+
+// Walk master -> variant -> first segment with Movy's headers; true only if real HLS text AND the first segment answers.
+async function playlistOk(url, headers) {
+  var h = hostOf(url);
+  if (deadHosts[h] && Date.now() - deadHosts[h] < 600000) return false;
+  var ok = false;
+  try {
+    var cur = url;
+    for (var depth = 0; depth < 3; depth++) {
+      var r = await fetch(cur, { headers: headers });
+      if (!r.ok) throw new Error('http ' + r.status);
+      var t = await r.text();
+      if (t.indexOf('#EXTM3U') < 0) throw new Error('not hls');
+      var line = t.split('\n').filter(function (l) { return l && l.charAt(0) !== '#'; })[0];
+      if (!line) throw new Error('empty');
+      var next = resolveUrl(cur, line);
+      if (t.indexOf('#EXT-X-STREAM-INF') >= 0 || /\.m3u8(\?|$)/i.test(next)) { cur = next; continue; }
+      var seg = await fetch(next, { headers: Object.assign({ Range: 'bytes=0-1023' }, headers) });
+      ok = seg.ok;
+      break;
+    }
+  } catch (e) {
+    ok = false;
+  }
+  if (!ok) deadHosts[h] = Date.now();
+  return ok;
+}
+
 async function getStreams(tmdbId, mediaType, season, episode) {
   if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(String(tmdbId || ''))) return []; // anime ids belong to the anime plugins
   try {
@@ -169,18 +207,28 @@ async function getStreams(tmdbId, mediaType, season, episode) {
       seed: seed
     });
 
-    var results = await Promise.all(
-      SHARDS.map(async function (shard) {
-        try {
-          var headers = Object.assign({ 'User-Agent': UA, Accept: 'application/json, text/plain, */*' }, SITE_HEADERS);
-          var res = await fetch(API + '/' + shard + '/sources?' + params, { headers: headers });
-          if (!res.ok) return null;
-          return { shard: shard, data: JSON.parse(decrypt(await res.text(), seed, id)) };
-        } catch (e) {
-          return null;
-        }
-      })
-    );
+    // No timers in the host, so a hung shard (phoenix sits ~97 s) cannot be aborted: instead resolve as soon as
+    // two shards delivered sources (or all settled) and leave the straggler to die on its own.
+    var results = await new Promise(function (resolve) {
+      var got = [], done = 0, good = 0, fin = false;
+      function finish() { if (!fin) { fin = true; resolve(got.slice()); } }
+      SHARDS.forEach(function (shard) {
+        (async function () {
+          try {
+            var headers = Object.assign({ 'User-Agent': UA, Accept: 'application/json, text/plain, */*' }, SITE_HEADERS);
+            var res = await fetch(API + '/' + shard + '/sources?' + params, { headers: headers });
+            if (!res.ok) return null;
+            return { shard: shard, data: JSON.parse(decrypt(await res.text(), seed, id)) };
+          } catch (e) {
+            return null;
+          }
+        })().then(function (r) {
+          done++;
+          if (r) { got.push(r); if (r.data && r.data.sources && r.data.sources.length) good++; }
+          if (good >= 2 || done >= SHARDS.length) finish();
+        });
+      });
+    });
 
     var streams = [];
     var subtitles = [];
@@ -214,6 +262,27 @@ async function getStreams(tmdbId, mediaType, season, episode) {
     });
 
     var headers = Object.assign({ 'User-Agent': UA }, SITE_HEADERS);
+    // Verify before returning (the shard CDNs go down: moon.goldenkite.top answers 522 while the API still lists it).
+    // One probe per distinct playlist host+shard; resolve as soon as 3 verified or all settled (no timers available).
+    var cands = streams.slice(0, 12);
+    var verified = await new Promise(function (resolve) {
+      var okList = [], done = 0, fin = false;
+      function finish() { if (!fin) { fin = true; resolve(okList.slice()); } }
+      if (!cands.length) return finish();
+      cands.forEach(function (st) {
+        (st.type === 'mp4' ? Promise.resolve(true) : playlistOk(st.url, headers)).then(function (ok) {
+          done++;
+          if (ok) okList.push(st);
+          if (okList.length >= 3 || done >= cands.length) finish();
+        });
+      });
+    });
+    var good = {};
+    verified.forEach(function (st) { good[st.url] = true; });
+    var goodHosts = {};
+    verified.forEach(function (st) { goodHosts[hostOf(st.url)] = true; });
+    // keep every stream whose host just verified (the early exit may not have probed all of them)
+    streams = streams.filter(function (st) { return good[st.url] || goodHosts[hostOf(st.url)]; });
     return streams.map(function (st) {
       return {
         name: st.quality + ' · ' + st.type.toUpperCase(),

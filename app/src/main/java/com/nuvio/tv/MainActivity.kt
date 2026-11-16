@@ -50,6 +50,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1121,7 +1122,7 @@ open class MainActivity : ComponentActivity() {
                                 DrawerItem(
                                     route = Screen.Anime.route,
                                     label = strNavAnime,
-                                    icon = Icons.Default.Explore
+                                    icon = Icons.Default.Tv
                                 )
                             )
                             add(
@@ -1944,7 +1945,7 @@ private fun CinemaTopBarScaffold(
 
         if (showBar) {
             com.nuvio.tv.ui.components.CinemaTopBar(
-                items = drawerItems.map { com.nuvio.tv.ui.components.CinemaTopBarItem(it.route, it.label) },
+                items = drawerItems.map { com.nuvio.tv.ui.components.CinemaTopBarItem(it.route, it.label, it.icon, it.iconRes) },
                 selectedRoute = selectedDrawerRoute,
                 focusRequesters = focusRequesters,
                 onItemClick = { targetRoute ->

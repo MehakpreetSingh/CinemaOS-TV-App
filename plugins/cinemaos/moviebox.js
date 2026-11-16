@@ -190,7 +190,9 @@ async function call(path, o) {
   o = o || {};
   var token = tokenValid(o.token || null) ? o.token : await getToken();
   var fallback = null;
+  var rejects = 0; // authoritative "no usable data" answers (valid JSON, code 0) - other hosts say the same
   for (var hi = 0; hi < HOSTS.length; hi++) {
+    if (rejects >= 2) break;
     var host = HOSTS[hi];
     var url = host + path;
     for (var ai = 0; ai < 2; ai++) {
@@ -206,10 +208,11 @@ async function call(path, o) {
         var json = JSON.parse(text);
         if (!json || json.code !== 0) continue;
         var verdict = o.accept ? o.accept(json) : 'ok';
-        if (verdict === 'reject') continue;
+        if (verdict === 'reject') { rejects++; break; }
         if (verdict === 'fallback') {
           if (!fallback) fallback = { json: json, host: host };
-          continue;
+          rejects++;
+          break;
         }
         return { json: json, host: host };
       } catch (e) {}
@@ -361,15 +364,17 @@ async function h5PlayOnce(subjectId, se, ep, detailPath) {
     var j = JSON.parse(text);
     return (j && j.data) || null;
   } catch (e) {
-    return null;
+    return { __netfail: true }; // connect timeout / reset: do not retry (a retry just doubles the wait)
   }
 }
 
 async function h5Play(subjectId, se, ep, detailPath) {
   var first = await h5PlayOnce(subjectId, se, ep, detailPath);
+  if (first && first.__netfail) return null;
   if (first) return first;
   // the phone app waits 400 ms here; the host has no timers, so retry immediately
-  return h5PlayOnce(subjectId, se, ep, detailPath);
+  var second = await h5PlayOnce(subjectId, se, ep, detailPath);
+  return second && second.__netfail ? null : second;
 }
 
 // ---- resourceDetectors ------------------------------------------------------
@@ -495,8 +500,16 @@ async function scrape(tmdbId, type, season, episode) {
     });
   }
 
-  await Promise.all(
-    subjects.map(async function (s) {
+  var settled = 0;
+  var gate = null;
+  var primaryDone = false;
+  var needed = Math.min(subjects.length, Math.max(2, Math.ceil(subjects.length / 2)));
+  var gatePromise = new Promise(function (resolve) { gate = resolve; });
+  function check() {
+    if (settled >= needed && (primaryDone || streams.length > 0)) gate();
+  }
+  subjects.forEach(function (s0, idx) {
+    (async function (s) {
       var language = s.lang || 'Original';
 
       if (!s.path) {
@@ -596,8 +609,14 @@ async function scrape(tmdbId, type, season, episode) {
         });
       });
       pushCaps([].concat((data && data.captions) || [], (data && data.extCaptions) || []));
-    })
-  );
+    })(s0).then(
+      function () { settled++; if (idx === 0) primaryDone = true; check(); },
+      function () { settled++; if (idx === 0) primaryDone = true; check(); }
+    );
+  });
+  check();
+  // wait for the original + most dubs; one hung dub host (30 s connect timeout) must not hold the whole result
+  await gatePromise;
 
   // a dub that resolved to the original's file is not a real language version
   var origUrls = {};

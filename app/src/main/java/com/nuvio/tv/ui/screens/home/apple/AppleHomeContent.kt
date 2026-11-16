@@ -193,6 +193,9 @@ fun AppleHomeContent(
     }
     val cwRowHeight = if (cwPosterRow) {
         195.dp * cardStyle.scale + 42.dp + 28.dp + 36.dp + 24.dp
+    } else if (uiState.continueWatchingItems.isNotEmpty()) {
+        (if (uiState.continueWatchingCardStyle == ContinueWatchingCardStyle.WIDE) 320.dp else 300.dp) * cardStyle.scale * 9f / 16f +
+            28.dp + 36.dp + 24.dp
     } else {
         0.dp
     }
@@ -225,6 +228,22 @@ fun AppleHomeContent(
     }
 
     var cwOptionsItem by remember { mutableStateOf<ContinueWatchingItem?>(null) }
+
+    // Launch / return-to-Home focus: land on the hero button (like Nuvio focuses its first row),
+    // not on the Home nav item.
+    val contentFocus = com.nuvio.tv.LocalContentFocusRequester.current
+    val heroReady = display != null && currentHero != null
+    var initialFocusDone by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(heroReady) {
+        if (heroReady && !initialFocusDone) {
+            initialFocusDone = true
+            repeat(10) {
+                androidx.compose.runtime.withFrameNanos { }
+                if (runCatching { contentFocus.requestFocus() }.getOrDefault(false)) return@LaunchedEffect
+                delay(60)
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize().background(background)) {
         AppleBackdrop(display = display, modifier = Modifier.fillMaxSize())
@@ -568,14 +587,16 @@ private fun AppleContinueCard(
     val s = style.scale
     val widthDp = when {
         posterCard -> 130.dp * s
-        cardKind == ContinueWatchingCardStyle.WIDE -> 300.dp * s
-        else -> 240.dp * s
+        cardKind == ContinueWatchingCardStyle.WIDE -> 320.dp * s
+        else -> 300.dp * s
     }
     val heightDp = when {
         posterCard -> 195.dp * s
-        cardKind == ContinueWatchingCardStyle.WIDE -> 120.dp * s
-        else -> 135.dp * s
+        else -> widthDp * 9f / 16f // desktop: 16:9 cards
     }
+    var badge: String? = null
+    var kicker: String? = null
+    var detail: String? = null
     val title: String
     val subtitle: String?
     val logo: String?
@@ -587,6 +608,12 @@ private fun AppleContinueCard(
             subtitle = if (p.season != null && p.episode != null) "S${p.season} E${p.episode}" else null
             logo = p.logo
             fraction = p.progressPercentage
+            if (p.season != null && p.episode != null) {
+                kicker = "S${p.season} E${p.episode}"
+                detail = p.episodeTitle?.takeIf { it.isNotBlank() }
+            }
+            val mins = (p.remainingTime / 60_000L).coerceAtLeast(1L)
+            badge = if (mins >= 60) "${mins / 60}h ${mins % 60}m left" else "${mins}m left"
         }
         is ContinueWatchingItem.NextUp -> {
             val i = item.info
@@ -594,6 +621,9 @@ private fun AppleContinueCard(
             subtitle = (if (i.hasAired) "Up next" else (i.airDateLabel ?: "Upcoming")) + " \u00b7 S${i.season} E${i.episode}"
             logo = i.logo
             fraction = 0f
+            kicker = "S${i.season} E${i.episode}"
+            detail = i.episodeTitle?.takeIf { it.isNotBlank() }
+            badge = if (i.hasAired) "Next Up" else (i.airDateLabel ?: "Upcoming")
         }
     }
     val image = remember(item, useThumbs, posterCard) {
@@ -617,7 +647,10 @@ private fun AppleContinueCard(
         belowSubtitle = if (posterCard) subtitle else null,
         onClick = onClick,
         onLongClick = onLongClick,
-        onFocused = onFocused
+        onFocused = onFocused,
+        badge = if (posterCard) null else badge,
+        kicker = if (posterCard) null else kicker,
+        detail = if (posterCard) null else detail
     )
 }
 
@@ -800,7 +833,10 @@ private fun AppleArtCard(
     onFocused: () -> Unit,
     emoji: String? = null,
     belowSubtitle: String? = null,
-    onFocusChange: ((Boolean) -> Unit)? = null
+    onFocusChange: ((Boolean) -> Unit)? = null,
+    badge: String? = null,
+    kicker: String? = null,
+    detail: String? = null
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
@@ -847,6 +883,15 @@ private fun AppleArtCard(
                         .padding(start = 10.dp, end = 10.dp, top = 22.dp, bottom = if (progress > 0f) 12.dp else 9.dp)
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        if (!kicker.isNullOrBlank()) {
+                            Text(
+                                text = kicker,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.9f),
+                                maxLines = 1
+                            )
+                        }
                         var logoFailed by remember(logoUrl) { mutableStateOf(false) }
                         if (alwaysLogo && !logoUrl.isNullOrBlank() && !logoFailed) {
                             AsyncImage(
@@ -867,9 +912,10 @@ private fun AppleArtCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        if (!subtitle.isNullOrBlank()) {
+                        val sub = detail ?: subtitle
+                        if (!sub.isNullOrBlank()) {
                             Text(
-                                text = subtitle,
+                                text = sub,
                                 fontSize = 11.sp,
                                 color = Color.White.copy(alpha = 0.78f),
                                 maxLines = 1,
@@ -877,6 +923,18 @@ private fun AppleArtCard(
                             )
                         }
                     }
+                }
+            }
+            if (!badge.isNullOrBlank()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.Black.copy(alpha = 0.72f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(text = badge, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
                 }
             }
             if (rating != null && rating > 0f) {
@@ -900,8 +958,10 @@ private fun AppleArtCard(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .padding(horizontal = if (kicker != null) 10.dp else 0.dp, vertical = if (kicker != null) 6.dp else 0.dp)
                         .fillMaxWidth()
                         .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
                         .background(Color.White.copy(alpha = 0.25f))
                 ) {
                     Box(

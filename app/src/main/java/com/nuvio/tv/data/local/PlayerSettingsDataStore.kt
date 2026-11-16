@@ -371,7 +371,7 @@ data class PlayerSettings(
     val postPlayMovieThresholdPercent: Int = DEFAULT_POST_PLAY_MOVIE_THRESHOLD_PERCENT,
     val streamAutoPlayNextEpisodeEnabled: Boolean = false,
     val streamAutoPlayNextEpisodeFallbackEnabled: Boolean = true,
-    val streamAutoPlayFallbackOnFailure: Boolean = false,
+    val streamAutoPlayFallbackOnFailure: Boolean = true,
     val streamAutoPlayFallbackMaxSources: Int = DEFAULT_SOURCE_FALLBACK_MAX_SOURCES,
     val streamAutoPlayFallbackStartupTimeoutSeconds: Int = DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS,
     val streamAutoPlayPreferBingeGroupForNextEpisode: Boolean = true,
@@ -441,11 +441,11 @@ data class PlayerSettings(
 
     companion object {
         /** How many further sources falling back may try after the auto-selected one fails. */
-        const val DEFAULT_SOURCE_FALLBACK_MAX_SOURCES = 3
+        const val DEFAULT_SOURCE_FALLBACK_MAX_SOURCES = 6
         const val MIN_SOURCE_FALLBACK_MAX_SOURCES = 1
         const val MAX_SOURCE_FALLBACK_MAX_SOURCES = 10
         /** How long a source may take to start before falling back treats it as failed, in seconds. */
-        const val DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS = 15
+        const val DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS = 12
         const val MIN_SOURCE_STARTUP_TIMEOUT_SECONDS = 5
         const val MAX_SOURCE_STARTUP_TIMEOUT_SECONDS = 45
         const val SOURCE_STARTUP_TIMEOUT_SECONDS_STEP = 5
@@ -1134,7 +1134,7 @@ class PlayerSettingsDataStore @Inject constructor(
                 ),
                 streamAutoPlayNextEpisodeEnabled = prefs[streamAutoPlayNextEpisodeEnabledKey] ?: false,
                 streamAutoPlayNextEpisodeFallbackEnabled = prefs[streamAutoPlayNextEpisodeFallbackEnabledKey] ?: true,
-                streamAutoPlayFallbackOnFailure = prefs[streamAutoPlayFallbackOnFailureKey] ?: false,
+                streamAutoPlayFallbackOnFailure = prefs[streamAutoPlayFallbackOnFailureKey] ?: true,
                 streamAutoPlayFallbackMaxSources = prefs[streamAutoPlayFallbackMaxSourcesKey]
                     ?.coerceIn(
                         PlayerSettings.MIN_SOURCE_FALLBACK_MAX_SOURCES,

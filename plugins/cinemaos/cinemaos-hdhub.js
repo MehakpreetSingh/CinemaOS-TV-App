@@ -29,6 +29,19 @@ async function imdbOf(type, id) {
   return (d && ((d.external_ids && d.external_ids.imdb_id) || d.imdb_id)) || '';
 }
 
+var animeCache = {};
+// True when arm.haglund.dev maps this TMDB tv id to an anime entry (those belong to the anime plugins).
+async function isAnimeTmdb(id) {
+  if (animeCache[id] !== undefined) return animeCache[id];
+  var v = false;
+  try {
+    var r = await fetch('https://arm.haglund.dev/api/v2/themoviedb?id=' + id);
+    if (r.ok) { var j = await r.json(); v = Array.isArray(j) && j.length > 0; }
+  } catch (e) { v = false; }
+  animeCache[id] = v;
+  return v;
+}
+
 async function isVideo(url, headers) {
   try {
     var h = {};
@@ -37,6 +50,8 @@ async function isVideo(url, headers) {
     var r = await fetch(url, { headers: h });
     var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
     if (!r.ok || /text\/html|application\/json/i.test(ct)) return false;
+    // server ignored Range (200): never read the body (could be GBs) - judge by headers alone
+    if (r.status === 200) return /^video\/|octet-stream/i.test(ct);
     var b = new Uint8Array(await r.arrayBuffer());
     var mkv = b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3;
     var mp4 = b[4] === 0x66 && b[5] === 0x74 && b[6] === 0x79 && b[7] === 0x70;
@@ -55,9 +70,12 @@ function qualityOf(text) {
 async function getStreams(tmdbId, mediaType, season, episode) {
   try {
     var id = String(tmdbId || '').trim();
+    if (/^(kitsu|anilist|mal|myanimelist|anidb):/i.test(id)) return []; // anime ids belong to the anime plugins
     if (!/^\d+$/.test(id)) return []; // anime / non-TMDB ids belong to the anime plugins
     var type = mediaType === 'movie' ? 'movie' : 'tv';
-    var imdb = await imdbOf(type, id);
+    var both = await Promise.all([imdbOf(type, id), type === 'tv' ? isAnimeTmdb(id) : Promise.resolve(false)]);
+    if (both[1]) return []; // TMDB tv show that is anime -> anime plugins only
+    var imdb = both[0];
     if (!imdb) return [];
     var s = Number(season) || 1, e = Number(episode) || 1;
     var path = type === 'movie' ? 'movie/' + imdb : 'series/' + imdb + '%3A' + s + '%3A' + e;

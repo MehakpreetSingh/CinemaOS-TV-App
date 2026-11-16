@@ -423,7 +423,6 @@ fun StreamScreen(
                 logoUrl = uiState.logo,
                 title = uiState.title,
                 message = stringResource(R.string.stream_finding_source),
-                subText = findingSourcesSubText(uiState),
                 modifier = Modifier.fillMaxSize()
             )
         } else if (showOverlay) {
@@ -432,13 +431,8 @@ fun StreamScreen(
                 backdropUrl = uiState.backdrop ?: uiState.poster,
                 logoUrl = uiState.logo,
                 title = uiState.title,
-                message = if (uiState.directAutoPlayMessage != null) {
-                    uiState.directAutoPlayMessage
-                } else {
-                    null
-                },
-                progress = uiState.directAutoPlayProgress,
-                subText = playingSourceSubText(uiState),
+                // Stream chosen: minimal RN-style loader, no status lines.
+                minimal = true,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
