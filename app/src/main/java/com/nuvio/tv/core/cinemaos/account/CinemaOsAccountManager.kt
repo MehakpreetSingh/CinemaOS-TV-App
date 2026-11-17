@@ -133,9 +133,9 @@ class CinemaOsAccountManager @Inject constructor(
     }
 
     /** Returns a valid Firebase ID token (refreshing when near expiry), or null when signed out/failed. */
-    suspend fun getIdToken(): String? = refreshMutex.withLock {
+    suspend fun getIdToken(forceRefresh: Boolean = false): String? = refreshMutex.withLock {
         val current = _session.value ?: return null
-        if (current.idToken.isNotBlank() && System.currentTimeMillis() < current.idTokenExpiresAtMs - 60_000L) {
+        if (!forceRefresh && current.idToken.isNotBlank() && System.currentTimeMillis() < current.idTokenExpiresAtMs - 60_000L) {
             return current.idToken
         }
         runCatching {

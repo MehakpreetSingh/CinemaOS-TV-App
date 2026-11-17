@@ -272,6 +272,7 @@ class PlayerRuntimeController(
     internal val sourceFallbackTriedKeys = mutableSetOf<String>()
     internal var sourceFallbackJob: Job? = null
     internal var sourceStartupTimeoutJob: Job? = null
+    internal var slowLinkGuardJob: Job? = null
 
     fun getCurrentStreamUrl(): String = currentStreamUrl
     fun getCurrentHeaders(): Map<String, String> = currentHeaders

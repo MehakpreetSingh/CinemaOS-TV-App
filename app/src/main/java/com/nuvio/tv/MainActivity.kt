@@ -286,6 +286,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var memberAccessRepository: MemberAccessRepository
 
     @Inject
+    lateinit var cinemaOsSyncService: com.nuvio.tv.core.cinemaos.account.CinemaOsSyncService
+
+    @Inject
     lateinit var addonRepository: AddonRepository
 
     @Inject
@@ -1346,6 +1349,7 @@ open class MainActivity : ComponentActivity() {
         ambientIdleController.dismiss()
         if (::jankStats.isInitialized) jankStats.isTrackingEnabled = true
         memberAccessRepository.refreshIfStale()
+        cinemaOsSyncService.onAppResumed()
         lifecycleScope.launch {
             deviceSessionRegistration.requestForegroundRegistration()
             startupSyncService.requestForegroundSync()

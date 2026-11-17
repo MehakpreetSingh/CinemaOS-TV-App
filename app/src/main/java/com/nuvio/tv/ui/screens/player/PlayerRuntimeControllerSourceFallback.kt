@@ -4,6 +4,8 @@ import android.util.Log
 import com.nuvio.tv.R
 import com.nuvio.tv.core.debrid.DirectDebridPlayableResult
 import com.nuvio.tv.core.player.StreamAutoPlaySelector
+import com.nuvio.tv.core.player.isHeavyStream
+import com.nuvio.tv.core.player.streamSizeBytes
 import com.nuvio.tv.data.local.PlayerSettings
 import com.nuvio.tv.domain.model.Stream
 import kotlinx.coroutines.delay
@@ -174,3 +176,94 @@ internal fun Stream.sourceFallbackKey(): String =
     getEffectiveInfoHash()?.lowercase()?.let { hash -> "torrent:$addonName:$hash:${getEffectiveFileIdx() ?: -1}" }
         ?: getStreamUrl()?.let { url -> "url:$url" }
         ?: "meta:$addonName:${name.orEmpty()}:${description.orEmpty()}"
+
+private const val SLOW_LINK_WINDOW_MS = 20_000L
+private const val SLOW_LINK_POLL_MS = 2_000L
+
+/**
+ * Runtime safeguard for auto-picked progressive HTTP files: during the first ~20 s of playback,
+ * if the buffer grows slower than real time (the download cannot keep up), quietly switches to
+ * the next smaller candidate instead of stuttering. Never applies to a source the user picked.
+ */
+internal fun PlayerRuntimeController.scheduleSlowLinkGuard() {
+    slowLinkGuardJob?.cancel()
+    val url = currentStreamUrl
+    if (url.isBlank() || isTorrentStream || !url.startsWith("http", ignoreCase = true)) return
+    val lower = url.substringBefore('?').lowercase()
+    if (lower.endsWith(".m3u8") || lower.endsWith(".mpd")) return
+    slowLinkGuardJob = scope.launch {
+        // Wait for the first frame (up to the startup window), then measure.
+        var waited = 0
+        while (!hasRenderedFirstFrame && waited < 60) {
+            delay(1_000L); waited++
+            if (currentStreamUrl != url) return@launch
+        }
+        if (!hasRenderedFirstFrame) return@launch
+        val player = _exoPlayer ?: return@launch
+        val startBuffered = player.bufferedPosition
+        val startTime = System.currentTimeMillis()
+        var rebuffers = 0
+        var wasBuffering = false
+        while (true) {
+            delay(SLOW_LINK_POLL_MS)
+            if (currentStreamUrl != url || _exoPlayer !== player) return@launch
+            val buffering = player.playbackState == androidx.media3.common.Player.STATE_BUFFERING
+            if (buffering && !wasBuffering) rebuffers++
+            wasBuffering = buffering
+            val elapsed = System.currentTimeMillis() - startTime
+            if (elapsed < SLOW_LINK_WINDOW_MS) continue
+            val grown = (player.bufferedPosition - startBuffered).coerceAtLeast(0L)
+            val ahead = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0L)
+            val slow = (grown < elapsed * 0.9 && ahead < 15_000L) || rebuffers >= 2
+            if (slow) trySwitchToSmallerSource(url)
+            return@launch
+        }
+    }
+}
+
+private fun PlayerRuntimeController.trySwitchToSmallerSource(slowUrl: String) {
+    if (sourceFallbackJob?.isActive == true) return
+    if (!streamAutoPlayFallbackActive) return
+    if (slowUrl != autoSelectedSourceUrl) return
+    if (sourceFallbackAttempts >= streamAutoPlayFallbackMaxSources) return
+    val videoId = currentVideoId ?: contentId ?: return
+    val failedAddonName = currentAddonName
+    val failedInfoHash = _uiState.value.currentStreamInfoHash ?: navigationArgs.infoHash
+    val season = currentSeason
+    val episode = currentEpisode
+    sourceFallbackJob = scope.launch {
+        loadSourceStreams(forceRefresh = false)
+        val settings = playerSettingsDataStore.playerSettings.first()
+        val installedAddonNames = streamAddonsFor(videoId).map { it.displayName }.toSet()
+        val all = _uiState.value.sourceAllStreams
+        val currentSize = all.firstOrNull { it.getStreamUrl() == slowUrl }?.let { streamSizeBytes(it) }
+        sourceFallbackTriedKeys += "url:$slowUrl"
+        val smaller = all.filter { s ->
+            val size = streamSizeBytes(s)
+            !isHeavyStream(s) && (currentSize == null || size == null || size < currentSize * 0.7)
+        }
+        while (sourceFallbackAttempts < streamAutoPlayFallbackMaxSources) {
+            val next = nextSourceFallbackCandidate(
+                streams = smaller,
+                settings = settings,
+                installedAddonNames = installedAddonNames,
+                triedKeys = sourceFallbackTriedKeys,
+                failedAddonName = failedAddonName,
+                failedInfoHash = failedInfoHash,
+                avoidUhd = uhdVideoDecoderFailed
+            ) ?: return@launch
+            sourceFallbackTriedKeys += next.sourceFallbackKey()
+            sourceFallbackAttempts++
+            val playable = (directDebridResolver.resolveToPlayableStream(next, season, episode)
+                as? DirectDebridPlayableResult.Success)?.stream
+            val url = playable?.getStreamUrl()
+            if (playable == null || url.isNullOrBlank() || url == slowUrl) continue
+            Log.i(PlayerRuntimeController.TAG, "Download too slow for ${slowUrl.take(60)}, switching to ${playable.addonName}")
+            showRecoveryOverlay()
+            switchToSourceStream(playable)
+            autoSelectedSourceUrl = currentStreamUrl
+            sourceFallbackTriedKeys += "url:$currentStreamUrl"
+            return@launch
+        }
+    }
+}

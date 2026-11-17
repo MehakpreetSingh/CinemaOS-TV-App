@@ -53,6 +53,9 @@ class CinemaOsAccountViewModel @Inject constructor(
     private val sync: CinemaOsSyncService
 ) : ViewModel() {
     val session = manager.session
+    val lastSyncedAt = sync.lastSyncedAt
+    val isSyncing = sync.isSyncing
+    fun syncNow() { sync.pullNow() }
     private val _ui = MutableStateFlow(CinemaOsAccountUiState())
     val ui: StateFlow<CinemaOsAccountUiState> = _ui.asStateFlow()
     private var job: Job? = null
@@ -125,6 +128,8 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
     val viewModel: CinemaOsAccountViewModel = hiltViewModel()
     val session by viewModel.session.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
+    val lastSynced by viewModel.lastSyncedAt.collectAsStateWithLifecycle()
+    val syncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val signedIn = session != null
     DisposableEffect(signedIn) {
         if (!signedIn) viewModel.startFlow()
@@ -147,6 +152,15 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
                     subtitle = current.email,
                     onClick = {},
                     modifier = if (initialFocusRequester != null) Modifier.focusRequester(initialFocusRequester) else Modifier
+                )
+                SettingsActionRow(
+                    title = if (syncing) "Syncing..." else "Sync now",
+                    subtitle = if (lastSynced > 0L) {
+                        "Last synced " + android.text.format.DateUtils.getRelativeTimeSpanString(
+                            lastSynced, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS
+                        )
+                    } else "Last synced: never",
+                    onClick = { if (!syncing) viewModel.syncNow() }
                 )
                 SettingsActionRow(
                     title = "Sign out",

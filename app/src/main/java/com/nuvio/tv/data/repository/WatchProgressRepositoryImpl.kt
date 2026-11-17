@@ -933,6 +933,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
             }.forEach { operation -> operation.await() }
         }
         watchProgressPreferences.removeProgress(contentId, season, episode, profileId)
+        cinemaOsSync?.onProgressRemoved(contentId, season, episode)
         if (authManager.isAuthenticated && remoteDeleteKeys.isNotEmpty()) {
             watchProgressSyncService.deleteFromRemote(remoteDeleteKeys, profileId)
                 .onFailure { error ->
@@ -966,6 +967,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
         )
         watchProgressPreferences.removeProgress(contentId, season, episode, profileId)
         watchedItemsPreferences.unmarkAsWatched(contentId, season, episode, profileId = profileId)
+        cinemaOsSync?.onProgressRemoved(contentId, season, episode)
         if (authManager.isAuthenticated && remoteDeleteKeys.isNotEmpty()) {
             watchProgressSyncService.deleteFromRemote(remoteDeleteKeys, profileId)
                 .onFailure { error ->
@@ -999,6 +1001,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
         mutationStore.queueProgressDeletes(remoteDeleteKeys, profileId)
         mutationStore.queueWatchedDeletes(watchedDeleteKeys, profileId)
         watchProgressPreferences.removeProgressBatch(contentId, episodePairs, profileId)
+        episodePairs.forEach { (sn, ep) -> cinemaOsSync?.onProgressRemoved(contentId, sn, ep) }
         watchedItemsPreferences.unmarkAsWatchedBatch(contentId, episodePairs, profileId = profileId)
         connectedProgressProviders().forEach { provider ->
             episodes.forEach { (season, episode, _) ->
@@ -1067,6 +1070,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
             activeProgressProvider()?.applyOptimisticProgress(completed, quiet = false)
         }
         watchProgressPreferences.saveProgress(completed, profileId = profileId)
+        cinemaOsSync?.onMarkedCompleted(completed)
         val watchedItem = completed.toWatchedItem(watchedAt = now)
         // With a tracking provider as the source, only its data decides what shows as watched, and it
         // may never report a single item such as an add-on's YouTube video, so keep the mark pending.

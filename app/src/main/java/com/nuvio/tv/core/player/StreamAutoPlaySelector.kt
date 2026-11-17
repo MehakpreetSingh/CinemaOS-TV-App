@@ -159,7 +159,10 @@ object StreamAutoPlaySelector {
                 // Best quality this device can actually play first (display max + decoder support,
                 // see DeviceVideoCapabilities), CinemaOS providers before other addons, then
                 // provider order Movy > HdHub > Wing > MovieBox within a quality.
-                val playable = candidateStreams.filter { isPlayable(it) }
+                val playableAll = candidateStreams.filter { isPlayable(it) }
+                // Size-aware: drop links whose estimated bitrate is too high to stream (REMUX,
+                // huge PixelDrain files) when an acceptable-quality lighter alternative exists.
+                val playable = deprioritiseHeavy(playableAll)
                 if (isAnimeContent) {
                     // Anime: only the CinemaOS anime scrapers may be auto-picked (never HDHub /
                     // MovieBox / Movy / Wing), ranked Anikoto > AnimeWorld > KickAssAnime
@@ -179,6 +182,7 @@ object StreamAutoPlaySelector {
                         // Provider order wins first: Movy > HdHub > Wing > MovieBox
                         { autoPlayProviderRank(it.value.addonName) },
                         { autoPlayQualityRank(it.value) },
+                        { if (isWebDlOrHls(it.value)) 1 else 0 },
                         // Prefer a stream that fits the device natively over a downscaled bigger one.
                         { if (DeviceVideoCapabilities.declaredHeight(it.value) <= DeviceVideoCapabilities.get().maxDisplayHeight) 1 else 0 },
                         { if (it.value.addonName !in installedAddonNames) 1 else 0 },
@@ -236,6 +240,45 @@ object StreamAutoPlaySelector {
 
         }
     }
+}
+
+/** Runtime hints set by the stream screen (minutes / series flag); null falls back to defaults. */
+@Volatile var autoPlayRuntimeMinutesHint: Int? = null
+@Volatile var autoPlayIsSeriesHint: Boolean = false
+
+private const val MAX_AUTOPLAY_BITRATE_MBPS = 12.0
+private val SIZE_REGEX = Regex("""(\d+(?:[.,]\d+)?)\s*(GB|GiB|MB|MiB)\b""", RegexOption.IGNORE_CASE)
+
+internal fun streamSizeBytes(stream: Stream): Long? {
+    stream.behaviorHints?.videoSize?.takeIf { it > 0 }?.let { return it }
+    val text = "${stream.name.orEmpty()} ${stream.title.orEmpty()} ${stream.description.orEmpty()}"
+    val m = SIZE_REGEX.find(text) ?: return null
+    val v = m.groupValues[1].replace(',', '.').toDoubleOrNull() ?: return null
+    val mult = if (m.groupValues[2].startsWith("G", true)) 1_073_741_824.0 else 1_048_576.0
+    return (v * mult).toLong()
+}
+
+internal fun estimatedBitrateMbps(stream: Stream): Double? {
+    val size = streamSizeBytes(stream) ?: return null
+    val minutes = (autoPlayRuntimeMinutesHint?.takeIf { it > 0 } ?: if (autoPlayIsSeriesHint) 45 else 120)
+    return size * 8.0 / (minutes * 60.0) / 1_000_000.0
+}
+
+internal fun isHeavyStream(stream: Stream): Boolean {
+    val text = "${stream.name.orEmpty()} ${stream.description.orEmpty()}"
+    val bitrate = estimatedBitrateMbps(stream)
+    if (bitrate != null) return bitrate > MAX_AUTOPLAY_BITRATE_MBPS
+    return Regex("""\bremux\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+}
+
+private fun isWebDlOrHls(stream: Stream): Boolean {
+    val text = "${stream.name.orEmpty()} ${stream.description.orEmpty()} ${stream.getStreamUrl().orEmpty()}"
+    return Regex("""web[-. ]?(dl|rip)|\.m3u8|\bhls\b""", RegexOption.IGNORE_CASE).containsMatchIn(text)
+}
+
+private fun deprioritiseHeavy(streams: List<Stream>): List<Stream> {
+    val light = streams.filter { !isHeavyStream(it) && DeviceVideoCapabilities.playableHeight(it) >= 720 }
+    return if (light.isEmpty()) streams else streams.filter { !isHeavyStream(it) }
 }
 
 private fun autoPlayQualityRank(stream: Stream): Int = DeviceVideoCapabilities.playableHeight(stream)

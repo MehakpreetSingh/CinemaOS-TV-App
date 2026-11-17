@@ -292,6 +292,8 @@ class StreamScreenViewModel @Inject constructor(
     }
 
     init {
+        com.nuvio.tv.core.player.autoPlayRuntimeMinutesHint = runtime
+        com.nuvio.tv.core.player.autoPlayIsSeriesHint = season != null || contentType.equals("series", true) || contentType.equals("tv", true)
         viewModelScope.launch {
             _uiState
                 .map { state -> state.directAutoPlayMessage to state.directAutoPlayProgress }

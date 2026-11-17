@@ -2131,6 +2131,7 @@ internal fun PlayerRuntimeController.resetLoadingOverlayForNewStream() {
     cancelFirstFrameWatchdog()
     cancelStallWatchdog()
     scheduleSourceStartupTimeout()
+    scheduleSlowLinkGuard()
     val preparingMessage = context.getString(R.string.player_loading_preparing)
     resetLoadingDiagnostics(
         phase = "preparing",
