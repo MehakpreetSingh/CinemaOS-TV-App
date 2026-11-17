@@ -261,6 +261,8 @@ class PlayerRuntimeController(
 
     /** Last URL refetched after a playback error, so a link is refreshed at most once. */
     internal var linkRefreshAttemptedUrl: String? = null
+    /** Set when a 2160p video decoder failed; source fallback then prefers non-UHD streams. */
+    internal var uhdVideoDecoderFailed: Boolean = false
 
     /** URL picked by auto source selection; only this source falls back to the next match on failure. */
     internal var autoSelectedSourceUrl: String? = currentStreamUrl.takeIf {

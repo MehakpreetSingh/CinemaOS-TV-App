@@ -93,7 +93,8 @@ internal fun PlayerRuntimeController.tryFallbackToNextSourceAfterError(errorMess
                 installedAddonNames = installedAddonNames,
                 triedKeys = sourceFallbackTriedKeys,
                 failedAddonName = failedAddonName,
-                failedInfoHash = failedInfoHash
+                failedInfoHash = failedInfoHash,
+                avoidUhd = uhdVideoDecoderFailed
             )
             if (next == null) {
                 val searchDone = !sources.isLoadingSourceStreams &&
@@ -147,10 +148,13 @@ internal fun nextSourceFallbackCandidate(
     installedAddonNames: Set<String>,
     triedKeys: Set<String>,
     failedAddonName: String?,
-    failedInfoHash: String?
+    failedInfoHash: String?,
+    avoidUhd: Boolean = false
 ): Stream? {
+    val uhdRegex = Regex("""\b(2160p?|4k|uhd)\b""", RegexOption.IGNORE_CASE)
     val untried = streams.filterNot { stream ->
-        stream.sourceFallbackKey() in triedKeys ||
+        (avoidUhd && uhdRegex.containsMatchIn("${stream.name.orEmpty()} ${stream.description.orEmpty()}")) ||
+            stream.sourceFallbackKey() in triedKeys ||
             (failedInfoHash != null && stream.addonName == failedAddonName &&
                 stream.getEffectiveInfoHash().equals(failedInfoHash, ignoreCase = true))
     }

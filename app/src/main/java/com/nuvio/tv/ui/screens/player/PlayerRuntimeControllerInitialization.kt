@@ -1655,7 +1655,19 @@ internal fun PlayerRuntimeController.initializePlayer(
                         }
 
                         // A link that has likely expired is fetched again before anything else is tried on it.
-                        if (tryRefreshExpiredLinkAfterError(detailedError)) {
+                        // A video-decoder failure says nothing about the link (it was already served),
+                        // so re-fetching the same source only wastes seconds per attempt.
+                        val videoDecoderFailure = (error as? androidx.media3.exoplayer.ExoPlaybackException)
+                            ?.rendererFormat?.sampleMimeType?.let(MimeTypes::isVideo) == true &&
+                            (error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
+                                error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+                                error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_EXCEEDS_CAPABILITIES)
+                        if (videoDecoderFailure &&
+                            ((error as androidx.media3.exoplayer.ExoPlaybackException).rendererFormat?.height ?: currentVideoHeight ?: 0) >= 2000
+                        ) {
+                            uhdVideoDecoderFailed = true
+                        }
+                        if (!videoDecoderFailure && tryRefreshExpiredLinkAfterError(detailedError)) {
                             return
                         }
                         if (tryFallbackToNextSourceAfterError(detailedError)) {
