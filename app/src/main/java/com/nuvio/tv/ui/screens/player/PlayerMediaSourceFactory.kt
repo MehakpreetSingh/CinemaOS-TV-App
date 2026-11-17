@@ -221,7 +221,9 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
                 "safeNativeMb=${NuvioExoPlayerPerformanceHelper.getSafeNativeMemoryLimitMb(context)} " +
                 "parallel=${if (useParallelConnections) parallelConnectionCount else 0} chunkKb=$parallelChunkSizeKb"
         )
-        val useChunkSessionSource = useParallelConnections && !isHls && !isDash
+        // Owner decision: HTTP streams use the plain OkHttp data source (same data path as the RN app);
+        // the chunked parallel downloader is bypassed.
+        val useChunkSessionSource = false
         parallelStartupPrefetchUnlocked.set(!useChunkSessionSource)
         val networkProgressiveFactory: DataSource.Factory = if (useChunkSessionSource) {
             val sessionConnections = parallelConnectionCount
