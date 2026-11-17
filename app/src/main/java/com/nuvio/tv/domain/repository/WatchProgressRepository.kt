@@ -9,6 +9,12 @@ import kotlinx.coroutines.flow.flowOf
  * Repository for managing watch progress data.
  */
 interface WatchProgressRepository {
+    /** Beacon-like final push of the latest position to the CinemaOS cloud (no-op by default). */
+    fun flushCinemaOsProgress(progress: com.nuvio.tv.domain.model.WatchProgress) {}
+
+    /** Refreshes cloud history if the cache is stale, capped by [timeoutMs] (no-op by default). */
+    suspend fun refreshCinemaOsHistoryIfStale(maxAgeMs: Long = 30_000L, timeoutMs: Long = 2_500L) {}
+
     
     /**
      * Get all watch progress items sorted by last watched (most recent first)

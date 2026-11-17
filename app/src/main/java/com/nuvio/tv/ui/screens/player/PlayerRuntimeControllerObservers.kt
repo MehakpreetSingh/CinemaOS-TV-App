@@ -537,6 +537,11 @@ internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode:
 
     scope.launch {
         pendingResumeProgress = null
+        resumeSaveFloorMs = 0L
+        if (!isCloudLibraryPlayback) {
+            // Website parity: refresh cloud history first (2.5 s cap), then fall back to local.
+            runCatching { watchProgressRepository.refreshCinemaOsHistoryIfStale(30_000L, 2_500L) }
+        }
         val local = if (isCloudLibraryPlayback) {
             loadCloudLibraryResumeProgress()
         } else if (season != null && episode != null) {
@@ -555,6 +560,7 @@ internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode:
 
             if (saved.isInProgress()) {
                 pendingResumeProgress = saved
+                resumeSaveFloorMs = saved.position
                 if (isUsingMpvEngine()) {
                     _uiState.update { it.copy(pendingSeekPosition = null) }
                     mpvView?.let { view ->

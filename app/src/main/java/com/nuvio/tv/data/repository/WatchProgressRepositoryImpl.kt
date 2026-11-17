@@ -822,6 +822,14 @@ class WatchProgressRepositoryImpl @Inject constructor(
             }
     }
 
+    override fun flushCinemaOsProgress(progress: WatchProgress) {
+        cinemaOsSync?.flushProgress(progress)
+    }
+
+    override suspend fun refreshCinemaOsHistoryIfStale(maxAgeMs: Long, timeoutMs: Long) {
+        cinemaOsSync?.refreshHistoryIfStale(maxAgeMs, timeoutMs)
+    }
+
     override suspend fun saveProgress(progress: WatchProgress, syncRemote: Boolean) {
         val profileId = profileManager.activeProfileId.value
         saveProgress(progress, profileId, syncRemote)

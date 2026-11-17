@@ -692,6 +692,8 @@ class PlayerRuntimeController(
             }
         }
     internal var pendingResumeProgress: WatchProgress? = null
+    /** Resume position (ms) from which saving is held back until playback runs 5 s past it. */
+    internal var resumeSaveFloorMs: Long = 0L
     internal var hasRetriedCurrentStreamAfter416: Boolean = false
     internal var isReleasingPlayer: Boolean = false
     internal var cachedDecoderPriority: Int = 1

@@ -859,13 +859,13 @@ internal fun PlayerRuntimeController.saveWatchProgressIfNeeded() {
     }
 }
 
-internal fun PlayerRuntimeController.saveWatchProgress() {
+internal fun PlayerRuntimeController.saveWatchProgress(final: Boolean = false) {
     if (!hasRenderedFirstFrame) return
     if (_playbackTimeline.value.isLive) return
     val currentPosition = currentPlaybackPositionMs() ?: return
     val duration = getEffectiveDuration(currentPosition)
     if (isShortPlaceholderDuration(duration)) return
-    saveWatchProgressInternal(currentPosition, duration)
+    saveWatchProgressInternal(currentPosition, duration, final = final)
 }
 
 internal fun PlayerRuntimeController.getEffectiveDuration(position: Long): Long {
@@ -959,7 +959,7 @@ internal fun PlayerRuntimeController.currentWatchProgress(
     lastWatched = lastWatched
 )
 
-internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, duration: Long, syncRemote: Boolean = true) {
+internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, duration: Long, syncRemote: Boolean = true, final: Boolean = false) {
     if (contentType.equals("cloud", ignoreCase = true)) {
         saveCloudLibraryProgress(position, duration, completed = false)
         return
@@ -968,6 +968,11 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
     val parentContentType = contentType?.takeIf { it.isNotEmpty() } ?: return
 
     if (position < 1000) return
+    // Website rule: don't save until playback has run 5 s past the resume point.
+    if (resumeSaveFloorMs > 0L) {
+        if (position < resumeSaveFloorMs + 5_000L && !final) return
+        if (position >= resumeSaveFloorMs + 5_000L) resumeSaveFloorMs = 0L
+    }
 
     val fallbackPercent = if (duration <= 0L) 5f else null
 
@@ -1004,6 +1009,7 @@ internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, d
                     profileId = profileId,
                     syncRemote = syncRemote
                 )
+                if (final) watchProgressRepository.flushCinemaOsProgress(normalizedProgress)
                 runCatching { tvRecommendationManager.updateSingleWatchNextProgram(normalizedProgress) }
             }
         } catch (error: IOException) {
@@ -1242,7 +1248,7 @@ internal fun PlayerRuntimeController.emitSeekScrobbleRestart(progressPercent: Fl
 internal fun PlayerRuntimeController.flushPlaybackSnapshotForSwitchOrExit() {
     logScrobbleDiagnostic("flush_switch_or_exit")
     emitStopScrobbleForCurrentProgress()
-    saveWatchProgress()
+    saveWatchProgress(final = true)
 }
 
 internal fun PlayerRuntimeController.logScrobbleDiagnostic(
