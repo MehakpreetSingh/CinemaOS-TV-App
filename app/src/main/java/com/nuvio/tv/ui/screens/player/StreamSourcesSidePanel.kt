@@ -9,6 +9,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -260,9 +261,9 @@ private fun StreamSourcesPanelContent(
         Column(
             modifier = Modifier
                 .width(900.dp)
-                .align(Alignment.BottomStart)
+                .align(Alignment.TopStart)
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.Bottom
+            verticalArrangement = Arrangement.Top
         ) {
             Text(
                 text = stringResource(R.string.sources_title),
@@ -308,11 +309,11 @@ private fun StreamSourcesPanelContent(
                             .onFocusChanged { if (it.isFocused) filter = f },
                         colors = androidx.tv.material3.CardDefaults.colors(
                             containerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f),
-                            focusedContainerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
+                            focusedContainerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.24f)
                         ),
                         shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(999.dp)),
                         border = sourcePanelBorder(999.dp),
-                        scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
+                        scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.06f, pressedScale = 1f)
                     ) {
                         Text(
                             text = f.label,
@@ -329,8 +330,8 @@ private fun StreamSourcesPanelContent(
             }
 
             Text(
-                text = "${groups.size} PROVIDERS · ${groups.sumOf { it.second.size }} SERVERS" +
-                    if (searching) " · STILL SEARCHING…" else "",
+                text = "${groups.size} providers \u00B7 ${groups.sumOf { it.second.size }} servers" +
+                    if (searching) " \u00B7 searching\u2026" else "",
                 style = MaterialTheme.typography.labelSmall,
                 color = NuvioTheme.extendedColors.textSecondary,
                 maxLines = 1,
@@ -338,22 +339,14 @@ private fun StreamSourcesPanelContent(
                 modifier = Modifier.padding(bottom = NuvioTheme.spacing.xs)
             )
 
-            when {
-                uiState.sourceStreamsError != null && allStreams.isEmpty() -> Text(
-                    text = uiState.sourceStreamsError,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
-                groups.isEmpty() && searching -> Box(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = NuvioTheme.spacing.xl),
-                    contentAlignment = Alignment.Center
-                ) { LoadingIndicator() }
-                groups.isEmpty() -> Text(
-                    text = stringResource(R.string.sources_no_streams),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-                else -> Row(
+            val emptyMessage: String? = when {
+                uiState.sourceStreamsError != null && allStreams.isEmpty() -> uiState.sourceStreamsError
+                groups.isEmpty() && !searching -> stringResource(R.string.sources_no_streams)
+                else -> null
+            }
+            run {
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -361,9 +354,12 @@ private fun StreamSourcesPanelContent(
                     LazyColumn(
                         state = providerListState,
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
-                        modifier = Modifier.width(340.dp).heightIn(max = 560.dp)
+                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
+                        modifier = Modifier.width(340.dp).fillMaxHeight()
                     ) {
+                        if (groups.isEmpty()) {
+                            items(count = if (searching) 7 else 0) { SourcePanelSkeletonRow(64.dp) }
+                        }
                         itemsIndexed(items = groups, key = { _, g -> g.first }) { provIdx, (prov, list) ->
                             val req = providerRequesters.getOrPut(prov) {
                                 if (prov == groups.firstOrNull()?.first) streamsFocusRequester else FocusRequester()
@@ -388,11 +384,11 @@ private fun StreamSourcesPanelContent(
                                     .onFocusChanged { if (it.isFocused) selectedProvider = prov },
                                 colors = androidx.tv.material3.CardDefaults.colors(
                                     containerColor = if (shown) NuvioTheme.colors.Secondary else Color.Transparent,
-                                    focusedContainerColor = if (shown) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
+                                    focusedContainerColor = if (shown) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.22f)
                                 ),
                                 shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
                                 border = sourcePanelBorder(NuvioTheme.radii.md),
-                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
+                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.05f, pressedScale = 1f)
                             ) {
                                 val primary = if (shown) NuvioTheme.colors.OnSecondary else Color.White
                                 Row(
@@ -432,9 +428,23 @@ private fun StreamSourcesPanelContent(
                     LazyColumn(
                         state = serverListState,
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
-                        modifier = Modifier.weight(1f).heightIn(max = 560.dp)
+                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
+                        modifier = Modifier.weight(1f).fillMaxHeight()
                     ) {
+                        if (activeServers.isEmpty()) {
+                            if (emptyMessage != null) {
+                                item {
+                                    Text(
+                                        text = emptyMessage,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = Color.White.copy(alpha = 0.7f),
+                                        modifier = Modifier.padding(NuvioTheme.spacing.md)
+                                    )
+                                }
+                            } else {
+                                items(count = 7) { SourcePanelSkeletonRow(72.dp) }
+                            }
+                        }
                         itemsIndexed(
                             items = activeServers,
                             key = { i, _ -> "$activeProvider#$i" }
@@ -458,17 +468,17 @@ private fun StreamSourcesPanelContent(
                                     .onFocusChanged { if (it.isFocused) activeProvider?.let { p -> lastServerIndex[p] = i } },
                                 colors = androidx.tv.material3.CardDefaults.colors(
                                     containerColor = if (active) NuvioTheme.colors.Secondary else Color.Transparent,
-                                    focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
+                                    focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.22f)
                                 ),
                                 shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
                                 border = sourcePanelBorder(NuvioTheme.radii.md),
-                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
+                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.04f, pressedScale = 1f)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
                                         .padding(horizontal = NuvioTheme.spacing.md, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     SourcePanelBadge(qualityLabel(s.sourceQuality()) ?: "Auto", active)
                                     SourcePanelBadge(s.sourceFormat(), active)
@@ -497,7 +507,7 @@ private fun StreamSourcesPanelContent(
                                         }
                                     }
                                     if (active) {
-                                        Text(text = "✓", color = NuvioTheme.colors.OnSecondary)
+                                        Text(text = "\u2713", style = MaterialTheme.typography.titleMedium, color = NuvioTheme.colors.OnSecondary)
                                     }
                                 }
                             }
@@ -507,6 +517,27 @@ private fun StreamSourcesPanelContent(
             }
         }
     }
+}
+
+@Composable
+private fun SourcePanelSkeletonRow(height: androidx.compose.ui.unit.Dp) {
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "srcSkel")
+    val a by t.animateFloat(
+        initialValue = 0.05f,
+        targetValue = 0.12f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            animation = tween(900),
+            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+        ),
+        label = "srcSkelA"
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(height)
+            .clip(RoundedCornerShape(NuvioTheme.radii.md))
+            .background(Color.White.copy(alpha = a))
+    )
 }
 
 @Composable
@@ -534,7 +565,7 @@ private fun sourcePanelBorder(radius: androidx.compose.ui.unit.Dp) = androidx.tv
         shape = RoundedCornerShape(radius)
     ),
     focusedBorder = androidx.tv.material3.Border(
-        border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
+        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White),
         shape = RoundedCornerShape(radius)
     )
 )

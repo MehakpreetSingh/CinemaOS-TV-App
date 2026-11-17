@@ -264,7 +264,7 @@ private data class MainUiPrefs(
     val smoothBringIntoViewEnabled: Boolean = true,
     val fastHorizontalNavigationEnabled: Boolean = false,
     val composeHighlighterEnabled: Boolean = false,
-    val settingsUiStyle: SettingsUiStyle = SettingsUiStyle.CLASSIC,
+    val settingsUiStyle: SettingsUiStyle = SettingsUiStyle.ZEN,
     val cardDepthStyle: CardDepthStyle = CardDepthStyle(),
     val landscapePosterMode: Boolean = true,
     val alwaysBackdropWithLogo: Boolean = false

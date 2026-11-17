@@ -267,32 +267,47 @@ fun LoadingOverlay(
                         running != null -> "Searching ${running.name}\u2026"
                         else -> "Finding sources\u2026"
                     }
-                    val glassShape = RoundedCornerShape(16.dp)
-                    Box(
+                    val lineTransition = rememberInfiniteTransition(label = "statusLine")
+                    val lineSweep by lineTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 1f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(durationMillis = 1400, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "statusLineX"
+                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
                             .align(Alignment.Center)
                             .offset(y = if (showLogo || !title.isNullOrBlank()) 130.dp else 70.dp)
-                            .clip(glassShape)
-                            .then(
-                                if (hazeState != null) Modifier.hazeEffect(state = hazeState) {
-                                    blurRadius = 36.dp
-                                    noiseFactor = 0.04f
-                                    tints = listOf(dev.chrisbanes.haze.HazeTint(Color.Black.copy(alpha = 0.12f)))
-                                } else Modifier
-                            )
-                            .background(Color.Black.copy(alpha = if (hazeState != null) 0.25f else 0.40f))
-                            .border(1.dp, Color.White.copy(alpha = 0.12f), glassShape)
-                            .padding(horizontal = 24.dp, vertical = 12.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(horizontal = 24.dp)
                     ) {
                         Crossfade(targetState = statusText, animationSpec = tween(220), label = "glassStatus") { text ->
                             Text(
                                 text = text,
                                 style = MaterialTheme.typography.titleMedium,
-                                color = Color.White.copy(alpha = 0.9f),
+                                color = Color.White.copy(alpha = 0.8f),
                                 textAlign = TextAlign.Center,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(140.dp)
+                                .height(2.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(Color.White.copy(alpha = 0.12f))
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(48.dp)
+                                    .offset(x = (-48).dp + (188 * lineSweep).dp)
+                                    .background(Color.White.copy(alpha = 0.8f))
                             )
                         }
                     }

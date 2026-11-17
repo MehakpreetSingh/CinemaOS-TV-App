@@ -34,6 +34,8 @@ class ThemeDataStore @Inject constructor(
     private val amoledModeKey = booleanPreferencesKey("amoled_mode")
     private val amoledSurfacesModeKey = booleanPreferencesKey("amoled_surfaces_mode")
     private val settingsUiStyleKey = stringPreferencesKey("settings_ui_style")
+    // CinemaOS: one-time migration flag; until the user picks a style after this build, default to Minimal (ZEN).
+    private val settingsUiStyleMinimalMigratedKey = booleanPreferencesKey("settings_ui_style_minimal_migrated")
 
     val themeSelection: Flow<ThemeSelection> = profileManager.activeProfileId.flatMapLatest { pid ->
         factory.get(pid, FEATURE).data.map { prefs ->
@@ -69,11 +71,15 @@ class ThemeDataStore @Inject constructor(
 
     val settingsUiStyle: Flow<SettingsUiStyle> = profileManager.activeProfileId.flatMapLatest { pid ->
         factory.get(pid, FEATURE).data.map { prefs ->
-            val styleName = prefs[settingsUiStyleKey] ?: SettingsUiStyle.CLASSIC.name
-            try {
-                SettingsUiStyle.valueOf(styleName)
-            } catch (e: IllegalArgumentException) {
-                SettingsUiStyle.CLASSIC
+            if (prefs[settingsUiStyleMinimalMigratedKey] != true) {
+                SettingsUiStyle.ZEN
+            } else {
+                val styleName = prefs[settingsUiStyleKey] ?: SettingsUiStyle.ZEN.name
+                try {
+                    SettingsUiStyle.valueOf(styleName)
+                } catch (e: IllegalArgumentException) {
+                    SettingsUiStyle.ZEN
+                }
             }
         }
     }
@@ -115,6 +121,7 @@ class ThemeDataStore @Inject constructor(
     suspend fun setSettingsUiStyle(style: SettingsUiStyle) {
         store().edit { prefs ->
             prefs[settingsUiStyleKey] = style.name
+            prefs[settingsUiStyleMinimalMigratedKey] = true
         }
     }
 
