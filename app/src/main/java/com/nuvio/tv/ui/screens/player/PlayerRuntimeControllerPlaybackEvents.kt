@@ -213,9 +213,7 @@ internal fun PlayerRuntimeController.skipInterval(interval: SkipInterval): Boole
     } else {
         (targetTime * 1000).toLong()
     }
-    val seekParameters = if (postCredits != null || interval.type == "movie-credits") {
-        SeekParameters.EXACT
-    } else SeekParameters.NEXT_SYNC
+    val seekParameters = SeekParameters.EXACT
     val requested = seekMs.coerceAtMost(duration)
     val target = if (isPartyControlLocked) ownSeekTarget(requested) ?: return false else requested
     seekPlaybackTo(target, seekParameters)

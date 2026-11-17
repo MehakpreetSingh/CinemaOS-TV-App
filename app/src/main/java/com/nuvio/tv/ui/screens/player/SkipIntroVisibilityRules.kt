@@ -1,17 +1,36 @@
 package com.nuvio.tv.ui.screens.player
 
 import com.nuvio.tv.data.repository.SkipInterval
+import com.nuvio.tv.data.repository.segmentCategory
 
 internal const val SKIP_INTRO_AUTO_HIDE_TIMEOUT_MS = 10_000
+
+/**
+ * Sanity gate so a mis-mapped or mis-typed segment can never show a button at the wrong place:
+ * ending/credits only in the last 60% of the file (and only when the duration is known),
+ * intro/recap only in the first half.
+ */
+private fun SkipInterval.plausibleFor(durationMs: Long): Boolean {
+    val category = segmentCategory(type)
+    val isEnding = category == "ending" || type == "movie-credits"
+    if (isEnding) {
+        if (durationMs <= 0L) return false
+        return startTime * 1000.0 >= durationMs * 0.4
+    }
+    if (durationMs > 0L && startTime * 1000.0 > durationMs * 0.5) return false
+    return true
+}
 
 internal fun findActiveSkipInterval(
     intervals: List<SkipInterval>,
     positionMs: Long,
+    durationMs: Long = 0L,
 ): SkipInterval? {
     if (intervals.isEmpty()) return null
     val positionSec = positionMs / 1000.0
     return intervals.find { interval ->
         interval.type != "post-credits" &&
+            interval.plausibleFor(durationMs) &&
             positionSec >= interval.startTime && positionSec < interval.endTime
     }
 }
@@ -19,7 +38,8 @@ internal fun findActiveSkipInterval(
 internal fun nextActiveSkipInterval(
     intervals: List<SkipInterval>,
     positionMs: Long,
-): SkipInterval? = findActiveSkipInterval(intervals, positionMs)
+    durationMs: Long = 0L,
+): SkipInterval? = findActiveSkipInterval(intervals, positionMs, durationMs)
 
 internal fun SkipInterval.followingPostCreditsScene(
     intervals: List<SkipInterval>,
@@ -35,7 +55,7 @@ internal fun SkipInterval.followingPostCreditsScene(
     }.minByOrNull { it.startTime }
     if (explicit != null) return explicit
     // Heuristic: significant content after credits/outro suggests a post-credits scene.
-    if (durationMs > 0L) {
+    if (type == "movie-credits" && durationMs > 0L) {
         val creditsEndMs = (endTime * 1000.0).toLong()
         val gapMs = durationMs - creditsEndMs
         if (gapMs > PlayerNextEpisodeRules.POST_OUTRO_AUTOPLAY_GAP_MS) {

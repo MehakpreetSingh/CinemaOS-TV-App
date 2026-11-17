@@ -474,7 +474,7 @@ internal fun PlayerRuntimeController.updateActiveSkipInterval(positionMs: Long) 
     // skip button to appear instead of auto-skipping.
     if (!playerSettingsInitialized) return
 
-    val active = nextActiveSkipInterval(skipIntervals, positionMs)
+    val active = nextActiveSkipInterval(skipIntervals, positionMs, currentPlaybackDurationMs())
     val currentActive = _uiState.value.activeSkipInterval
 
     if (active != null) {

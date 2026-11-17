@@ -63,7 +63,8 @@ fun UpdateBannerHost(
 
     // A newer release takes the banner; otherwise it can report the release that was just installed automatically.
     val update = state.update ?: state.installedUpdate
-    val showBanner = state.showBanner && update != null
+    val showModal = state.showBanner && state.update != null && !state.showUnknownSourcesDialog
+    val showBanner = state.showBanner && update != null && state.update == null
 
     Column(modifier = Modifier.fillMaxSize()) {
         AnimatedVisibility(
@@ -98,6 +99,16 @@ fun UpdateBannerHost(
         ) {
             content()
         }
+    }
+
+    if (showModal && state.update != null) {
+        UpdateModal(
+            state = state,
+            update = state.update,
+            onDownload = onDownload,
+            onInstall = onInstall,
+            onDismiss = onDismissBanner
+        )
     }
 
     if (showReleaseNotes && update != null) {

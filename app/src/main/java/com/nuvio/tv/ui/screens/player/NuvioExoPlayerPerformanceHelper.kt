@@ -306,13 +306,13 @@ object NuvioExoPlayerPerformanceHelper {
                 .setTargetBufferBytes(targetBufferBytes)
                 .setBufferDurationsMs(
                     15_000,
-                    30_000,
+                    40_000,
                     2_500,
                     5_000
                 )
                 // The byte target has to gate everything the allocator holds, or the back buffer
                 // is charged on top of it and the configured size is not a limit at all.
-                .setPrioritizeTimeOverSizeThresholds(false)
+                .setPrioritizeTimeOverSizeThresholds(true)
                 // Forward buffer protects playback and the back buffer only protects a seek back,
                 // so the back buffer is the side that gives way when both cannot fit the target.
                 .setBackBuffer(0, true)

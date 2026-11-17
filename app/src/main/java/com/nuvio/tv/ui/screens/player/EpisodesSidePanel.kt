@@ -630,6 +630,9 @@ private fun EpisodesListView(
                             episode = episode,
                             isCurrent = isCurrent,
                             isWatched = isEpisodeWatched(episode),
+                            progress = episode.season?.let { sn -> episode.episode?.let { en ->
+                                uiState.episodeWatchProgressMap[sn to en]?.progressPercentage
+                            } } ?: 0f,
                             blurUnwatched = uiState.blurUnwatchedEpisodes,
                             focusRequester = episodesFocusRequester,
                             requestInitialFocus = requestInitialFocus,
@@ -744,12 +747,12 @@ private fun EpisodesSeasonTabs(
                     },
                 shape = CardDefaults.shape(shape = RoundedCornerShape(NuvioTheme.spacing.xl)),
                 colors = CardDefaults.colors(
-                    containerColor = if (isSelected) NuvioPrimitives.neutral100 else NuvioTheme.colors.BackgroundCard,
-                    focusedContainerColor = if (isSelected) Color.White else NuvioTheme.colors.Secondary
+                    containerColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.07f),
+                    focusedContainerColor = if (isSelected) Color.White else Color.White.copy(alpha = 0.18f)
                 ),
                 border = CardDefaults.border(
                     border = Border(
-                        border = BorderStroke(NuvioTheme.spacing.hairline, if (isSelected) Color.Transparent else NuvioTheme.colors.Border),
+                        border = BorderStroke(NuvioTheme.spacing.hairline, if (isSelected) Color.Transparent else Color.White.copy(alpha = 0.09f)),
                         shape = RoundedCornerShape(NuvioTheme.spacing.xl)
                     ),
                     focusedBorder = Border(
@@ -764,10 +767,10 @@ private fun EpisodesSeasonTabs(
                     style = MaterialTheme.typography.labelLarge,
                     color = when {
                         isSelected -> Color.Black
-                        isFocused -> NuvioTheme.colors.OnSecondary
-                        else -> NuvioTheme.extendedColors.textSecondary
+                        isFocused -> Color.White
+                        else -> Color.White.copy(alpha = 0.6f)
                     },
-                    modifier = Modifier.padding(vertical = 10.dp, horizontal = 20.dp)
+                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 18.dp)
                 )
             }
         }
@@ -779,6 +782,7 @@ private fun EpisodeItem(
     episode: Video,
     isCurrent: Boolean,
     isWatched: Boolean = false,
+    progress: Float = 0f,
     blurUnwatched: Boolean = false,
     focusRequester: FocusRequester,
     requestInitialFocus: Boolean,
@@ -855,17 +859,21 @@ private fun EpisodeItem(
                 false
             },
         colors = CardDefaults.colors(
-            containerColor = NuvioTheme.colors.BackgroundCard,
-            focusedContainerColor = NuvioTheme.colors.FocusBackground
+            containerColor = if (isCurrent) Color.White.copy(alpha = 0.10f) else Color.White.copy(alpha = 0.055f),
+            focusedContainerColor = Color.White.copy(alpha = 0.16f)
         ),
         border = CardDefaults.border(
+            border = Border(
+                border = BorderStroke(1.dp, Color.White.copy(alpha = if (isCurrent) 0.18f else 0.07f)),
+                shape = RoundedCornerShape(20.dp)
+            ),
             focusedBorder = Border(
-                border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                shape = RoundedCornerShape(NuvioTheme.radii.xl)
+                border = BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)),
+                shape = RoundedCornerShape(20.dp)
             )
         ),
         scale = CardDefaults.scale(focusedScale = 1.01f),
-        shape = CardDefaults.shape(shape = RoundedCornerShape(NuvioTheme.radii.xl))
+        shape = CardDefaults.shape(shape = RoundedCornerShape(20.dp))
     ) {
         Row(
             modifier = Modifier
@@ -877,9 +885,9 @@ private fun EpisodeItem(
             // Thumbnail with episode badge
             Box(
                 modifier = Modifier
-                    .width(130.dp)
-                    .height(90.dp)
-                    .clip(RoundedCornerShape(NuvioTheme.radii.md))
+                    .width(150.dp)
+                    .height(86.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(NuvioTheme.colors.SurfaceVariant)
             ) {
                 AsyncImage(
@@ -896,6 +904,23 @@ private fun EpisodeItem(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
+
+                if (progress > 0.01f && !isWatched) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .background(Color.White.copy(alpha = 0.25f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                                .fillMaxHeight()
+                                .background(Color.White)
+                        )
+                    }
+                }
 
                 if (episodeCode != null) {
                     Box(
@@ -957,16 +982,20 @@ private fun EpisodeItem(
                 verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs)
             ) {
                 Text(
-                    text = episodeTitle,
+                    text = (episode.episode?.let { "E$it  " } ?: "") + episodeTitle,
                     style = MaterialTheme.typography.titleMedium,
-                    color = NuvioTheme.colors.TextPrimary,
+                    color = if (isWatched && !isCurrent) Color.White.copy(alpha = 0.55f) else Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (formattedDate != null) {
+                val meta = listOfNotNull(
+                    episode.runtime?.takeIf { it > 0 }?.let { "${it}m" },
+                    formattedDate
+                ).joinToString("  ·  ")
+                if (meta.isNotBlank()) {
                     Text(
-                        text = formattedDate,
+                        text = meta,
                         style = MaterialTheme.typography.bodySmall,
                         color = NuvioTheme.extendedColors.textTertiary
                     )

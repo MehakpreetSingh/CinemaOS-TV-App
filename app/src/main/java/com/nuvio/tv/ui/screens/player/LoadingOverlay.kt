@@ -428,21 +428,7 @@ fun LoadingOverlay(
  */
 @Composable
 fun RnLoadingSpinner(diameter: androidx.compose.ui.unit.Dp = 28.dp, modifier: Modifier = Modifier) {
-    val spin = rememberInfiniteTransition(label = "rnSpin")
-    val angle by spin.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 900, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "rnSpinAngle"
-    )
-    androidx.compose.foundation.Canvas(modifier = modifier.size(diameter)) {
-        val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = (diameter.value / 11f).dp.toPx())
-        drawArc(color = Color.White.copy(alpha = 0.15f), startAngle = 0f, sweepAngle = 360f, useCenter = false, style = stroke)
-        drawArc(color = Color.White, startAngle = angle - 90f, sweepAngle = 90f, useCenter = false, style = stroke)
-    }
+    com.nuvio.tv.ui.components.GradientRingSpinner(diameter = diameter, modifier = modifier)
 }
 
 private fun Modifier.dev_hazeEffect(state: dev.chrisbanes.haze.HazeState): Modifier =

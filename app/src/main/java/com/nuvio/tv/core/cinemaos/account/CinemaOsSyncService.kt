@@ -169,9 +169,24 @@ class CinemaOsSyncService @Inject constructor(
             if (durationMs <= 0L || positionMs <= 0L) continue
             val watchedAt = toMs(o.opt("watchedAt"))
             val tmdbNum = idStr.toIntOrNull()
+            var animeArt: Art? = null
             val contentId = when {
-                isAnime -> "anime:$idStr"
+                isAnime -> {
+                    // Website anime ids are AniList ids; open them through the Kitsu id the anime scrapers use.
+                    animeArt = enrich("anime:$idStr", null, true, true, o.optString("name"))
+                    val kitsu = animeArt?.kitsuId
+                    if (kitsu != null) {
+                        prefs.edit().putString("k2a_$kitsu", idStr).apply()
+                        "kitsu:$kitsu"
+                    } else "anime:$idStr"
+                }
                 else -> resolveContentId(tmdbNum ?: continue, if (isSeries) "tv" else "movie", o.optString("name"))
+            }
+            if (isAnime && contentId.startsWith("kitsu:")) {
+                // Drop the stale pre-mapping entry stored under the raw AniList id.
+                local[progressKey("anime:$idStr", season, episode)]?.let {
+                    watchProgressPreferences.removeProgress(it.contentId, it.season, it.episode)
+                }
             }
             val key = progressKey(contentId, season, episode)
             seenLocalKeys += key
@@ -179,7 +194,7 @@ class CinemaOsSyncService @Inject constructor(
             val fresh = existing == null || existing.lastWatched < watchedAt
             val needsArt = existing != null && (existing.logo.isNullOrBlank() || existing.backdrop.isNullOrBlank())
             if (!fresh && !needsArt) continue
-            val art = enrich(contentId, tmdbNum, isSeries, isAnime, o.optString("name"))
+            val art = if (isAnime) animeArt else enrich(contentId, tmdbNum, isSeries, isAnime, o.optString("name"))
             val cloudBackdrop = backdropUrl(o.optString("backdrop_path"))
             if (!fresh && existing != null) {
                 // Newer local entry wins; only top up missing artwork.
@@ -193,11 +208,11 @@ class CinemaOsSyncService @Inject constructor(
                 continue
             }
             val videoId = if (season != null && episode != null) "$contentId:$season:$episode"
-            else if (isAnime && episode != null) "$contentId:1:$episode" else contentId
+            else if (isAnime && episode != null) (if (contentId.startsWith("kitsu:")) "$contentId:$episode" else "$contentId:1:$episode") else contentId
             watchProgressPreferences.saveProgress(
                 WatchProgress(
                     contentId = contentId,
-                    contentType = if (isSeries) "series" else "movie",
+                    contentType = if (isAnime && contentId.startsWith("kitsu:")) "anime" else if (isSeries) "series" else "movie",
                     name = o.optString("name").ifBlank { art?.title.orEmpty() },
                     poster = art?.poster,
                     backdrop = art?.backdrop ?: cloudBackdrop,
@@ -276,8 +291,10 @@ class CinemaOsSyncService @Inject constructor(
             val isAnime = movieType == "anime"
             val isSeries = movieType != "movie"
             val type = if (isSeries) "series" else "movie"
-            val id = if (isAnime) "anime:$idStr"
-            else resolveContentId(idStr.toIntOrNull() ?: continue, if (isSeries) "tv" else "movie")
+            val id = if (isAnime) {
+                val kitsu = enrich("anime:$idStr", null, true, true, o.optString("name"))?.kitsuId
+                if (kitsu != null) { prefs.edit().putString("k2a_$kitsu", idStr).apply(); "kitsu:$kitsu" } else "anime:$idStr"
+            } else resolveContentId(idStr.toIntOrNull() ?: continue, if (isSeries) "tv" else "movie")
             if (libraryPreferences.containsItem(id, type)) continue
             val images = if (id.startsWith("tt")) {
                 runCatching { tmdbService.fetchImdbImages(id, if (isSeries) "tv" else "movie") }.getOrNull()
@@ -354,15 +371,23 @@ class CinemaOsSyncService @Inject constructor(
         flushProgress(progress.copy(position = d, duration = d))
     }
 
+    /** Website (AniList) id for an anime content id stored as "anime:<id>" or "kitsu:<id>". */
+    private fun anilistFor(contentId: String): String? = when {
+        contentId.startsWith("anime:") -> contentId.removePrefix("anime:")
+        contentId.startsWith("kitsu:") -> prefs.getString("k2a_" + contentId.removePrefix("kitsu:").substringBefore(':'), null)
+        else -> null
+    }
+
     /** Mirrors removeFromWatchHistory: DELETE /api/watch-history?id=docId. */
     fun onProgressRemoved(contentId: String, season: Int?, episode: Int?) {
         val uid = account.session.value?.uid ?: return
         scope.launch {
             runCatching {
-                val isAnime = contentId.startsWith("anime:")
+                val anilist = anilistFor(contentId)
+                val isAnime = anilist != null
                 val isSeries = isAnime || season != null || episode != null
                 val mediaType = if (isAnime) "anime" else if (isSeries) "tv" else "movie"
-                val mediaId = (if (isAnime) contentId.removePrefix("anime:")
+                val mediaId = (if (isAnime) anilist
                 else resolveTmdbId(contentId, if (isSeries) "tv" else "movie")?.toString()) ?: return@launch
                 val docId = historyDocId(uid, mediaType, mediaId, season, episode)
                 enqueue(uid, "/api/watch-history", "DELETE", docId, "")
@@ -374,10 +399,11 @@ class CinemaOsSyncService @Inject constructor(
     private suspend fun pushProgress(p: WatchProgress) {
         runCatching {
             val uid = account.session.value?.uid ?: return
-            val isAnime = p.contentId.startsWith("anime:")
+            val anilist = anilistFor(p.contentId)
+            val isAnime = anilist != null
             val isSeries = isAnime || p.contentType.equals("series", true) || p.contentType.equals("tv", true)
             val mediaType = if (isAnime) "anime" else if (isSeries) "tv" else "movie"
-            val mediaId = (if (isAnime) p.contentId.removePrefix("anime:")
+            val mediaId = (if (isAnime) anilist
             else resolveTmdbId(p.contentId, if (isSeries) "tv" else "movie")?.toString()) ?: return
             val item = JSONObject()
                 .put("id", mediaId)
@@ -405,10 +431,11 @@ class CinemaOsSyncService @Inject constructor(
         val uid = account.session.value?.uid ?: return
         scope.launch {
             runCatching {
-                val isAnime = item.itemId.startsWith("anime:")
+                val anilist = anilistFor(item.itemId)
+                val isAnime = anilist != null
                 val isSeries = !item.itemType.equals("movie", true)
                 val type = if (isAnime) "anime" else if (isSeries) "tv" else "movie"
-                val mediaId = (if (isAnime) item.itemId.removePrefix("anime:")
+                val mediaId = (if (isAnime) anilist
                 else (item.tmdbId ?: resolveTmdbId(item.itemId, type))?.toString()) ?: return@launch
                 val docId = watchlistDocId(uid, type, mediaId)
                 if (added) {
@@ -555,7 +582,7 @@ class CinemaOsSyncService @Inject constructor(
             if (r.isSuccessful) r.body?.string() else null
         }
 
-    private data class Art(val title: String?, val backdrop: String?, val poster: String?, val logo: String?)
+    private data class Art(val title: String?, val backdrop: String?, val poster: String?, val logo: String?, val kitsuId: String? = null)
 
     private val artCache = ConcurrentHashMap<String, Art>()
 
@@ -638,6 +665,9 @@ class CinemaOsSyncService @Inject constructor(
                         poster = m.optString("poster").takeIf { it.startsWith("http") },
                         logo = m.optString("logo").takeIf { it.startsWith("http") }
                     )
+                }
+                if (isAnime && kitsuId != null) {
+                    art = (art ?: Art(null, null, null, null)).copy(kitsuId = kitsuId)
                 }
                 art?.also { artCache[contentId] = it }
             }.onFailure { Log.w(TAG, "enrich failed for $contentId", it) }.getOrNull()
