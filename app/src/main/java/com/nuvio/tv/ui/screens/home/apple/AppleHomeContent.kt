@@ -445,7 +445,14 @@ private fun ContinueWatchingItem.toHeroDisplay(meta: MetaPreview?, showRatings: 
                 "S${p.season} E${p.episode}" + (p.episodeTitle?.takeIf { it.isNotBlank() }?.let { " \u00b7 $it" } ?: "")
             } else null
             val parts = buildList {
-                add(episodeLabel ?: "Continue Watching")
+                add(
+                    when {
+                        p.contentId.startsWith("anime:") -> "Anime"
+                        p.contentType.equals("movie", true) -> "Movie"
+                        else -> "TV Show"
+                    }
+                )
+                episodeLabel?.let { add(it) }
                 (genres.ifEmpty { meta?.genres.orEmpty() }).take(2).forEach { add(it) }
                 year(releaseInfo ?: meta?.releaseInfo)?.let { add(it) }
             }
@@ -464,7 +471,7 @@ private fun ContinueWatchingItem.toHeroDisplay(meta: MetaPreview?, showRatings: 
         is ContinueWatchingItem.NextUp -> {
             val i = info
             val parts = buildList {
-                add("Up next \u00b7 S${i.season} E${i.episode}" + (i.episodeTitle?.takeIf { it.isNotBlank() }?.let { " \u00b7 $it" } ?: ""))
+                add((if (i.contentId.startsWith("anime:")) "Anime" else "TV Show") + " \u00b7 Up next \u00b7 S${i.season} E${i.episode}" + (i.episodeTitle?.takeIf { it.isNotBlank() }?.let { " \u00b7 $it" } ?: ""))
                 (i.genres.ifEmpty { meta?.genres.orEmpty() }).take(2).forEach { add(it) }
                 year(i.releaseInfo ?: meta?.releaseInfo)?.let { add(it) }
             }

@@ -147,6 +147,7 @@ class CinemaOsSyncService @Inject constructor(
         val uid = account.session.value?.uid ?: return
         val (arr, _) = getJsonArray("/api/watch-history") ?: return
         val pendingIds = pendingDocIds("/api/watch-history", uid)
+        migrateTmdbEntries()
         val local = watchProgressPreferences.allProgress.first()
             .associateBy { progressKey(it.contentId, it.season, it.episode) }
         val seenLocalKeys = HashSet<String>()
@@ -167,34 +168,55 @@ class CinemaOsSyncService @Inject constructor(
             val positionMs = (o.optDouble("progress", 0.0) * 1000).toLong()
             if (durationMs <= 0L || positionMs <= 0L) continue
             val watchedAt = toMs(o.opt("watchedAt"))
+            val tmdbNum = idStr.toIntOrNull()
             val contentId = when {
                 isAnime -> "anime:$idStr"
-                else -> resolveContentId(idStr.toIntOrNull() ?: continue, if (isSeries) "tv" else "movie")
+                else -> resolveContentId(tmdbNum ?: continue, if (isSeries) "tv" else "movie", o.optString("name"))
             }
             val key = progressKey(contentId, season, episode)
             seenLocalKeys += key
             val existing = local[key]
-            if (existing != null && existing.lastWatched >= watchedAt) continue
+            val fresh = existing == null || existing.lastWatched < watchedAt
+            val needsArt = existing != null && (existing.logo.isNullOrBlank() || existing.backdrop.isNullOrBlank())
+            if (!fresh && !needsArt) continue
+            val art = enrich(contentId, tmdbNum, isSeries, isAnime, o.optString("name"))
+            val cloudBackdrop = backdropUrl(o.optString("backdrop_path"))
+            if (!fresh && existing != null) {
+                // Newer local entry wins; only top up missing artwork.
+                watchProgressPreferences.saveProgress(
+                    existing.copy(
+                        backdrop = existing.backdrop?.takeIf { it.isNotBlank() } ?: art?.backdrop ?: cloudBackdrop,
+                        poster = existing.poster?.takeIf { it.isNotBlank() } ?: art?.poster,
+                        logo = existing.logo?.takeIf { it.isNotBlank() } ?: art?.logo
+                    )
+                )
+                continue
+            }
             val videoId = if (season != null && episode != null) "$contentId:$season:$episode"
             else if (isAnime && episode != null) "$contentId:1:$episode" else contentId
             watchProgressPreferences.saveProgress(
                 WatchProgress(
                     contentId = contentId,
                     contentType = if (isSeries) "series" else "movie",
-                    name = o.optString("name"),
-                    poster = null,
-                    backdrop = backdropUrl(o.optString("backdrop_path")),
-                    logo = null,
+                    name = o.optString("name").ifBlank { art?.title.orEmpty() },
+                    poster = art?.poster,
+                    backdrop = art?.backdrop ?: cloudBackdrop,
+                    logo = art?.logo,
                     videoId = videoId,
                     season = season ?: if (isAnime && episode != null) 1 else null,
                     episode = episode,
                     episodeTitle = null,
                     position = positionMs,
                     duration = durationMs,
-                    lastWatched = watchedAt,
+                    lastWatched = maxOf(watchedAt, existing?.lastWatched ?: 0L),
                     source = WatchProgress.SOURCE_LOCAL
                 )
             )
+            // Drop a stale duplicate stored under the TMDB id for the same content.
+            if (tmdbNum != null && !contentId.startsWith("tmdb:")) {
+                val dupKey = progressKey("tmdb:$tmdbNum", season, episode)
+                local[dupKey]?.let { watchProgressPreferences.removeProgress(it.contentId, it.season, it.episode) }
+            }
         }
         // Rows previously pulled that are gone from the cloud (and have no pending write) were
         // deleted on another device. The server returns at most 100 rows, so only trust a full view.
@@ -504,9 +526,149 @@ class CinemaOsSyncService @Inject constructor(
 
     // ---- Helpers ----
 
-    private suspend fun resolveContentId(tmdbId: Int, type: String): String =
-        runCatching { tmdbService.tmdbToImdb(tmdbId, type) }.getOrNull()
-            ?.takeIf { it.isNotBlank() } ?: "tmdb:$tmdbId"
+    private suspend fun resolveContentId(tmdbId: Int, type: String, name: String? = null): String =
+        (runCatching { tmdbService.tmdbToImdb(tmdbId, type) }.getOrNull()?.takeIf { it.isNotBlank() }
+            ?: cinemetaImdbByTmdb(tmdbId, type, name))
+            ?: "tmdb:$tmdbId"
+
+    /** Cinemeta fallback: search by title and match on moviedb_id. */
+    private suspend fun cinemetaImdbByTmdb(tmdbId: Int, type: String, name: String?): String? {
+        if (name.isNullOrBlank()) return null
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val kind = if (type == "tv" || type == "series") "series" else "movie"
+                val q = URLEncoder.encode(name, "UTF-8").replace("+", "%20")
+                val text = httpGet("https://v3-cinemeta.strem.io/catalog/$kind/top/search=$q.json") ?: return@runCatching null
+                val metas = JSONObject(text).optJSONArray("metas") ?: return@runCatching null
+                for (i in 0 until metas.length()) {
+                    val m = metas.optJSONObject(i) ?: continue
+                    if (m.optInt("moviedb_id", 0) == tmdbId) return@runCatching m.optString("imdb_id").ifBlank { m.optString("id") }
+                        .takeIf { it.startsWith("tt") }
+                }
+                null
+            }.getOrNull()
+        }
+    }
+
+    private fun httpGet(url: String): String? =
+        httpClient.newCall(Request.Builder().url(url).get().build()).execute().use { r ->
+            if (r.isSuccessful) r.body?.string() else null
+        }
+
+    private data class Art(val title: String?, val backdrop: String?, val poster: String?, val logo: String?)
+
+    private val artCache = ConcurrentHashMap<String, Art>()
+
+    /** Landscape backdrop, poster and logo for a pulled item (TMDB; anime resolves through arm.haglund.dev, Kitsu fallback). */
+    private suspend fun enrich(contentId: String, tmdbIdIn: Int?, isSeries: Boolean, isAnime: Boolean, name: String?): Art? {
+        artCache[contentId]?.let { return it }
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                var tmdbId = tmdbIdIn
+                var kitsuId: String? = null
+                var type = if (isSeries) "tv" else "movie"
+                if (isAnime) {
+                    type = "tv"
+                    tmdbId = null
+                    val text = httpGet("https://arm.haglund.dev/api/v2/ids?source=anilist&id=${contentId.removePrefix("anime:")}")
+                    if (text != null) {
+                        val j = JSONObject(text)
+                        tmdbId = j.opt("themoviedb")?.toString()?.toIntOrNull()
+                        kitsuId = j.opt("kitsu")?.toString()?.takeIf { it != "null" && it.isNotBlank() }
+                        if (tmdbId == null) {
+                            val imdb = j.optString("imdb").takeIf { it.startsWith("tt") }
+                            if (imdb != null) tmdbId = runCatching { tmdbService.imdbToTmdb(imdb, "tv") }.getOrNull()
+                        }
+                    }
+                } else if (tmdbId == null && contentId.startsWith("tt")) {
+                    tmdbId = runCatching { tmdbService.imdbToTmdb(contentId, type) }.getOrNull()
+                }
+                val key = tmdbService.apiKey()
+                var art: Art? = null
+                if (tmdbId != null && key.isNotBlank()) {
+                    val text = httpGet(
+                        "https://api.themoviedb.org/3/$type/$tmdbId?api_key=$key&append_to_response=images&include_image_language=en,null"
+                    )
+                    if (text != null) {
+                        val j = JSONObject(text)
+                        val logos = j.optJSONObject("images")?.optJSONArray("logos")
+                        var logoPath: String? = null
+                        if (logos != null) {
+                            for (lang in listOf("en", null)) {
+                                for (i in 0 until logos.length()) {
+                                    val l = logos.optJSONObject(i) ?: continue
+                                    val iso = if (l.isNull("iso_639_1")) null else l.optString("iso_639_1")
+                                    if (iso == lang) { logoPath = l.optString("file_path"); break }
+                                }
+                                if (logoPath != null) break
+                            }
+                            if (logoPath == null) logoPath = logos.optJSONObject(0)?.optString("file_path")
+                        }
+                        fun img(path: String?, size: String) =
+                            path?.takeIf { it.isNotBlank() && it != "null" }?.let { "https://image.tmdb.org/t/p/$size$it" }
+                        art = Art(
+                            title = j.optString("title").ifBlank { j.optString("name") }.takeIf { it.isNotBlank() },
+                            backdrop = img(j.optString("backdrop_path"), "w1280"),
+                            poster = img(j.optString("poster_path"), "w500"),
+                            logo = img(logoPath, "w500")
+                        )
+                    }
+                }
+                if (isAnime && (art?.backdrop == null || art?.logo == null) && kitsuId != null) {
+                    val text = httpGet("https://kitsu.io/api/edge/anime/$kitsuId")
+                    val attrs = text?.let { JSONObject(it).optJSONObject("data")?.optJSONObject("attributes") }
+                    if (attrs != null) {
+                        val cover = attrs.optJSONObject("coverImage")?.optString("large")?.takeIf { it.startsWith("http") }
+                        val poster = attrs.optJSONObject("posterImage")?.optString("large")?.takeIf { it.startsWith("http") }
+                        art = Art(
+                            title = art?.title ?: attrs.optString("canonicalTitle").takeIf { it.isNotBlank() },
+                            backdrop = art?.backdrop ?: cover ?: poster,
+                            poster = art?.poster ?: poster,
+                            logo = art?.logo
+                        )
+                    }
+                }
+                if (art == null && contentId.startsWith("tt")) {
+                    val kind = if (isSeries) "series" else "movie"
+                    val text = httpGet("https://v3-cinemeta.strem.io/meta/$kind/$contentId.json")
+                    val m = text?.let { JSONObject(it).optJSONObject("meta") }
+                    if (m != null) art = Art(
+                        title = m.optString("name").takeIf { it.isNotBlank() },
+                        backdrop = m.optString("background").takeIf { it.startsWith("http") },
+                        poster = m.optString("poster").takeIf { it.startsWith("http") },
+                        logo = m.optString("logo").takeIf { it.startsWith("http") }
+                    )
+                }
+                art?.also { artCache[contentId] = it }
+            }.onFailure { Log.w(TAG, "enrich failed for $contentId", it) }.getOrNull()
+        }
+    }
+
+    /** Moves entries stored under "tmdb:<id>" to the IMDb id when a mapping exists, merging by newest. */
+    private suspend fun migrateTmdbEntries() {
+        val all = watchProgressPreferences.allProgress.first()
+        val byKey = all.associateBy { progressKey(it.contentId, it.season, it.episode) }
+        for (e in all) {
+            if (!e.contentId.startsWith("tmdb:")) continue
+            val n = e.contentId.removePrefix("tmdb:").substringBefore(':').toIntOrNull() ?: continue
+            val isSeries = e.contentType.equals("series", true) || e.season != null
+            val imdb = resolveContentId(n, if (isSeries) "tv" else "movie", e.name)
+            if (imdb.startsWith("tmdb:")) continue
+            val target = byKey[progressKey(imdb, e.season, e.episode)]
+            watchProgressPreferences.removeProgress(e.contentId, e.season, e.episode)
+            if (target != null && target.lastWatched >= e.lastWatched) continue
+            val videoId = if (e.season != null && e.episode != null) "$imdb:${e.season}:${e.episode}" else imdb
+            watchProgressPreferences.saveProgress(
+                e.copy(
+                    contentId = imdb,
+                    videoId = videoId,
+                    poster = e.poster ?: target?.poster,
+                    backdrop = e.backdrop ?: target?.backdrop,
+                    logo = e.logo ?: target?.logo
+                )
+            )
+        }
+    }
 
     private suspend fun resolveTmdbId(contentId: String, type: String): Int? {
         if (contentId.startsWith("tmdb:")) return contentId.removePrefix("tmdb:").substringBefore(':').toIntOrNull()
