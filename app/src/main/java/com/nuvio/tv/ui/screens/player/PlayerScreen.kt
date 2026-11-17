@@ -3130,7 +3130,7 @@ private fun PlayerControlsOverlay(
                         )
                     }
 
-                                        // Always-expanded secondary controls (no "more" toggle)
+                    // Always-expanded secondary controls (no "more" toggle)
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
                         verticalAlignment = Alignment.CenterVertically
