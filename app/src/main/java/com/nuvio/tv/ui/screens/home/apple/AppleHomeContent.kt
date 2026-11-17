@@ -507,16 +507,16 @@ private fun AppleRowTitle(title: String) {
         Box(
             modifier = Modifier
                 .width(3.dp)
-                .height(22.dp)
+                .height(16.dp)
                 .clip(RoundedCornerShape(50))
                 .background(Color(0xFFFAFAFA))
         )
-        Spacer(Modifier.width(10.dp))
+        Spacer(Modifier.width(8.dp))
         Text(
             text = title,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            letterSpacing = (-0.3).sp,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = (-0.2).sp,
             color = Color.White,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
