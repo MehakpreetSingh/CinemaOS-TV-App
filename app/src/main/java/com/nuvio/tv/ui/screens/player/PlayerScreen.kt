@@ -143,6 +143,7 @@ import androidx.tv.material3.IconButton
 import androidx.tv.material3.IconButtonDefaults
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.nuvio.tv.R
 import com.nuvio.tv.BuildConfig
@@ -2818,13 +2819,13 @@ private fun PlayerControlsOverlay(
     LaunchedEffect(subtitleReportingActive, progressBarClearancePx, titleRightPx) {
         if (subtitleReportingActive) latestTitleBoundsCallback(progressBarClearancePx, titleRightPx)
     }
-    val customPlayPainter = rememberRawSvgPainter(R.raw.ic_player_play)
-    val customPausePainter = rememberRawSvgPainter(R.raw.ic_player_pause)
-    val customSubtitlePainter = rememberRawSvgPainter(R.raw.ic_player_subtitles)
-    val customAudioPainter = rememberRawSvgPainter(R.raw.ic_player_audio_filled)
-    val customSourcePainter = rememberRawSvgPainter(R.raw.ic_player_source)
-    val customAspectPainter = rememberRawSvgPainter(R.raw.ic_player_aspect_ratio)
-    val customEpisodesPainter = rememberRawSvgPainter(R.raw.ic_player_episodes)
+    val customPlayPainter = painterResource(R.drawable.ic_player_noir_play)
+    val customPausePainter = painterResource(R.drawable.ic_player_noir_pause)
+    val customSubtitlePainter = painterResource(R.drawable.ic_player_noir_subtitles)
+    val customAudioPainter = painterResource(R.drawable.ic_player_noir_audio)
+    val customSourcePainter = painterResource(R.drawable.ic_player_noir_sources)
+    val customAspectPainter = painterResource(R.drawable.ic_player_noir_fullscreen)
+    val customEpisodesPainter = painterResource(R.drawable.ic_player_noir_episodes)
     var showEngineSwitchConfirm by remember { mutableStateOf(false) }
     val playbackTimeline by viewModel.playbackTimeline.collectAsState()
     val isLivePlayback = playbackTimeline.isLive
@@ -3020,6 +3021,7 @@ private fun PlayerControlsOverlay(
                     if (showNextEpisodeButton) {
                         ControlButton(
                             icon = Icons.Default.SkipNext,
+                            iconPainter = painterResource(R.drawable.ic_player_noir_next),
                             contentDescription = stringResource(R.string.next_episode_label),
                             onClick = onPlayNextEpisode,
                             upFocusRequester = progressUpTarget,
@@ -3095,6 +3097,7 @@ private fun PlayerControlsOverlay(
                     }
                     ControlButton(
                         icon = Icons.Default.HighQuality,
+                        iconPainter = painterResource(R.drawable.ic_player_noir_quality),
                         contentDescription = "Quality $qualityBadgeText",
                         onClick = onShowQualityPanel,
                         upFocusRequester = progressUpTarget,
@@ -3117,6 +3120,7 @@ private fun PlayerControlsOverlay(
                     if (onShowPartyPanel != null) {
                         ControlButton(
                             icon = Icons.Rounded.Groups,
+                            iconPainter = painterResource(R.drawable.ic_player_noir_party),
                             contentDescription = stringResource(R.string.party_title),
                             onClick = onShowPartyPanel,
                             upFocusRequester = progressUpTarget,
@@ -3126,98 +3130,76 @@ private fun PlayerControlsOverlay(
                         )
                     }
 
-                    AnimatedVisibility(
-                        visible = uiState.showMoreDialog,
-                        enter = slideInHorizontally(
-                            animationSpec = tween(NuvioMotion.tokens.durations.fast),
-                            initialOffsetX = { it / 2 }
-                        ) + fadeIn(animationSpec = tween(NuvioMotion.tokens.durations.fast)),
-                        exit = slideOutHorizontally(
-                            animationSpec = tween(160),
-                            targetOffsetX = { it / 2 }
-                        ) + fadeOut(animationSpec = tween(160))
+                                        // Always-expanded secondary controls (no "more" toggle)
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xs),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        ControlButton(
+                            icon = Icons.Default.Speed,
+                            iconPainter = painterResource(R.drawable.ic_player_noir_settings),
+                            contentDescription = stringResource(R.string.cd_playback_speed),
+                            onClick = {
+                                onShowSpeedDialog()
+                            },
+                            upFocusRequester = progressUpTarget,
+                            onDownKey = onHideControls,
+                            onFocused = onResetHideTimer
+                        )
+                        ControlButton(
+                            icon = Icons.Default.AspectRatio,
+                            iconPainter = customAspectPainter,
+                            contentDescription = stringResource(R.string.cd_aspect_ratio),
+                            onClick = {
+                                onToggleAspectRatio()
+                            },
+                            upFocusRequester = progressUpTarget,
+                            onDownKey = onHideControls,
+                            onFocused = onResetHideTimer
+                        )
+                        ControlButton(
+                            icon = Icons.Default.SwapHoriz,
+                            contentDescription = stringResource(R.string.cd_switch_player_engine),
+                            onClick = { showEngineSwitchConfirm = true },
+                            upFocusRequester = progressUpTarget,
+                            onDownKey = onHideControls,
+                            onFocused = onResetHideTimer
+                        )
+                        onOpenInExternalPlayer?.let { openInExternalPlayer ->
                             ControlButton(
-                                icon = Icons.Default.Speed,
-                                contentDescription = stringResource(R.string.cd_playback_speed),
-                                onClick = {
-                                    onShowSpeedDialog()
-                                },
+                                icon = Icons.AutoMirrored.Filled.OpenInNew,
+                                contentDescription = stringResource(R.string.cd_open_external_player),
+                                onClick = openInExternalPlayer,
                                 upFocusRequester = progressUpTarget,
                                 onDownKey = onHideControls,
                                 onFocused = onResetHideTimer
                             )
-                            ControlButton(
-                                icon = Icons.Default.AspectRatio,
-                                iconPainter = customAspectPainter,
-                                contentDescription = stringResource(R.string.cd_aspect_ratio),
-                                onClick = {
-                                    onToggleAspectRatio()
-                                },
+                        }
+                        ControlButton(
+                            icon = Icons.Default.Info,
+                            contentDescription = stringResource(R.string.cd_stream_info),
+                            onClick = {
+                                onShowStreamInfo()
+                            },
+                            focusRequester = streamInfoFocusRequester,
+                            upFocusRequester = progressUpTarget,
+                            onDownKey = onHideControls,
+                            onFocused = onResetHideTimer
+                        )
+                        if (uiState.playbackIssueReportsEnabled) {
+                            ReportControlButton(
+                                reportId = uiState.playbackIssueReportId,
+                                showReportId = reportCodeVisible,
+                                onClick = onReportPlaybackIssue,
+                                enabled = uiState.playbackIssueReportStatus != PlaybackIssueReportStatus.Sending &&
+                                    uiState.playbackIssueReportStatus != PlaybackIssueReportStatus.Sent,
                                 upFocusRequester = progressUpTarget,
                                 onDownKey = onHideControls,
                                 onFocused = onResetHideTimer
                             )
-                            ControlButton(
-                                icon = Icons.Default.SwapHoriz,
-                                contentDescription = stringResource(R.string.cd_switch_player_engine),
-                                onClick = { showEngineSwitchConfirm = true },
-                                upFocusRequester = progressUpTarget,
-                                onDownKey = onHideControls,
-                                onFocused = onResetHideTimer
-                            )
-                            onOpenInExternalPlayer?.let { openInExternalPlayer ->
-                                ControlButton(
-                                    icon = Icons.AutoMirrored.Filled.OpenInNew,
-                                    contentDescription = stringResource(R.string.cd_open_external_player),
-                                    onClick = openInExternalPlayer,
-                                    upFocusRequester = progressUpTarget,
-                                    onDownKey = onHideControls,
-                                    onFocused = onResetHideTimer
-                                )
-                            }
-                            ControlButton(
-                                icon = Icons.Default.Info,
-                                contentDescription = stringResource(R.string.cd_stream_info),
-                                onClick = {
-                                    onShowStreamInfo()
-                                },
-                                focusRequester = streamInfoFocusRequester,
-                                upFocusRequester = progressUpTarget,
-                                onDownKey = onHideControls,
-                                onFocused = onResetHideTimer
-                            )
-                            if (uiState.playbackIssueReportsEnabled) {
-                                ReportControlButton(
-                                    reportId = uiState.playbackIssueReportId,
-                                    showReportId = reportCodeVisible,
-                                    onClick = onReportPlaybackIssue,
-                                    enabled = uiState.playbackIssueReportStatus != PlaybackIssueReportStatus.Sending &&
-                                        uiState.playbackIssueReportStatus != PlaybackIssueReportStatus.Sent,
-                                    upFocusRequester = progressUpTarget,
-                                    onDownKey = onHideControls,
-                                    onFocused = onResetHideTimer
-                                )
-                            }
                         }
                     }
 
-                    ControlButton(
-                        icon = if (uiState.showMoreDialog) {
-                            Icons.AutoMirrored.Filled.KeyboardArrowLeft
-                        } else {
-                            Icons.AutoMirrored.Filled.KeyboardArrowRight
-                        },
-                        contentDescription = if (uiState.showMoreDialog) stringResource(R.string.cd_close_more_actions) else stringResource(R.string.cd_more_actions),
-                        onClick = onToggleMoreActions,
-                        upFocusRequester = progressUpTarget,
-                        onDownKey = onHideControls,
-                        onFocused = onResetHideTimer
-                    )
                 }
 
                 // Right side - Time display only
@@ -3781,7 +3763,7 @@ private fun SubtitleTimingDialogHost(
 
 @Composable
 private fun AspectRatioIndicator(text: String) {
-    val customAspectPainter = rememberRawSvgPainter(R.raw.ic_player_aspect_ratio)
+    val customAspectPainter = painterResource(R.drawable.ic_player_noir_fullscreen)
 
     // Floating pill indicator for aspect ratio changes
     Row(
