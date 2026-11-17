@@ -119,7 +119,9 @@ object DolbyVisionBaseLayerPolicy {
             // DV7 natively. Google TV Streamer / Onn / MeCool etc. fall back to HEVC
             // base layer via ExoPlayer's decoder fallback path, producing HDR10. Either
             // way, no intervention from us improves things.
-            displayDv -> Decision.NATIVE_DV7
+            // No DV7 decoder (not DvheDtb) and no usable DV8.1 conversion: dual-layer stream
+            // cannot decode as DV, so play its HEVC base layer (HDR10) instead of stalling.
+            displayDv -> Decision.STRIP_TO_HDR10
 
             // Samsung HDR10 fallback (User 3): no DV display but a DV81 decoder is
             // available. Convert DV7 to DV81 so the decoder emits HDR10. Without this
