@@ -155,6 +155,7 @@ private sealed interface ExperienceModeLoadState {
 @Composable
 private fun settingsSectionSpec(category: SettingsCategory): SettingsSectionSpec = when (category) {
     SettingsCategory.ACCOUNT -> SettingsSectionSpec(category, stringResource(R.string.settings_account), Icons.Default.Person, destination = SettingsSectionDestination.Inline)
+    SettingsCategory.CINEMAOS_ACCOUNT -> SettingsSectionSpec(category, "CinemaOS Account", Icons.Default.Person, destination = SettingsSectionDestination.Inline)
     SettingsCategory.PROFILES -> SettingsSectionSpec(category, stringResource(R.string.settings_profiles), Icons.Default.People, destination = SettingsSectionDestination.Inline)
     SettingsCategory.WATCH_PARTY -> SettingsSectionSpec(category, stringResource(R.string.party_title), Icons.Rounded.Groups, destination = SettingsSectionDestination.Inline)
     SettingsCategory.APPEARANCE -> SettingsSectionSpec(category, stringResource(R.string.appearance_title), Icons.Default.Palette, destination = SettingsSectionDestination.Inline)
@@ -237,7 +238,8 @@ fun SettingsScreen(
             SettingsCategory.PLAYBACK to FocusRequester(),
             SettingsCategory.ADVANCED to FocusRequester(),
             SettingsCategory.ABOUT to FocusRequester(),
-            SettingsCategory.ACCOUNT to FocusRequester()
+            SettingsCategory.ACCOUNT to FocusRequester(),
+            SettingsCategory.CINEMAOS_ACCOUNT to FocusRequester()
         )
     }
     val railContainerFocusRequester = remember { FocusRequester() }
@@ -960,6 +962,13 @@ private fun SettingsDetailPane(
             showPlugins = AppFeaturePolicy.pluginsEnabled && !isEssentialMode,
             initialFocusRequester = if (allowDetailAutofocus) {
                 contentFocusRequesters[SettingsCategory.CONTENT_DISCOVERY]
+            } else {
+                null
+            }
+        )
+        SettingsCategory.CINEMAOS_ACCOUNT -> CinemaOsAccountSettingsContent(
+            initialFocusRequester = if (allowDetailAutofocus) {
+                contentFocusRequesters[SettingsCategory.CINEMAOS_ACCOUNT]
             } else {
                 null
             }

@@ -10,6 +10,7 @@ internal enum class SettingsRailGroup {
 
 internal enum class SettingsCategory(val group: SettingsRailGroup) {
     ACCOUNT(SettingsRailGroup.YOU),
+    CINEMAOS_ACCOUNT(SettingsRailGroup.YOU),
     PROFILES(SettingsRailGroup.YOU),
     WATCH_PARTY(SettingsRailGroup.YOU),
     APPEARANCE(SettingsRailGroup.LOOK),

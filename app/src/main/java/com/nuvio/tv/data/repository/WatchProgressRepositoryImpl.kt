@@ -143,6 +143,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
     private val trackingHistoryWriters: TrackingHistoryWriterRegistry,
     private val mutationStore: WatchStateMutationStore,
     private val serverWatched: ServerWatched,
+    private val cinemaOsSync: com.nuvio.tv.core.cinemaos.account.CinemaOsSyncService? = null
 ) : WatchProgressRepository {
     companion object {
         private const val TAG = "WatchProgressRepo"
@@ -851,6 +852,7 @@ class WatchProgressRepositoryImpl @Inject constructor(
             activeProgressProvider()?.applyOptimisticProgress(progress, quiet = !syncRemote)
         }
         watchProgressPreferences.saveProgress(progress, profileId = profileId)
+        if (syncRemote) cinemaOsSync?.onProgressSaved(progress)
 
         if (shouldPushRemote) {
             syncScope.launch(NonCancellable) {

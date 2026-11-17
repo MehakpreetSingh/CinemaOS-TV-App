@@ -61,6 +61,7 @@ class LibraryRepositoryImpl @Inject constructor(
     private val metaRepository: MetaRepository,
     private val trackingProviders: TrackingLibraryProviderRegistry,
     private val profileManager: ProfileManager,
+    private val cinemaOsSync: com.nuvio.tv.core.cinemaos.account.CinemaOsSyncService? = null
 ) : LibraryRepository {
 
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -227,6 +228,7 @@ class LibraryRepositoryImpl @Inject constructor(
                 profileId = profileId
             )
         }
+        cinemaOsSync?.onLibraryChanged(item, added = !isInLocal)
         triggerRemoteSync(profileId)
         return TrackingMembershipApplyResult()
     }
@@ -297,6 +299,7 @@ class LibraryRepositoryImpl @Inject constructor(
                     profileId = profileId
                 )
             }
+            cinemaOsSync?.onLibraryChanged(item, added = localDesired)
             triggerRemoteSync(profileId)
         }
 
