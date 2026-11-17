@@ -97,6 +97,7 @@ private const val PLAYER_RELEASE_TIMEOUT_MS = 3000L
 private const val PLAYER_REBUILD_SETTLE_DELAY_MS = 120L
 private const val ADAPTIVE_QUALITY_INCREASE_MIN_DURATION_MS = 2_000
 private const val ADAPTIVE_INITIAL_BITRATE_ESTIMATE_BPS = 25_000_000L
+private const val RN_STOCK_LOAD_CONTROL = true
 
 internal data class StartupSubtitlePreparation(
     val fetchedSubtitles: List<Subtitle>,
@@ -493,14 +494,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                 streamMime.lowercase().contains("mpegurl") ||
                 streamMime.lowercase().contains("m3u8")
             )
-            val rawBandwidthMeter = if (NuvioExoPlayerPerformanceHelper.enabled) {
-                NuvioExoPlayerPerformanceHelper.buildBandwidthMeter(context)
-            } else {
-                DefaultBandwidthMeter.Builder(context)
-                    .setInitialBitrateEstimate(ADAPTIVE_INITIAL_BITRATE_ESTIMATE_BPS)
-                    .build()
-            }
-            val bandwidthMeter = SafeBandwidthMeter(rawBandwidthMeter, isHls)
+            // Match react-native-video: stock DefaultBandwidthMeter, no inflated initial estimate.
+            val bandwidthMeter = DefaultBandwidthMeter.Builder(context).build()
 
             val resolvedStreamMime = currentStreamMimeType ?: PlayerMediaSourceFactory.inferMimeType(
                 url = url,
@@ -522,7 +517,16 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
             currentParallelChunkOverheadMb = parallelOverheadMb
 
-            val loadControl = if (playerSettings.nuvioPerformanceModeEnabled) {
+            val loadControl = if (RN_STOCK_LOAD_CONTROL) {
+                effectiveBackBufferDurationMs = 0
+                currentBitrateAwareLoadControl = null
+                Log.i(PlayerRuntimeController.TAG, "BUFFER_GATE: RN-equivalent DefaultLoadControl 15/30/2.5/5s host=${url.safeHost()}")
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(15_000, 30_000, 2_500, 5_000)
+                    .setPrioritizeTimeOverSizeThresholds(true)
+                    .setBackBuffer(0, true)
+                    .build()
+            } else if (playerSettings.nuvioPerformanceModeEnabled) {
                 effectiveBackBufferDurationMs = NuvioExoPlayerPerformanceHelper.backBufferMs
                 currentBitrateAwareLoadControl = null
                 Log.i(
@@ -677,7 +681,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
             // ── Track Selector Setup ──
             val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory(
-                ADAPTIVE_QUALITY_INCREASE_MIN_DURATION_MS,
+                AdaptiveTrackSelection.DEFAULT_MIN_DURATION_FOR_QUALITY_INCREASE_MS,
                 AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS,
                 AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS,
                 AdaptiveTrackSelection.DEFAULT_BANDWIDTH_FRACTION
@@ -1741,6 +1745,9 @@ internal fun PlayerRuntimeController.initializePlayer(
                 addAnalyticsListener(object : AnalyticsListener {
                     override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) {
                         playbackAnalyticsDiagnostics.onPlaybackStateChanged(eventTime, state)
+                        if (state == Player.STATE_BUFFERING || state == Player.STATE_READY) {
+                            Log.d("RebufferProbe", "state=$state pos=${eventTime.currentPlaybackPositionMs} bufAhead=${eventTime.totalBufferedDurationMs} bw=${bandwidthMeter.bitrateEstimate / 1000}kbps")
+                        }
                     }
 
                     override fun onPlayWhenReadyChanged(

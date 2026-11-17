@@ -645,6 +645,7 @@ private fun PlayerRuntimeController.loadCloudLibraryResumeProgress(): WatchProgr
 }
 
 internal fun PlayerRuntimeController.fetchSkipIntervals(id: String?, season: Int?, episode: Int?) {
+    android.util.Log.d("SkipIntro", "fetch id=$id vid=$currentVideoId type=$contentType S=$season E=$episode enabled=$skipIntroEnabled")
     if (!skipIntroEnabled) return
     if (id.isNullOrBlank()) return
 
@@ -723,6 +724,7 @@ internal fun PlayerRuntimeController.fetchSkipIntervals(id: String?, season: Int
 /** Store API results and recompute the merged skipIntervals. */
 private fun PlayerRuntimeController.setApiSkipIntervals(api: List<SkipInterval>) {
     apiSkipIntervals = api
+    android.util.Log.d("SkipIntro", "api intervals=${api.map { "${it.provider}:${it.type}[${it.startTime}-${it.endTime}]" }} dur=${currentPlaybackDurationMs()}")
     recomputeMergedSkipIntervals()
 }
 

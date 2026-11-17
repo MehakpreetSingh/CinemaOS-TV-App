@@ -118,12 +118,13 @@ internal fun mergeSkipIntervals(
     if (apiIntervals.isEmpty()) return chapterIntervals
     // For movies: prefer API entirely when it has data (handles post-credits trimming)
     if (isMovie && apiIntervals.isNotEmpty()) return apiIntervals
+    // API (IntroDB/AniSkip, as in the RN app) wins; chapters only fill categories the API lacks.
     val chosen = LinkedHashMap<String, SkipInterval>()
-    for (interval in chapterIntervals) {
+    for (interval in apiIntervals) {
         val category = segmentCategory(interval.type) ?: continue
         chosen.putIfAbsent(category, interval)
     }
-    for (interval in apiIntervals) {
+    for (interval in chapterIntervals) {
         val category = segmentCategory(interval.type) ?: continue
         chosen.putIfAbsent(category, interval)
     }

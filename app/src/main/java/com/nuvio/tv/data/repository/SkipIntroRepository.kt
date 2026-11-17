@@ -63,7 +63,9 @@ class SkipIntroRepository @Inject constructor(
 ) {
     private val cache = ConcurrentHashMap<String, List<SkipInterval>>()
     private val animeSkipShowIdCache = ConcurrentHashMap<String, String>()
-    private val introDbConfigured = BuildConfig.INTRODB_API_URL.isNotEmpty()
+    // IntroDB is public (no key); the Retrofit base URL falls back to api.introdb.app when the build secret is empty.
+    private val introDbConfigured = true
+    private val armCache = ConcurrentHashMap<String, String>()
 
     suspend fun getMovieSkipIntervals(contentId: String?, videoId: String? = null): List<SkipInterval> {
         if (!introDbConfigured) return emptyList()
@@ -135,6 +137,7 @@ class SkipIntroRepository @Inject constructor(
         val cacheKey = "mal:$malId:$episode"
         cache[cacheKey]?.let { return@coroutineScope it }
 
+        Log.d("SkipIntro", "mal:$malId ep$episode")
         val aniSkipDeferred = async { fetchFromAniSkip(malId, episode) }
 
         val simklIdsDeferred = async { simklResolver.resolveIds("mal", malId) }
@@ -179,8 +182,10 @@ class SkipIntroRepository @Inject constructor(
 
         // Resolve all IDs via Simkl
         val simklIdsDeferred = async { simklResolver.resolveIds("kitsu", kitsuId) }
+        val armMal = armToMal("kitsu", kitsuId)
         val simklIds = simklIdsDeferred.await()
-        val malIdStr = simklIds?.mal
+        val malIdStr = armMal ?: simklIds?.mal
+        Log.d("SkipIntro", "kitsu:$kitsuId ep$episode -> mal=$malIdStr (arm=$armMal simkl=${simklIds?.mal})")
         val resolvedImdbId = imdbId ?: simklIds?.imdb
 
         val aniSkipDeferred = async {
@@ -230,6 +235,27 @@ class SkipIntroRepository @Inject constructor(
         return chosen.values.toList()
     }
 
+    /** kitsu/anilist -> MAL id through arm.haglund.dev (public, keyless). */
+    private suspend fun armToMal(source: String, id: String): String? {
+        val key = "$source:$id"
+        armCache[key]?.let { return it.takeIf { v -> v != NO_ID } }
+        val mal = try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val conn = java.net.URL("https://arm.haglund.dev/api/v2/ids?source=$source&id=$id")
+                    .openConnection() as java.net.HttpURLConnection
+                conn.connectTimeout = 6000
+                conn.readTimeout = 6000
+                try {
+                    if (conn.responseCode != 200) null
+                    else org.json.JSONObject(conn.inputStream.bufferedReader().readText())
+                        .optInt("myanimelist", 0).takeIf { it > 0 }?.toString()
+                } finally { conn.disconnect() }
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+        armCache[key] = mal ?: NO_ID
+        return mal
+    }
+
     private suspend fun fetchFromIntroDb(
         imdbId: String,
         season: Int? = null,
@@ -239,8 +265,10 @@ class SkipIntroRepository @Inject constructor(
         return try {
             val response = introDbApi.getSegments(imdbId, season, episode, true.takeIf { isMovie })
             if (response.isSuccessful && response.body() != null) {
-                response.body()!!.toSkipIntervals(isMovie)
-            } else emptyList()
+                response.body()!!.toSkipIntervals(isMovie).also {
+                    Log.d("SkipIntro", "IntroDB $imdbId S${season}E${episode} movie=$isMovie -> ${it.map { i -> "${i.type}[${i.startTime}-${i.endTime}]" }}")
+                }
+            } else { Log.d("SkipIntro", "IntroDB $imdbId S${season}E${episode}: http ${response.code()}"); emptyList() }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -254,6 +282,7 @@ class SkipIntroRepository @Inject constructor(
             val types = listOf("op", "ed", "recap", "mixed-op", "mixed-ed")
             val response = aniSkipApi.getSkipTimes(malId, episode, types)
             if (response.isSuccessful && response.body()?.found == true) {
+                Log.d("SkipIntro", "AniSkip MAL $malId ep $episode -> ${response.body()!!.results?.map { "${it.skipType}[${it.interval.startTime}-${it.interval.endTime}]" }}")
                 response.body()!!.results?.map { result ->
                     SkipInterval(
                         startTime = result.interval.startTime,
