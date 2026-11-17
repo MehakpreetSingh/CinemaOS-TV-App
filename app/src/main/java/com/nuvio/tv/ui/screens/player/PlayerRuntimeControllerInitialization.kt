@@ -544,7 +544,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                 val budgetBytes = budgetMbEffective.toLong() * 1024L * 1024L
                 // Build with the user's back buffer so seek-back works immediately, except on a heap
                 // bound device, where the load control would hold it for the whole session.
-                configuredBackBufferMs = bufferSettings.backBufferDurationMs
+                configuredBackBufferMs = 0 // CinemaOS TV profile: no back buffer
                 val backBufferMsAtBuild = if (libdoviConversionActive && MemoryBudget.isLowRamTier) {
                     0
                 } else {
@@ -571,10 +571,11 @@ internal fun PlayerRuntimeController.initializePlayer(
                 // Both engines report through the same sampler, so whichever built last owns it.
                 NuvioExoPlayerPerformanceHelper.liveAllocator = allocator
                 BitrateAwareLoadControl(
-                    minBufferMs = bufferSettings.minBufferMs,
-                    maxBufferMs = bufferSettings.maxBufferMs,
-                    bufferForPlaybackMs = bufferSettings.bufferForPlaybackMs,
-                    bufferForPlaybackAfterRebufferMs = bufferSettings.bufferForPlaybackAfterRebufferMs,
+                    // CinemaOS TV profile (same as the RN app): 15s min / 30s max / 2.5s start / 5s after rebuffer
+                    minBufferMs = 15_000,
+                    maxBufferMs = 30_000,
+                    bufferForPlaybackMs = 2_500,
+                    bufferForPlaybackAfterRebufferMs = 5_000,
                     // Allow buffering past the byte budget until the minimum time threshold is
                     // met. Without this, high-bitrate remux files (e.g. 100+ Mbps UHD MKV with
                     // multiple audio tracks) exhaust the 500MB byte cap in <5s of content before
@@ -587,7 +588,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                 ).also { currentBitrateAwareLoadControl = it }
             } else {
                 // Stock LoadControl: DefaultLoadControl configured with 1.5s back buffer so 1s rewind doesn't clear buffer.
-                effectiveBackBufferDurationMs = 1_500
+                effectiveBackBufferDurationMs = 0
                 currentBitrateAwareLoadControl = null
                 Log.i(
                     PlayerRuntimeController.TAG,
@@ -595,7 +596,8 @@ internal fun PlayerRuntimeController.initializePlayer(
                             "(1.5s back buffer, no VOD cache) host=${url.safeHost()}"
                 )
                 DefaultLoadControl.Builder()
-                    .setBackBuffer(1_500, /* retainBackBufferFromKeyframe = */ true)
+                    .setBufferDurationsMs(15_000, 30_000, 2_500, 5_000)
+                    .setBackBuffer(0, /* retainBackBufferFromKeyframe = */ true)
                     .build()
             }
             _loadControl = loadControl

@@ -176,11 +176,12 @@ object StreamAutoPlaySelector {
                 }
                 playable.withIndex().maxWithOrNull(
                     compareBy<IndexedValue<Stream>>(
+                        // Provider order wins first: Movy > HdHub > Wing > MovieBox
+                        { autoPlayProviderRank(it.value.addonName) },
                         { autoPlayQualityRank(it.value) },
                         // Prefer a stream that fits the device natively over a downscaled bigger one.
                         { if (DeviceVideoCapabilities.declaredHeight(it.value) <= DeviceVideoCapabilities.get().maxDisplayHeight) 1 else 0 },
                         { if (it.value.addonName !in installedAddonNames) 1 else 0 },
-                        { autoPlayProviderRank(it.value.addonName) },
                         { -it.index }
                     )
                 )?.value

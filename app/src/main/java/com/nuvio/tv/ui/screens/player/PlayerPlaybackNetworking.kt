@@ -103,6 +103,7 @@ internal object PlayerPlaybackNetworking {
         useLongReadTimeout: Boolean = false
     ): OkHttpClient {
         val builder = playbackHttpClient.newBuilder()
+            .addInterceptor(MkvCuesInterceptor())
         if (useLongReadTimeout) {
             builder.readTimeout(LOOPBACK_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         }

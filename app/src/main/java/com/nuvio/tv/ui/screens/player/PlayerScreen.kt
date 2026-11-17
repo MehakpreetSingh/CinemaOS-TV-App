@@ -415,6 +415,9 @@ fun PlayerScreen(
             viewModel.onEvent(PlayerEvent.OnDismissSkipIntro)
         } else if (uiState.postPlayMode is PostPlayMode.StillWatching) {
             viewModel.onEvent(PlayerEvent.OnDismissStillWatchingPrompt)
+        } else if (uiState.showLoadingOverlay && hasStartedPlayback) {
+            // Still loading the link: Back leaves the player straight away.
+            exitPlayer()
         } else if (uiState.showControls) {
             viewModel.hideControls()
         } else {
@@ -611,6 +614,14 @@ fun PlayerScreen(
                 }
             }
             // If skip or next episode card is visible, their own LaunchedEffect will request focus
+        }
+    }
+
+    // While a link loads, keep the control overlay up (with the small spinner) so Sources / Back stay reachable.
+    val loadingKeepsControls = uiState.showLoadingOverlay && hasStartedPlayback && uiState.error == null
+    LaunchedEffect(loadingKeepsControls, uiState.showControls) {
+        if (loadingKeepsControls && !uiState.showControls) {
+            viewModel.onEvent(PlayerEvent.OnToggleControls)
         }
     }
 
@@ -1074,8 +1085,9 @@ fun PlayerScreen(
             !uiState.showSubtitleDelayOverlay && !uiState.showSubtitleTimingDialog &&
             !uiState.showMoreDialog &&
             !uiState.isLive
+        // Controls stay available while a link loads/buffers (small spinner only), so Sources / Back work.
         val playerControlsVisible = uiState.showControls && uiState.error == null &&
-            !uiState.showLoadingOverlay && !uiState.showPauseOverlay &&
+            (!uiState.showLoadingOverlay || hasStartedPlayback) && !uiState.showPauseOverlay &&
             !uiState.showStreamInfoOverlay &&
             !uiState.showSubtitleStylePanel &&
             !uiState.showSubtitleDelayOverlay &&

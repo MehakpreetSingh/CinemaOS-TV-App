@@ -70,17 +70,35 @@ class NativeCinemaScrapers @Inject constructor(private val http: CinemaHttp) {
                 }
             }
         } else {
+            // Movy and HdHub outrank Wing and MovieBox: the lower tier still runs in parallel, but its results
+            // are held back (at most PRIORITY_WAIT_MS) until Movy and HdHub have finished, so a fast MovieBox
+            // can't win auto-play over HdHub.
+            val priorityScrapers = only.filter { it.id.isPriorityTier() }
+            val pending = java.util.concurrent.atomic.AtomicInteger(priorityScrapers.size)
+            val priorityDone = kotlinx.coroutines.CompletableDeferred<Unit>()
+            if (priorityScrapers.isEmpty()) priorityDone.complete(Unit)
             only.forEachIndexed { index, scraper ->
                 launch {
                     if (index > 0) delay(index * 30L)
-                    val results = run(scraper)
-                    if (results.isNotEmpty()) send(scraper to results)
+                    val isPriority = scraper.id.isPriorityTier()
+                    val results = try {
+                        run(scraper)
+                    } finally {
+                        if (isPriority && pending.decrementAndGet() <= 0) priorityDone.complete(Unit)
+                    }
+                    if (results.isEmpty()) return@launch
+                    if (!isPriority) withTimeoutOrNull(PRIORITY_WAIT_MS) { priorityDone.await() }
+                    send(scraper to results)
                 }
             }
         }
     }
 
+    private fun String.isPriorityTier(): Boolean =
+        contains("movy", true) || contains("hdhub", true)
+
     private companion object {
         const val TAG = "NativeCinemaScrapers"
+        const val PRIORITY_WAIT_MS = 7_000L
     }
 }
