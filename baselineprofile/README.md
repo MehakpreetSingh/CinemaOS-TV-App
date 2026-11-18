@@ -1,6 +1,6 @@
 # Baseline profiles & frame-metric guard-rails
 
-This module holds the macrobenchmark code of the NuvioTV TV app:
+This module holds the macrobenchmark code of the CinemaOS TV app:
 
 | class | purpose |
 | --- | --- |

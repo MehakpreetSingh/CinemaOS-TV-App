@@ -1,32 +1,37 @@
-<div align="center">
+# CinemaOS (Android TV App)
 
-  <img src="assets/brand/app_logo_wordmark.png" alt="Nuvio" width="300" />
+CinemaOS for Android TV is a free app for watching movies, TV shows and anime on your television, designed for remote-control navigation. It ships with built-in sources, so there is nothing to configure before you start watching.
 
-  <p>
-    A free, open-source media app for your phone, your desktop, and the TV you already own.
-    <br />
-    Bring your own sources. Nuvio turns them into a library with artwork, ratings, subtitles, and your place saved on every screen.
-  </p>
+## Features
 
-  [Website](https://nuvio.tv) · [GitHub releases](https://github.com/NuvioMedia/NuvioTV/releases/latest) · [Support Nuvio](https://nuvio.tv/support)
+- Movies, shows and anime with a TV-friendly home screen and website-style episode lists.
+- Built-in sources with provider-priority autoplay and size-aware fallback on slow links.
+- Player with tuned buffering, a gradient loader, skip intro/segments and CinemaOS player icons.
+- CinemaOS account sync: sign in by scanning a QR code (or via the website) to share watch history and watchlist with [cinemaos.tech](https://cinemaos.tech); anime progress syncs via Kitsu.
+- In-app updates delivered from this repository's GitHub Releases.
 
-</div>
+## Install
 
-## Get Nuvio TV
+1. Open the [Releases](../../releases) page of this repository.
+2. Download the latest APK (arm64-v8a for most TV boxes and sticks; the universal APK works everywhere).
+3. Sideload it on your Android TV, for example with a USB drive, a file manager app or `adb install`.
 
-- [Android TV on Google Play](https://play.google.com/store/apps/details?id=com.nuvio.app)
-- [Android TV APK](https://github.com/NuvioMedia/NuvioTV/releases/latest)
+After the first install, the app notifies you when a new release is available.
 
-## Build from source
+## Building
 
-```bash
-git clone https://github.com/NuvioMedia/NuvioTV.git
-cd NuvioTV
-./gradlew :app:assembleFullDebug
-```
+APKs are built by the manual GitHub Actions workflow [`build-apk.yml`](.github/workflows/build-apk.yml):
 
-Nuvio TV is built with Kotlin, Jetpack Compose, TV Material 3, and Media3. Development requires Android Studio, a JDK, and the Android SDK.
+1. Add a `TMDB_API_KEY` repository secret (Settings, Secrets and variables, Actions).
+2. Open the Actions tab, choose **Build APK** and click **Run workflow** on the `cinemaos` branch.
+3. Download the universal and per-ABI APKs from the workflow artifacts or release.
+
+The app is built with Kotlin, Jetpack Compose, TV Material 3 and Media3.
+
+## Credits
+
+CinemaOS is based on the open-source [Nuvio](https://github.com/NuvioMedia/NuvioTV) project. Thanks to its authors and contributors.
 
 ## License
 
-[GNU General Public License v3.0](./LICENSE)
+[GNU General Public License v3.0](./LICENSE). Original copyright and attribution notices are retained as required by the license.
