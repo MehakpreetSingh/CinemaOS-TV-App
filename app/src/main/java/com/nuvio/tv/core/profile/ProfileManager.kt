@@ -45,6 +45,13 @@ class ProfileManager @Inject constructor(
     val rememberLastProfileEnabled: StateFlow<Boolean> = profileDataStore.rememberLastProfileEnabled
         .stateIn(scope, SharingStarted.Eagerly, false)
 
+    val askBeforeExit: StateFlow<Boolean> = profileDataStore.askBeforeExit
+        .stateIn(scope, SharingStarted.Eagerly, true)
+
+    suspend fun setAskBeforeExit(enabled: Boolean) {
+        profileDataStore.setAskBeforeExit(enabled)
+    }
+
     val confirmExitEnabled: StateFlow<Boolean> = profileDataStore.confirmExitEnabled
         .stateIn(scope, SharingStarted.Eagerly, false)
 

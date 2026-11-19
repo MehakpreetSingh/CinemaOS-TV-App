@@ -78,6 +78,10 @@ data class PlayerUiState(
     val currentStreamDescription: String? = null, // Description of the currently playing stream
     val backdrop: String? = null,
     val logo: String? = null,
+    val introGenres: List<String> = emptyList(),
+    val introRuntime: String? = null,
+    val introRating: Float? = null,
+    val introYear: String? = null,
     val description: String? = null,
     val castMembers: List<MetaCastMember> = emptyList(),
     val showControls: Boolean = true,

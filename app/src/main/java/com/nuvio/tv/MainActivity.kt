@@ -1166,7 +1166,7 @@ open class MainActivity : ComponentActivity() {
                                 DrawerItem(
                                     route = Screen.Anime.route,
                                     label = strNavAnime,
-                                    icon = Icons.Default.Tv
+                                    icon = com.nuvio.tv.ui.components.AnimeIcon
                                 )
                             )
                             add(
@@ -1212,18 +1212,31 @@ open class MainActivity : ComponentActivity() {
                             backPressedOnce = false
                         }
                     }
+                    val askBeforeExit by profileManager.askBeforeExit.collectAsState()
+                    var showExitDialog by remember { mutableStateOf(false) }
+                    val exitNow: () -> Unit = {
+                        finishAffinity()
+                        finishAndRemoveTask()
+                        if (confirmExitEnabled) {
+                            // Kill the process to free RAM on low-memory devices.
+                            android.os.Process.killProcess(android.os.Process.myPid())
+                        }
+                    }
                     val handleExitApp: () -> Unit = {
-                        if (!confirmExitEnabled || backPressedOnce) {
-                            finishAffinity()
-                            finishAndRemoveTask()
-                            if (confirmExitEnabled) {
-                                // Kill the process to free RAM on low-memory devices.
-                                android.os.Process.killProcess(android.os.Process.myPid())
-                            }
+                        if (askBeforeExit) {
+                            showExitDialog = true
+                        } else if (!confirmExitEnabled || backPressedOnce) {
+                            exitNow()
                         } else {
                             backPressedOnce = true
                             Toast.makeText(this@MainActivity, getString(R.string.confirm_exit_toast), Toast.LENGTH_SHORT).show()
                         }
+                    }
+                    if (showExitDialog) {
+                        com.nuvio.tv.ui.components.ExitConfirmDialog(
+                            onExit = { showExitDialog = false; exitNow() },
+                            onDismiss = { showExitDialog = false },
+                        )
                     }
 
                     val updateViewModel: UpdateViewModel = hiltViewModel(this@MainActivity)

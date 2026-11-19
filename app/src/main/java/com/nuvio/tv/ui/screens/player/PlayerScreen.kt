@@ -1592,9 +1592,14 @@ fun PlayerScreen(
         )
         PlaybackTitleOverlay(
             title = uiState.contentName ?: uiState.title,
-            episode = uiState.currentEpisodeTitle,
+            episode = if (uiState.currentSeason != null && uiState.currentEpisode != null)
+                "S${uiState.currentSeason} E${uiState.currentEpisode}${uiState.currentEpisodeTitle?.let { " · $it" }.orEmpty()}"
+            else uiState.currentEpisodeTitle,
             visible = introVisible,
-            modifier = Modifier.align(Alignment.TopStart).padding(start = 40.dp, top = 32.dp),
+            logoUrl = uiState.logo,
+            metaLine = playbackTitleMetaLine(uiState.introYear ?: uiState.releaseYear, uiState.introGenres, uiState.introRuntime),
+            rating = uiState.introRating,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 48.dp, top = 44.dp),
         )
 
         // Parental guide overlay (shows when video first starts playing)

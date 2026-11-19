@@ -73,6 +73,10 @@ internal fun PlayerRuntimeController.applyMetaDetails(meta: Meta) {
         state.copy(
             description = description ?: state.description,
             castMembers = if (meta.castMembers.isNotEmpty()) meta.castMembers else state.castMembers,
+            introGenres = meta.genres,
+            introRuntime = meta.runtime,
+            introRating = meta.imdbRating,
+            introYear = meta.releaseInfo,
             isNextEpisodeMetadataResolved = true
         )
     }

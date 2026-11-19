@@ -530,6 +530,18 @@ fun AdvancedSettingsContent(
                     }
                 )
 
+                val askBeforeExit by profileManager.askBeforeExit.collectAsState()
+                SettingsToggleRow(
+                    title = stringResource(R.string.advanced_ask_before_exit),
+                    subtitle = stringResource(R.string.advanced_ask_before_exit_subtitle),
+                    checked = askBeforeExit,
+                    onToggle = {
+                        scope.launch {
+                            profileManager.setAskBeforeExit(!askBeforeExit)
+                        }
+                    }
+                )
+
                 val confirmExitEnabled by profileManager.confirmExitEnabled.collectAsState()
                 SettingsToggleRow(
                     title = stringResource(R.string.advanced_confirm_exit),
