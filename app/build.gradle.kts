@@ -606,6 +606,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("com.squareup.okhttp3:mockwebserver:5.3.2")
     testImplementation("org.robolectric:robolectric:4.16")
+    testImplementation("org.conscrypt:conscrypt-openjdk-uber:2.5.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
@@ -613,4 +614,9 @@ dependencies {
 // Preserve the failure cause in CI logs when a device-independent regression fails.
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     testLogging.exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+}
+
+// The Android TLS provider has device JNI libraries; Robolectric needs the JVM provider.
+configurations.matching { it.name.contains("UnitTest", ignoreCase = true) }.configureEach {
+    exclude(group = "org.conscrypt", module = "conscrypt-android")
 }
