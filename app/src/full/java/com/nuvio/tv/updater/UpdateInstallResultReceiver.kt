@@ -14,7 +14,8 @@ private const val TAG = "UpdateInstall"
 /**
  * Receives the outcome of an update install session. A confirmation request is shown only for installs the user
  * started; a background install that still needs confirmation is dropped and the downloaded APK waits for the banner.
- * A failed session is retried without dex metadata, then falls back to the system installer screen.
+ * A failed session is retried without dex metadata, then falls back to the system installer screen. A session the
+ * user declined, or that was abandoned on purpose, is left alone so the user is not asked again.
  */
 class UpdateInstallResultReceiver : BroadcastReceiver() {
 
@@ -43,54 +44,8 @@ class UpdateInstallResultReceiver : BroadcastReceiver() {
                     }
                 }
             }
-            // A cancellation is final; do not open two more installer prompts.
-            PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
-            else -> retryAfterFailure(context, apkFile, background, withDexMetadata)
-        }
-    }
-
-    private fun retryAfterFailure(context: Context, apkFile: File?, background: Boolean, withDexMetadata: Boolean) {
-        if (apkFile == null || !apkFile.exists()) return
-        runCatching {
-            when {
-                withDexMetadata -> ApkInstaller.install(context, apkFile, background, withDexMetadata = false)
-                !background -> ApkInstaller.launchSystemInstaller(context, apkFile)
+            PackageInstaller.STATUS_FAILURE_ABORTED -> UpdateRelaunchReceiver.cancelReopen(context)
+            else -> {
+                UpdateRelaunchReceiver.cancelReopen(context)
+                retryAfterFailure(context, apkFile, background, withDexMetadata)
             }
-        }.onFailure { Log.w(TAG, "Update install retry failed", it) }
-    }
-
-    private fun confirmationIntent(intent: Intent): Intent? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent::class.java)
-        } else {
-            @Suppress("DEPRECATION")
-            intent.getParcelableExtra(Intent.EXTRA_INTENT)
-        }
-
-    companion object {
-        private const val EXTRA_APK_PATH = "com.nuvio.tv.updater.APK_PATH"
-        private const val EXTRA_BACKGROUND = "com.nuvio.tv.updater.BACKGROUND"
-        private const val EXTRA_WITH_DEX_METADATA = "com.nuvio.tv.updater.WITH_DEX_METADATA"
-
-        fun statusReceiver(
-            context: Context,
-            sessionId: Int,
-            apkFile: File,
-            background: Boolean,
-            withDexMetadata: Boolean
-        ): PendingIntent {
-            val intent = Intent(context, UpdateInstallResultReceiver::class.java)
-                .putExtra(EXTRA_APK_PATH, apkFile.absolutePath)
-                .putExtra(EXTRA_BACKGROUND, background)
-                .putExtra(EXTRA_WITH_DEX_METADATA, withDexMetadata)
-            // The installer adds the status extras, so the intent has to stay mutable.
-            val mutableFlag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            return PendingIntent.getBroadcast(
-                context,
-                sessionId,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag
-            )
-        }
-    }
-}
