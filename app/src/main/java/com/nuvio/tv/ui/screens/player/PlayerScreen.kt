@@ -1603,7 +1603,13 @@ fun PlayerScreen(
         )
 
         // Parental guide overlay (shows when video first starts playing)
-        ParentalGuideOverlay(
+        // As in the React Native player: showing the controls ends the warnings for this title.
+        LaunchedEffect(uiState.showControls) {
+            if (uiState.showControls && uiState.showParentalGuide && introComplete) {
+                viewModel.onEvent(PlayerEvent.OnParentalGuideHide)
+            }
+        }
+        if (!uiState.showControls) ParentalGuideOverlay(
             warnings = uiState.parentalWarnings,
             isVisible = uiState.showParentalGuide && introComplete,
             onAnimationComplete = {
