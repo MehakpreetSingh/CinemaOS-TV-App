@@ -1786,7 +1786,7 @@
     <string name="addon_install_btn">Instalar</string>
     <string name="addon_install_success">"%1$s" instalada</string>
     <string name="addon_tracking_consent_title">Extensão de acompanhamento</string>
-    <string name="addon_tracking_consent_body">O %1$s é uma extensão de acompanhamento. O Nuvio irá enviar-lhe a tua atividade: o que reproduzes, pausas e paras com a posição de reprodução, o que adicionas ou removes da tua biblioteca, e o que marcaste como visto ou por ver. Estes dados saem do Nuvio e são geridos pelo programador da extensão e pelo serviço a que se liga.</string>
+    <string name="addon_tracking_consent_body">O %1$s é uma extensão de acompanhamento. O CinemaOS irá enviar-lhe a tua atividade: o que reproduzes, pausas e paras com a posição de reprodução, o que adicionas ou removes da tua biblioteca, e o que marcaste como visto ou por ver. Estes dados saem do CinemaOS e são geridos pelo programador da extensão e pelo serviço a que se liga.</string>
     <string name="addon_tracking_consent_checkbox">Concordo em partilhar a minha atividade de visualização e biblioteca com esta extensão</string>
     <string name="addon_tracking_consent_checked">Marcado</string>
     <string name="addon_tracking_consent_unchecked">Não marcado</string>

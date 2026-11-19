@@ -3503,7 +3503,7 @@
     <string name="about_update_optimize_install_subtitle">Rýchlejšie prvé spustenie po aktualizácii, ale aplikácia sa počas inštalácie na približne minútu zatvorí. Vypnite, ak chcete radšej použiť inštalačnú obrazovku systému Android</string>
     <string name="sub_outline_width">Šírka obrysu</string>
     <string name="addon_tracking_consent_title">Doplnok na sledovanie</string>
-    <string name="addon_tracking_consent_body">%1$s je doplnok na sledovanie. Nuvio mu bude odosielať vašu aktivitu: čo prehrávate, pozastavíte a zastavíte s pozíciou prehrávania, čo pridáte do knižnice alebo z nej odstránite, a čo označíte ako pozreté alebo nepozreté. Tieto údaje opúšťajú Nuvio a spracúva ich vývojár doplnku a služba, ku ktorej sa pripája.</string>
+    <string name="addon_tracking_consent_body">%1$s je doplnok na sledovanie. CinemaOS mu bude odosielať vašu aktivitu: čo prehrávate, pozastavíte a zastavíte s pozíciou prehrávania, čo pridáte do knižnice alebo z nej odstránite, a čo označíte ako pozreté alebo nepozreté. Tieto údaje opúšťajú CinemaOS a spracúva ich vývojár doplnku a služba, ku ktorej sa pripája.</string>
     <string name="addon_tracking_consent_checkbox">Súhlasím so zdieľaním aktivity sledovania a knižnice s týmto doplnkom</string>
     <string name="addon_tracking_consent_checked">Začiarknuté</string>
     <string name="addon_tracking_consent_unchecked">Nezačiarknuté</string>

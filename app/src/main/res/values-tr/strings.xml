@@ -1798,7 +1798,7 @@
     <string name="addon_install_success">%1$s kuruldu</string>
     <string name="addon_error_invalid_url">Geçerli bir eklenti URL\'si girin</string>
     <string name="addon_tracking_consent_title">İzleme verisi toplayan eklenti</string>
-    <string name="addon_tracking_consent_body">%1$s bir izleme verisi toplayan eklentidir. Nuvio, oynattıklarınızı, duraklattıklarınızı ve konumuyla birlikte durdurduklarınızı, kitaplığınıza eklediğiniz veya kaldırdığınız içerikleri ve izlediniz veya izlemediniz olarak işaretlediklerinizi bu eklentiye gönderir. Bu veriler Nuvio\'dan çıkar ve eklenti geliştiricisi ile bağlandığı hizmet tarafından işlenir.</string>
+    <string name="addon_tracking_consent_body">%1$s bir izleme verisi toplayan eklentidir. CinemaOS, oynattıklarınızı, duraklattıklarınızı ve konumuyla birlikte durdurduklarınızı, kitaplığınıza eklediğiniz veya kaldırdığınız içerikleri ve izlediniz veya izlemediniz olarak işaretlediklerinizi bu eklentiye gönderir. Bu veriler CinemaOS\'dan çıkar ve eklenti geliştiricisi ile bağlandığı hizmet tarafından işlenir.</string>
     <string name="addon_tracking_consent_checkbox">İzleme etkinliğimi ve kitaplığımı bu eklentiyle paylaşmayı kabul ediyorum</string>
     <string name="addon_tracking_consent_checked">İşaretli</string>
     <string name="addon_tracking_consent_unchecked">İşaretsiz</string>

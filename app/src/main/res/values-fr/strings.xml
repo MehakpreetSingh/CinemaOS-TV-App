@@ -1791,7 +1791,7 @@
     <string name="addon_install_btn">Installer</string>
     <string name="addon_install_success">%1$s installé</string>
     <string name="addon_tracking_consent_title">Addon de suivi</string>
-    <string name="addon_tracking_consent_body">%1$s est un addon de suivi. Nuvio lui enverra votre activité&#160;: ce que vous lancez, mettez en pause et arrêtez avec la position de lecture, ce que vous ajoutez à votre bibliothèque ou en retirez, et ce que vous marquez comme vu ou non vu. Ces données quittent Nuvio et sont traitées par le développeur de l’addon et par le service auquel il se connecte.</string>
+    <string name="addon_tracking_consent_body">%1$s est un addon de suivi. CinemaOS lui enverra votre activité&#160;: ce que vous lancez, mettez en pause et arrêtez avec la position de lecture, ce que vous ajoutez à votre bibliothèque ou en retirez, et ce que vous marquez comme vu ou non vu. Ces données quittent CinemaOS et sont traitées par le développeur de l’addon et par le service auquel il se connecte.</string>
     <string name="addon_tracking_consent_checkbox">J’accepte de partager mon activité de visionnage et ma bibliothèque avec cet addon</string>
     <string name="addon_tracking_consent_checked">Coché</string>
     <string name="addon_tracking_consent_unchecked">Non coché</string>
