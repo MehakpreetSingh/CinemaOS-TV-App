@@ -51,6 +51,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Tv
+import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1116,6 +1117,7 @@ open class MainActivity : ComponentActivity() {
                         buildSet {
                             add(Screen.Home.route)
                             add(Screen.Anime.route)
+                            add(Screen.Sports.route)
                             add(Screen.Search.route)
                             add(Screen.Library.route)
                             add(Screen.Settings.route)
@@ -1128,6 +1130,7 @@ open class MainActivity : ComponentActivity() {
                     val strNavHome = stringResource(R.string.nav_home)
                     val strNavDiscover = stringResource(R.string.nav_discover)
                     val strNavAnime = stringResource(R.string.nav_anime)
+                    val strNavSports = stringResource(R.string.nav_sports)
                     val strNavSearch = stringResource(R.string.nav_search)
                     val strNavLibrary = stringResource(R.string.nav_library)
                     val strNavSettings = stringResource(R.string.nav_settings)
@@ -1135,6 +1138,7 @@ open class MainActivity : ComponentActivity() {
                         strNavHome,
                         strNavDiscover,
                         strNavAnime,
+                        strNavSports,
                         strNavSearch,
                         strNavLibrary,
                         strNavSettings,
@@ -1162,6 +1166,13 @@ open class MainActivity : ComponentActivity() {
                                     route = Screen.Anime.route,
                                     label = strNavAnime,
                                     icon = Icons.Default.Tv
+                                )
+                            )
+                            add(
+                                DrawerItem(
+                                    route = Screen.Sports.route,
+                                    label = strNavSports,
+                                    icon = Icons.Default.SportsSoccer
                                 )
                             )
                             add(

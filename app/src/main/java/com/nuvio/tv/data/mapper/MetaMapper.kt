@@ -29,7 +29,7 @@ fun MetaDto.toDomain(episodeLabel: String = "Episode"): Meta {
         poster = poster,
         posterShape = PosterShape.fromString(posterShape),
         background = background,
-        logo = logo,
+        logo = com.nuvio.tv.domain.model.SportsAddon.sanitizeMetaLogo(logo),
         imdbId = imdbId,
         slug = slug,
         released = released,
@@ -69,7 +69,15 @@ fun MetaDto.toDomain(episodeLabel: String = "Episode"): Meta {
         hasLinks = hasLinks,
         hasVideos = hasVideos,
         seasonPosters = mapSeasonPosters(appExtras, videoList)
-    )
+    ).let { meta ->
+        // Built-in Sports addon items carry the provider's name and logo; strip them here so
+        // every screen reading Meta shows neutral branding.
+        if (com.nuvio.tv.domain.model.SportsAddon.isSportsItemId(meta.id)) {
+            com.nuvio.tv.domain.model.SportsAddon.scrub(meta)
+        } else {
+            meta
+        }
+    }
 }
 
 fun VideoDto.toDomain(episodeLabel: String = "Episode"): Video {

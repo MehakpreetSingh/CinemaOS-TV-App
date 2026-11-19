@@ -178,6 +178,7 @@ class MetaRepositoryPreferredAddonTypeTest {
         }
         val addonRepository = mockk<AddonRepository>(relaxed = true) {
             every { getInstalledAddons() } returns addonsFlow
+            every { getPlaybackAddons() } returns addonsFlow
         }
         return MetaRepositoryImpl(context = context, api = api, addonRepository = addonRepository, serverCatalog = mockk(relaxed = true))
     }

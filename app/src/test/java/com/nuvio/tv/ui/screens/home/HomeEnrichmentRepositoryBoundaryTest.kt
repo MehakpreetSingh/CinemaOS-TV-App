@@ -110,6 +110,7 @@ class HomeEnrichmentRepositoryBoundaryTest {
         }
         val addonRepository = mockk<AddonRepository>(relaxed = true) {
             every { getInstalledAddons() } returns flowOf(listOf(metaAddon()))
+            every { getPlaybackAddons() } returns flowOf(listOf(metaAddon()))
         }
         return MetaRepositoryImpl(context = context, api = api, addonRepository = addonRepository, serverCatalog = mockk(relaxed = true))
     }

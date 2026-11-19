@@ -201,7 +201,7 @@ class StreamRepositoryImpl @Inject constructor(
     private suspend fun captureSourceConfiguration(): StreamSourceConfigurationSnapshot {
         while (true) {
             val profileId = profileManager.activeProfileId.value
-            val addons = addonRepository.getInstalledAddons().first().enabledAddons()
+            val addons = addonRepository.getPlaybackAddons().first().enabledAddons()
             pluginManager.ensureDefaultRepositories()
             val pluginsEnabled = pluginManager.pluginsEnabled.first()
             val enabledScrapers = if (pluginsEnabled) pluginManager.enabledScrapers.first() else emptyList()
@@ -822,8 +822,16 @@ class StreamRepositoryImpl @Inject constructor(
 
         return when (val result = safeApiCall(context) { api.getStreams(streamUrl) }) {
             is NetworkResult.Success -> {
-                val streams = result.data.streams?.map { 
-                    it.toDomain(addonName, addonLogo) 
+                val isSports = com.nuvio.tv.domain.model.SportsAddon.isSportsAddon(addon)
+                val streams = result.data.streams?.mapNotNull {
+                    val stream = it.toDomain(addonName, addonLogo)
+                    when {
+                        !isSports -> stream
+                        // Built-in Sports addon: drop "Support Us"/donation/site links, and show
+                        // no provider name/logo on the remaining stream rows.
+                        com.nuvio.tv.domain.model.SportsAddon.isNonMediaStream(stream) -> null
+                        else -> com.nuvio.tv.domain.model.SportsAddon.scrub(stream)
+                    }
                 } ?: emptyList()
                 Log.d(TAG, "Streams success addon=$addonName count=${streams.size} url=$streamUrl")
                 NetworkResult.Success(streams)

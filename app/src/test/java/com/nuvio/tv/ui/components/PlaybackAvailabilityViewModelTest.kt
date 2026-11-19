@@ -51,6 +51,7 @@ class PlaybackAvailabilityViewModelTest {
             val pluginDataStore = mockk<PluginDataStore>()
             val metaRepository = mockk<MetaRepository>()
             every { addonRepository.getInstalledAddons() } returns addons
+            every { addonRepository.getPlaybackAddons() } returns addons
             every { pluginDataStore.scrapers } returns scrapers
             every { pluginDataStore.pluginsEnabled } returns pluginsEnabled
             every { metaRepository.getCachedMeta(any(), any()) } returns null

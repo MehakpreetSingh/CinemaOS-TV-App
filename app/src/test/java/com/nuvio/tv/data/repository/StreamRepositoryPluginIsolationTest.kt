@@ -288,6 +288,7 @@ class StreamRepositoryPluginIsolationTest {
 
         val addonRepository = mockk<AddonRepository>()
         every { addonRepository.getInstalledAddons() } returns flowOf(listOf(addon))
+        every { addonRepository.getPlaybackAddons() } returns flowOf(listOf(addon))
         coEvery { addonRepository.fetchAddon(addon.baseUrl) } returns NetworkResult.Success(addon)
 
         val pluginManager = mockk<PluginManager>(relaxed = true)

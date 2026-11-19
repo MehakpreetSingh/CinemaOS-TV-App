@@ -541,7 +541,7 @@ class StreamScreenViewModel @Inject constructor(
             val installedAddons = if (isNativeServerRequest) {
                 emptyList()
             } else {
-                addonRepository.getInstalledAddons().first().enabledAddons()
+                addonRepository.getPlaybackAddons().first().enabledAddons()
             }
             val installedAddonOrder = installedAddons.map { it.displayName }
             autoPlayInstalledAddonNames = installedAddonOrder.toSet()

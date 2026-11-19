@@ -136,7 +136,10 @@ internal fun HomeViewModel.observeInstalledAddonsPipeline() {
     viewModelScope.launch {
         combine(addonRepository.getInstalledAddons(), serverCatalog.addons) { installed, servers ->
             // Anime Kitsu catalogs live on the Anime tab only; Home stays movies/TV.
+            // Sports catalogs belong to the Sports tab only (the repository already excludes the
+            // built-in Sports addon; this is a second guard by manifest id / URL).
             val enabled = installed.enabledAddons()
+                .filterNot { com.nuvio.tv.domain.model.SportsAddon.isSportsAddon(it) }
             if (animeMode) enabled.filter { it.isAnimeKitsuAddon() }
             else enabled.filterNot { it.isAnimeKitsuAddon() } + servers
         }

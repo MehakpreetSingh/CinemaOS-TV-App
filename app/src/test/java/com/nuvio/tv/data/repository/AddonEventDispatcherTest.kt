@@ -163,6 +163,7 @@ class AddonEventDispatcherTest {
 
     private fun repositoryWith(vararg addons: Addon): AddonRepository = mockk<AddonRepository>().also { repository ->
         every { repository.getInstalledAddons() } returns flowOf(addons.toList())
+        every { repository.getPlaybackAddons() } returns flowOf(addons.toList())
     }
 
     private fun trackingAddon(

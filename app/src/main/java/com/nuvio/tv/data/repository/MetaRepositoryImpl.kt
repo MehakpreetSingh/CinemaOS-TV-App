@@ -613,7 +613,7 @@ class MetaRepositoryImpl @Inject constructor(
      */
     private suspend fun installedAddonsOrEmpty(): List<Addon> =
         withTimeoutOrNull(INSTALLED_ADDONS_WAIT_MS) {
-            addonRepository.getInstalledAddons().filter { it.isNotEmpty() }.firstOrNull()
+            addonRepository.getPlaybackAddons().filter { it.isNotEmpty() }.firstOrNull()
         }.orEmpty().enabledAddons()
 
     /** The installed, enabled addon at [baseUrl], if it is still installed. */

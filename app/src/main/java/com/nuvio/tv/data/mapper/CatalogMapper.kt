@@ -17,7 +17,7 @@ fun MetaPreviewDto.toDomainOrNull(catalogType: String, sourceAddonBaseUrl: Strin
         poster = poster,
         posterShape = PosterShape.fromString(posterShape),
         background = background,
-        logo = logo,
+        logo = com.nuvio.tv.domain.model.SportsAddon.sanitizeMetaLogo(logo),
         description = description,
         releaseInfo = releaseInfo,
         imdbRating = imdbRating?.toFloatOrNull(),
@@ -37,5 +37,13 @@ fun MetaPreviewDto.toDomainOrNull(catalogType: String, sourceAddonBaseUrl: Strin
         trailers = mapTrailers(trailers, trailerStreams),
         trailerYtIds = collectTrailerYtIds(trailers, trailerStreams),
         sourceAddonBaseUrl = sourceAddonBaseUrl
-    )
+    ).let { preview ->
+        if (com.nuvio.tv.domain.model.SportsAddon.isSportsItemId(preview.id) ||
+            com.nuvio.tv.domain.model.SportsAddon.isSportsAddonUrl(sourceAddonBaseUrl)
+        ) {
+            com.nuvio.tv.domain.model.SportsAddon.scrub(preview)
+        } else {
+            preview
+        }
+    }
 }

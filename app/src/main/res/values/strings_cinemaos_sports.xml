@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="nav_sports">Sports</string>
+    <string name="sports_title">Sports</string>
+    <string name="sports_filter_all">All</string>
+    <string name="sports_row_live">🔴 Live Now</string>
+    <string name="sports_row_upcoming">⏱️ Upcoming</string>
+    <string name="sports_row_networks">📺 24/7 TV</string>
+    <string name="sports_row_replays">⏪ Replays</string>
+    <string name="sports_live_badge">LIVE</string>
+    <string name="sports_loading">Loading sports…</string>
+    <string name="sports_empty_title">Nothing on right now</string>
+    <string name="sports_empty_subtitle">No live or upcoming events were found. Check back soon.</string>
+    <string name="sports_error_unavailable">Sports are unavailable right now. Check your connection and try again.</string>
+    <string name="sports_row_error">Couldn\'t load this row</string>
+</resources>

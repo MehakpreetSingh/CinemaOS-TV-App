@@ -10,6 +10,7 @@ import com.nuvio.tv.data.local.AddonPreferences
 import com.nuvio.tv.data.mapper.toDomain
 import com.nuvio.tv.data.remote.api.AddonApi
 import com.nuvio.tv.domain.model.Addon
+import com.nuvio.tv.domain.model.SportsAddon
 import com.nuvio.tv.domain.repository.AddonRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,6 +25,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -230,7 +233,11 @@ class AddonRepositoryImpl(
             preferences.userSetNames,
             preferences.addonEnabledStates,
             manifestCacheRevision
-        ) { urls, names, enabledStates, _ -> Triple(urls, names, enabledStates) }
+        ) { urls, names, enabledStates, _ ->
+            // The built-in Sports addon is never part of the user's list, even if its URL was
+            // added by hand or synced from another device; it is served by getPlaybackAddons.
+            Triple(urls.filterNot { SportsAddon.isSportsAddonUrl(it) }, names, enabledStates)
+        }
         .flatMapLatest { (urls, userNames, enabledStates) ->
             flow {
                 if (urls.isEmpty()) {
@@ -291,7 +298,33 @@ class AddonRepositoryImpl(
                 }
             }.flowOn(dispatcher)
         }
+        // Second guard, by manifest id: a mirror URL of the Sports addon must not leak its
+        // catalogs into Home/Discover/Search either.
+        .map { addons -> addons.filterNot { SportsAddon.isSportsAddon(it) } }
         .stateIn(syncScope, SharingStarted.Eagerly, emptyList<Addon>())
+
+    /** The built-in Sports addon from the shared manifest cache, without its own branding. */
+    private val sportsAddonFlow: kotlinx.coroutines.flow.StateFlow<Addon?> =
+        manifestCacheRevision
+            .map { getCachedManifest(canonicalizeUrl(SportsAddon.MANIFEST_URL))?.let(SportsAddon::brandNeutral) }
+            .distinctUntilChanged()
+            .flowOn(dispatcher)
+            .stateIn(syncScope, SharingStarted.Eagerly, null)
+
+    private val playbackAddonsFlow: kotlinx.coroutines.flow.StateFlow<List<Addon>> =
+        combine(installedAddonsFlow, sportsAddonFlow) { installed, sports ->
+            if (sports == null) installed else installed + sports
+        }.stateIn(syncScope, SharingStarted.Eagerly, emptyList())
+
+    init {
+        // Built-in addon: refresh its manifest once per process through the normal manifest
+        // client/cache. A failure leaves the disk-cached manifest (if any) in place.
+        syncScope.launch { fetchAddon(SportsAddon.MANIFEST_URL) }
+    }
+
+    override fun getPlaybackAddons(): Flow<List<Addon>> = playbackAddonsFlow
+
+    override fun getSportsAddon(): Flow<Addon?> = sportsAddonFlow
 
     override suspend fun seedDefaultAddonsOnce() = preferences.seedDefaultAddonsOnce()
 
@@ -306,7 +339,11 @@ class AddonRepositoryImpl(
 
         return when (val result = safeApiCall(context) { api.getManifest(manifestUrl) }) {
             is NetworkResult.Success -> {
-                val addon = result.data.toDomain(cleanBaseUrl)
+                // The built-in Sports addon is stored without its own name/logo, so anything that
+                // reads it from the cache shows the neutral CinemaOS label instead.
+                val addon = result.data.toDomain(cleanBaseUrl).let {
+                    if (SportsAddon.isSportsAddon(it)) SportsAddon.brandNeutral(it) else it
+                }
                 if (putCachedManifestIfChanged(cleanBaseUrl, addon)) {
                     Log.d(TAG, "Updated addon manifest cache url=$cleanBaseUrl version=${addon.version} configVersion=${addon.configVersion}")
                 }

@@ -27,6 +27,7 @@ class ServerCatalogTest {
     }
     private val addonRepository = mockk<AddonRepository> {
         every { getInstalledAddons() } returns installedAddons
+        every { getPlaybackAddons() } returns installedAddons
     }
 
     private fun catalog(

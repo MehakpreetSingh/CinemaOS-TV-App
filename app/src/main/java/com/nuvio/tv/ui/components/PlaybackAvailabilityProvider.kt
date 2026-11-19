@@ -50,7 +50,7 @@ internal class PlaybackAvailabilityViewModel @Inject constructor(
     }
 
     val availability = combine(
-        addonRepository.getInstalledAddons(),
+        addonRepository.getPlaybackAddons(),
         enabledScrapers,
         serverRepository.uiState
     ) { addons, scrapers, _ ->

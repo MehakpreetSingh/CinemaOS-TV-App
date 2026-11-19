@@ -136,7 +136,8 @@ private fun PlaybackNavHost(
 
     fun isRootRoute(route: String): Boolean =
         route == Screen.Home.route || route == Screen.Search.route || route == Screen.Library.route ||
-            route == Screen.Settings.route || route == Screen.Discover.route || route == Screen.Anime.route
+            route == Screen.Settings.route || route == Screen.Discover.route || route == Screen.Anime.route ||
+            route == Screen.Sports.route
 
     fun isPlayerToStream(from: String, to: String): Boolean {
         return from.startsWith("player/") && to.startsWith("stream/")
@@ -366,6 +367,20 @@ private fun PlaybackNavHost(
                 },
                 onNavigateToCatalogSeeAll = { catalogId, addonId, type ->
                     navController.navigate(Screen.CatalogSeeAll.createRoute(catalogId, addonId, type))
+                }
+            )
+        }
+
+        rootComposable(Screen.Sports.route, withTopInset = false) {
+            com.nuvio.tv.ui.screens.sports.SportsScreen(
+                onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
+                    navController.navigate(
+                        Screen.Detail.createRoute(
+                            itemId = itemId,
+                            itemType = itemType,
+                            addonBaseUrl = addonBaseUrl
+                        )
+                    )
                 }
             )
         }
