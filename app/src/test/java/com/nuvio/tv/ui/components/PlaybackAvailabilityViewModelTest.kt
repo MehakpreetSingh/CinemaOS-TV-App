@@ -57,7 +57,8 @@ class PlaybackAvailabilityViewModelTest {
                 pluginDataStore,
                 metaRepository,
                 serverRepository,
-                serverStreams
+                serverStreams,
+                pluginManager = mockk(relaxed = true)
             )
             viewModelStore.put("availability", viewModel)
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
