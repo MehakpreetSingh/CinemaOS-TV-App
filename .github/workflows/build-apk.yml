@@ -87,6 +87,38 @@ jobs:
             --tests '*LocalDebridServiceTest' \
             --tests '*BitrateAwareLoadControlTest' \
             --tests '*LanguageLookupCacheTest' \
+            --tests '*AddonEventDispatcherTest' \
+            --tests '*ContinueWatchingClickActionTest' \
+            --tests '*EpisodeAutoPlayLoadingTest' \
+            --tests '*HomeEnrichmentRepositoryBoundaryTest' \
+            --tests '*HomeEnrichmentRetryTest' \
+            --tests '*HomePosterWatchedTest' \
+            --tests '*LibraryRepositoryTrackingTest' \
+            --tests '*MdbListSyncEngineTest' \
+            --tests '*MdbListUserRatingsTest' \
+            --tests '*MetaMapperTest' \
+            --tests '*ModernHomeIdentityRelocationTest' \
+            --tests '*MpvSubtitleTextTest' \
+            --tests '*PlayerLetterboxMaskTest' \
+            --tests '*PlayerSubtitleUtilsMergeTest' \
+            --tests '*PlexAccountClientTest' \
+            --tests '*PlexArtworkTest' \
+            --tests '*PlexProviderTest' \
+            --tests '*ProfileSettingsPluginSyncTest' \
+            --tests '*RefusedServerTypesTest' \
+            --tests '*ServerDeviceOnlySignInTest' \
+            --tests '*ServerRepositoryTest' \
+            --tests '*ServerTokenRenewalTest' \
+            --tests '*SiloArtworkTest' \
+            --tests '*SiloProviderTest' \
+            --tests '*SimklRatingsTest' \
+            --tests '*StyledSubtitlePresenterTest' \
+            --tests '*TmdbMetadataServiceTest' \
+            --tests '*TrackingPlaybackScenariosTest' \
+            --tests '*TrackingSettingsViewModelTest' \
+            --tests '*WatchProgressMetadataRetryTest' \
+            --tests '*WatchProgressRepositoryProfileIsolationTest' \
+            --tests '*WatchProgressRepositoryProviderMarksTest' \
             --max-workers=2 --stacktrace
 
       # release build: package com.cinemaos.app, so it installs as an update over the old CinemaOS app
