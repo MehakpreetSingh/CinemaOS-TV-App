@@ -14,6 +14,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Require the CinemaOS release branch
+        run: test "$GITHUB_REF" = "refs/heads/cinemaos"
+
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -72,9 +75,21 @@ jobs:
           echo "VERSION_CODE=$((2000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           echo "VERSION_NAME=1.1.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
+      - name: Test playback, downloads, ratings and source fallback
+        run: |
+          ./gradlew :app:testFullDebugUnitTest \
+            --tests '*DirectDownloadPolicyTest' \
+            --tests '*EpisodeRatingsAlignmentTest' \
+            --tests '*AutoPlaySourceFallbackTest' \
+            --tests '*SourceFallbackHandoffTest' \
+            --tests '*LocalDebridServiceTest' \
+            --tests '*BitrateAwareLoadControlTest' \
+            --tests '*LanguageLookupCacheTest' \
+            --max-workers=2 --stacktrace
+
       # release build: package com.cinemaos.app, so it installs as an update over the old CinemaOS app
       - name: Build fullRelease APK
-        run: ./gradlew :app:assembleFullRelease -PappVersionCode=$VERSION_CODE -PappVersionName=$VERSION_NAME --stacktrace
+        run: ./gradlew :app:assembleFullRelease -PappVersionCode=$VERSION_CODE -PappVersionName=$VERSION_NAME --max-workers=2 --stacktrace
 
       # the old app's update prompt downloads the asset whose name contains "universal"
       - name: Rename APKs

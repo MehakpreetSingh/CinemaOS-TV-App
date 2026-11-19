@@ -7,8 +7,12 @@ CinemaOS for Android TV is a free app for watching movies, TV shows and anime on
 - Movies, shows and anime with a TV-friendly home screen and website-style episode lists.
 - Built-in sources with provider-priority autoplay and size-aware fallback on slow links.
 - Player with tuned buffering, a gradient loader, skip intro/segments and CinemaOS player icons.
-- CinemaOS account sync: sign in by scanning a QR code (or via the website) to share watch history and watchlist with [cinemaos.tech](https://cinemaos.tech); anime progress syncs via Kitsu.
+- CinemaOS account sync: sign in by scanning a QR code (or via the website) to share watch history and watchlist with [cinemaos.tech](https://cinemaos.me); anime progress syncs via Kitsu.
 - In-app updates delivered from this repository's GitHub Releases.
+
+## Downloads
+
+For supported direct MP4, MKV and WebM sources, open the player’s Sources panel and choose **Download playing source**. Progress, cancel/delete actions and offline playback are available in **Settings → Downloads**. Android continues transfers in the background. HLS/DASH playlists and torrents are not supported by this download path.
 
 ## Install
 
