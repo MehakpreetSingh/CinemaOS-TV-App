@@ -36,10 +36,11 @@ class AdaptiveStreamDownloadsTest {
             override fun dispatch(r: RecordedRequest): MockResponse {
                 requests += r
                 return MockResponse().setBody(when(r.path) {
-                    "/master.m3u8" -> "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=200\nhigh.m3u8\n"
-                    "/high.m3u8" -> "#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-KEY:METHOD=AES-128,URI=\"key\",IV=0x00000000000000000000000000000001\n#EXTINF:6,\nsegment.ts\n#EXT-X-ENDLIST\n"
-                    "/key" -> "0123456789abcdef"
-                    "/segment.ts" -> "offline segment"
+                    "/master.m3u8" -> return MockResponse().setResponseCode(302).setHeader("Location", "/cdn/master.m3u8")
+                    "/cdn/master.m3u8" -> "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=100\nlow.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=200\nhigh.m3u8\n"
+                    "/cdn/high.m3u8" -> "#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXT-X-KEY:METHOD=AES-128,URI=\"key\",IV=0x00000000000000000000000000000001\n#EXTINF:6,\nsegment.ts\n#EXT-X-ENDLIST\n"
+                    "/cdn/key" -> "0123456789abcdef"
+                    "/cdn/segment.ts" -> "offline segment"
                     else -> return MockResponse().setResponseCode(404)
                 })
             }
@@ -51,12 +52,12 @@ class AdaptiveStreamDownloadsTest {
             val partial = AdaptiveStreamDownloads.download(context, url, mapOf("Authorization" to "Bearer fixture"), "hls", destination) { _, _ -> }
             assertTrue(partial.renameTo(destination))
             assertTrue(requests.all { it.getHeader("Authorization") == "Bearer fixture" })
-            assertFalse(requests.any { it.path == "/low.m3u8" })
+            assertFalse(requests.any { it.path.orEmpty().endsWith("/low.m3u8") })
             server.shutdown()
             val factory = requireNotNull(AdaptiveStreamDownloads.playbackFactory(context, destination.toURI().toString()))
-            assertEquals(url, read(factory, destination.toURI().toString()).first)
-            assertEquals("offline segment", read(factory, url.replace("master.m3u8", "segment.ts")).second)
-            assertEquals("0123456789abcdef", read(factory, url.replace("master.m3u8", "key")).second)
+            assertEquals(url.replace("/master.m3u8", "/cdn/master.m3u8"), read(factory, destination.toURI().toString()).first)
+            assertEquals("offline segment", read(factory, url.replace("master.m3u8", "cdn/segment.ts")).second)
+            assertEquals("0123456789abcdef", read(factory, url.replace("master.m3u8", "cdn/key")).second)
             assertEquals(1, AdaptiveStreamDownloads.streamKeys(destination.toURI().toString()).size)
             try { read(factory, url.replace("master.m3u8", "missing.ts")); fail("Missing cache must fail") } catch (_: java.io.IOException) { }
         } finally { runCatching { server.shutdown() }; AdaptiveStreamDownloads.remove(destination); destination.delete() }

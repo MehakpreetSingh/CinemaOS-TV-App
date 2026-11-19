@@ -99,7 +99,7 @@ internal object AdaptiveStreamDownloads {
         marker.parentFile?.mkdirs()
         val http = DefaultHttpDataSource.Factory().setConnectTimeoutMs(30000).setReadTimeoutMs(30000)
             .setDefaultRequestProperties(headers.filterKeys { !it.equals("Range", true) && !it.equals("If-Range", true) })
-        fun load(uri: Uri): ByteArray {
+        fun load(uri: Uri): Pair<Uri, ByteArray> {
             val source = http.createDataSource()
             try {
                 source.open(DataSpec(uri))
@@ -112,11 +112,11 @@ internal object AdaptiveStreamDownloads {
                     check(output.size() + n <= 16 * 1024 * 1024) { "Manifest is too large" }
                     output.write(buffer, 0, n)
                 }
-                return output.toByteArray()
+                return (source.uri ?: uri) to output.toByteArray()
             } finally { source.close() }
         }
         val uri = Uri.parse(url)
-        val manifestBytes = load(uri)
+        val (manifestUri, manifestBytes) = load(uri)
         val keys = mutableListOf<StreamKey>()
         if (kind == "hls") {
             fun checkMedia(uri: Uri, bytes: ByteArray, master: HlsMultivariantPlaylist = HlsMultivariantPlaylist.EMPTY) {
@@ -125,24 +125,24 @@ internal object AdaptiveStreamDownloads {
                 require(playlist.hasEndTag) { "Live HLS streams cannot be saved as a complete offline movie" }
                 require(playlist.protectionSchemes == null) { "This stream requires a DRM offline license" }
             }
-            when (val playlist = HlsPlaylistParser().parse(uri, manifestBytes.inputStream())) {
-                is HlsMediaPlaylist -> checkMedia(uri, manifestBytes)
+            when (val playlist = HlsPlaylistParser().parse(manifestUri, manifestBytes.inputStream())) {
+                is HlsMediaPlaylist -> checkMedia(manifestUri, manifestBytes)
                 is HlsMultivariantPlaylist -> {
                     require(playlist.sessionKeyDrmInitData.isEmpty()) { "This stream requires a DRM offline license" }
                     val best = playlist.variants.indices.maxByOrNull { playlist.variants[it].format.let { f -> f.width.toLong().coerceAtLeast(0) * f.height.coerceAtLeast(0) * 100000000L + f.bitrate.coerceAtLeast(0) } }
                         ?: throw IOException("HLS has no video variants")
                     keys += StreamKey(0, best)
-                    checkMedia(playlist.variants[best].url, load(playlist.variants[best].url), playlist)
+                    load(playlist.variants[best].url).let { (resolved, bytes) -> checkMedia(resolved, bytes, playlist) }
                     playlist.audios.forEachIndexed { i, rendition -> rendition.url?.let {
-                        checkMedia(it, load(it), playlist); keys += StreamKey(1, i)
+                        load(it).let { (resolved, bytes) -> checkMedia(resolved, bytes, playlist) }; keys += StreamKey(1, i)
                     } }
                     playlist.subtitles.forEachIndexed { i, rendition -> rendition.url?.let {
-                        checkMedia(it, load(it), playlist); keys += StreamKey(2, i)
+                        load(it).let { (resolved, bytes) -> checkMedia(resolved, bytes, playlist) }; keys += StreamKey(2, i)
                     } }
                 }
             }
         } else {
-            val manifest = DashManifestParser().parse(uri, manifestBytes.inputStream())
+            val manifest = DashManifestParser().parse(manifestUri, manifestBytes.inputStream())
             require(!manifest.dynamic) { "Live DASH streams cannot be saved as a complete offline movie" }
             for (p in 0 until manifest.periodCount) {
                 manifest.getPeriod(p).adaptationSets.forEachIndexed { a, set ->
