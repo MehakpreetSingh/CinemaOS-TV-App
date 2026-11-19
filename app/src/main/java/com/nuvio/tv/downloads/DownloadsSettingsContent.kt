@@ -41,7 +41,7 @@ internal fun DownloadsSettingsContent(initialFocusRequester: FocusRequester?, on
     }
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text("Downloads", style = MaterialTheme.typography.headlineMedium, color = NuvioTheme.colors.TextPrimary)
-        Text("Stored on this device. Start a download from the player’s Sources panel using a direct MP4, MKV or WebM source.",
+        Text("Stored on this device. Start a download from the player’s Sources panel using an MP4, MKV, WebM, HLS or DASH source. Offline HLS/DASH uses ExoPlayer.",
             style = MaterialTheme.typography.bodyMedium, color = NuvioTheme.colors.TextSecondary)
         error?.let { Text(it, color = NuvioTheme.colors.TextSecondary) }
         if (loaded && downloads.isEmpty()) {
@@ -61,7 +61,7 @@ internal fun DownloadsSettingsContent(initialFocusRequester: FocusRequester?, on
                     val state = when {
                         item.playable -> "Ready to watch offline"
                         item.state == DownloadManager.STATUS_SUCCESSFUL -> "The response is not a supported video file"
-                        item.state == DownloadManager.STATUS_FAILED -> "Download failed or file unavailable. Choose another source."
+                        item.state == DownloadManager.STATUS_FAILED -> item.error ?: "Download failed or file unavailable. Choose another source."
                         item.state == DownloadManager.STATUS_PAUSED -> "Waiting for network or storage"
                         item.state == DownloadManager.STATUS_PENDING -> "Queued"
                         else -> "Downloading"

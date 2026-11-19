@@ -17,6 +17,7 @@ internal data class OfflineDownload(
     val total: Long,
     val state: Int,
     val validVideo: Boolean,
+    val error: String? = null,
 ) {
     val playable: Boolean get() = state == DownloadManager.STATUS_SUCCESSFUL && validVideo && file.isFile
 }
@@ -33,6 +34,10 @@ internal object OfflineDownloads {
 
     @Synchronized
     fun enqueue(context: Context, title: String, url: String, filename: String?, headers: Map<String, String>, streamType: String? = null): Long {
+        val uri = Uri.parse(url)
+        require(uri.scheme?.lowercase() in setOf("http", "https") && !uri.host.isNullOrBlank()) { "Choose an HTTP or HTTPS video source" }
+        val adaptive = AdaptiveStreamDownloads.detect(url, headers, streamType)
+        if (adaptive != null) return AdaptiveDownloadJobs.enqueue(context, title, url, headers, adaptive)
         val extension = requireNotNull(DirectDownloadPolicy.extension(url, filename, streamType)) {
             "Choose a direct MP4, MKV or WebM source. Playlists and torrents cannot be downloaded here."
         }
@@ -64,7 +69,7 @@ internal object OfflineDownloads {
     @Synchronized
     fun list(context: Context): List<OfflineDownload> {
         val items = records(context)
-        if (items.length() == 0) return emptyList()
+        if (items.length() == 0) return AdaptiveDownloadJobs.list(context)
         val directory = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: return emptyList()
         val stored = (0 until items.length()).map { items.getJSONObject(it) }
         val states = mutableMapOf<Long, Triple<Int, Long, Long>>()
@@ -77,7 +82,7 @@ internal object OfflineDownloads {
                 cursor.getInt(statusColumn), cursor.getLong(bytesColumn), cursor.getLong(totalColumn),
             )
         }
-        return stored.reversed().map { record ->
+        return AdaptiveDownloadJobs.list(context) + stored.reversed().map { record ->
             val id = record.getLong("id")
             val file = File(directory, record.getString("file"))
             val state = states[id] ?: Triple(DownloadManager.STATUS_FAILED, 0L, 0L)
@@ -95,6 +100,7 @@ internal object OfflineDownloads {
 
     @Synchronized
     fun remove(context: Context, id: Long) {
+        if (id < 0) { AdaptiveDownloadJobs.remove(context, id); return }
         manager(context).remove(id)
         val old = records(context)
         val kept = JSONArray()

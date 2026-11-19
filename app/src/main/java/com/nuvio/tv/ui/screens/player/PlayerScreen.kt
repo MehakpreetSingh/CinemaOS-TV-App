@@ -2196,7 +2196,10 @@ fun PlayerScreen(
         }
 
         if (uiState.showSpeedDialog) {
-            SpeedSelectionDialog(
+            PlayerSettingsPanel(
+                uiState = uiState,
+                downloadHeaders = viewModel.getCurrentHeaders(),
+                currentFilename = viewModel.playerStreamFilename(),
                 currentSpeed = uiState.playbackSpeed,
                 onSpeedSelected = { viewModel.onEvent(PlayerEvent.OnSetPlaybackSpeed(it)) },
                 onDismiss = { viewModel.onEvent(PlayerEvent.OnDismissTransientOverlay) },
@@ -3146,7 +3149,7 @@ private fun PlayerControlsOverlay(
                         ControlButton(
                             icon = Icons.Default.Speed,
                             iconPainter = painterResource(R.drawable.ic_player_noir_settings),
-                            contentDescription = stringResource(R.string.cd_playback_speed),
+                            contentDescription = stringResource(R.string.playback_title),
                             onClick = {
                                 onShowSpeedDialog()
                             },

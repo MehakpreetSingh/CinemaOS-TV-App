@@ -13,6 +13,7 @@ internal fun PlayerRuntimeController.maybeAutoSwitchInternalPlayerOnStartupError
     allowEngineFailover: Boolean
 ): Boolean {
     if (!allowEngineFailover) return false
+    if (com.nuvio.tv.downloads.AdaptiveStreamDownloads.isMarker(currentStreamUrl)) return false
     if (!autoSwitchInternalPlayerOnErrorEnabled) return false
     if (startupEngineFailoverTriggered) return false
     if (!isStartupPhaseForEngineFailover()) return false
@@ -71,6 +72,7 @@ internal fun PlayerRuntimeController.switchToInternalPlayerEngine(
     reason: String = "manual-switch"
 ) {
     if (currentStreamUrl.isBlank()) return
+    if (com.nuvio.tv.downloads.AdaptiveStreamDownloads.isMarker(currentStreamUrl) && targetEngine != InternalPlayerEngine.EXOPLAYER) return
 
     beginSwitchTraceSession(reason = reason, targetEngine = targetEngine)
     val targetEngineLabel = targetEngineLabel(targetEngine)

@@ -248,7 +248,8 @@ internal fun PlayerRuntimeController.initializePlayer(
             if (effectiveInternalPlayerEngine == InternalPlayerEngine.AUTO) {
                 effectiveInternalPlayerEngine = resolveAutoInternalPlayerEngine()
             }
-            runtimeInternalPlayerEngineOverride = overrideInternalPlayerEngine
+            if (com.nuvio.tv.downloads.AdaptiveStreamDownloads.isMarker(url)) effectiveInternalPlayerEngine = InternalPlayerEngine.EXOPLAYER
+            runtimeInternalPlayerEngineOverride = if (com.nuvio.tv.downloads.AdaptiveStreamDownloads.isMarker(url)) InternalPlayerEngine.EXOPLAYER else overrideInternalPlayerEngine
             if (overrideInternalPlayerEngine == null && playerSettings.internalPlayerEngine == InternalPlayerEngine.AUTO) {
                 resolvedAutoPlayerEngine = effectiveInternalPlayerEngine
             } else if (overrideInternalPlayerEngine != null) {
@@ -1716,7 +1717,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                         // Fatal error: stop any next-episode auto-play that may have been
                         // armed by a short placeholder ENDED or residual post-play state.
                         cancelNextEpisodeAutoPlayOnFatalError()
-                        val canSwitchToMpvOnFatal = currentInternalPlayerEngine != InternalPlayerEngine.MVP_PLAYER &&
+                        val canSwitchToMpvOnFatal = !com.nuvio.tv.downloads.AdaptiveStreamDownloads.isMarker(currentStreamUrl) && currentInternalPlayerEngine != InternalPlayerEngine.MVP_PLAYER &&
                             (error.errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
                              error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED ||
                              error.errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED ||

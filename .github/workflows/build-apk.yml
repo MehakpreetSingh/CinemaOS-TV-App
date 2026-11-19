@@ -79,6 +79,7 @@ jobs:
         run: |
           ./gradlew :app:testFullDebugUnitTest \
             --tests '*DirectDownloadPolicyTest' \
+            --tests '*AdaptiveStreamDownloadsTest' \
             --tests '*SettingsCatalogTest' \
             --tests '*PlaybackAvailabilityViewModelTest' \
             --tests '*EpisodeRatingsAlignmentTest' \

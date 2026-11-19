@@ -292,34 +292,8 @@ private fun StreamSourcesPanelContent(
                 modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
             )
 
-            val downloadScope = rememberCoroutineScope()
-            val downloadSource = currentStream
-            if (downloadSource != null) {
-                androidx.tv.material3.Button(
-                    onClick = {
-                        downloadScope.coroutineLaunch {
-                            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                runCatching {
-                                    com.nuvio.tv.downloads.OfflineDownloads.enqueue(
-                                        context = context,
-                                        title = listOfNotNull(uiState.title, seasonEpisodeCode, episodeTitle).distinct().joinToString(" · "),
-                                        url = uiState.currentStreamUrl ?: downloadSource.getStreamUrl().orEmpty(),
-                                        filename = downloadSource.behaviorHints?.filename ?: currentFilename,
-                                        headers = downloadSource.behaviorHints?.proxyHeaders?.request.orEmpty() + downloadHeaders,
-                                        streamType = downloadSource.behaviorHints?.streamType,
-                                    )
-                                }
-                            }
-                            val message = result.fold(
-                                onSuccess = { "Download started. Open Settings → Downloads to check progress or play offline." },
-                                onFailure = { it.message ?: "Could not start download" },
-                            )
-                            android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_LONG).show()
-                        }
-                    },
-                    modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm),
-                ) { Text("Download playing source") }
-            }
+            PlayerDownloadAction(uiState, currentFilename, downloadHeaders,
+                Modifier.padding(bottom = NuvioTheme.spacing.sm))
 
             // Filter chips (RN FILTERS) + refresh.
             Row(
@@ -802,7 +776,7 @@ private fun StreamQualityPanel(
                                         style = MaterialTheme.typography.bodyLarge,
                                         color = fg
                                     )
-                                    SourceSpecChips(specs = specs, selected = active, maxChips = 6)
+                                    SourceSpecChips(specs = specs, selected = active)
                                     Text(
                                         text = listOfNotNull(provider, "$count link${if (count > 1) "s" else ""}")
                                             .joinToString(" \u00B7 "),

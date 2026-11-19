@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -77,38 +78,35 @@ internal fun Stream.sourceSpecs(): List<SourceSpec> {
     }
     if (RX_REMUX.containsMatchIn(t) && RX_BLURAY.containsMatchIn(t)) out += SourceSpec("BluRay")
 
-    val ch = RX_DDP_CH.find(t)?.groupValues?.get(1)?.let { n -> if (n == "7") "7.1" else if (n == "5") "5.1" else "$n.0" }
-        ?: RX_CH.find(t)?.let { "${it.groupValues[1]}.${it.groupValues[2]}" }
+    val ch = RX_CH.find(t)?.let { "${it.groupValues[1]}.${it.groupValues[2]}" }
+        ?: RX_DDP_CH.find(t)?.groupValues?.get(1)?.let { n -> if (n == "7") "7.1" else if (n == "5") "5.1" else "$n.0" }
+        ?: Regex("\\b([68])ch\\b", RegexOption.IGNORE_CASE).find(t)?.let { if (it.groupValues[1] == "6") "5.1" else "7.1" }
     val ddp = RX_DDP.containsMatchIn(t)
-    var audioAdded = false
     if (RX_ATMOS.containsMatchIn(t)) {
-        val base = if (ddp) "Dolby Atmos (DD+)" else "Dolby Atmos"
-        out += SourceSpec(if (ch != null) "$base $ch" else base, R.drawable.ic_spec_atmos)
-        audioAdded = true
-    } else if (ddp) {
-        out += SourceSpec(if (ch != null) "DD+ $ch" else "DD+", R.drawable.ic_spec_dolby)
-        audioAdded = true
+        out += SourceSpec("Atmos", R.drawable.brand_dolby_mark)
+    }
+    if (ddp) {
+        out += SourceSpec("Digital+", R.drawable.brand_dolby_mark)
     } else if (RX_DD.containsMatchIn(t)) {
-        out += SourceSpec(if (ch != null) "DD $ch" else "DD", R.drawable.ic_spec_dolby)
-        audioAdded = true
+        out += SourceSpec("Digital", R.drawable.brand_dolby_mark)
     }
     when {
-        RX_DTSX.containsMatchIn(t) -> { out += SourceSpec("DTS:X", R.drawable.ic_spec_dts); audioAdded = true }
+        RX_DTSX.containsMatchIn(t) -> { out += SourceSpec("DTS:X", R.drawable.ic_spec_dts) }
         RX_DTSHD.containsMatchIn(t) -> {
-            out += SourceSpec(if (RX_DTSMA.containsMatchIn(t)) "DTS-HD MA" else "DTS-HD", R.drawable.ic_spec_dts); audioAdded = true
+            out += SourceSpec(if (RX_DTSMA.containsMatchIn(t)) "DTS-HD MA" else "DTS-HD", R.drawable.ic_spec_dts)
         }
-        RX_DTS.containsMatchIn(t) -> { out += SourceSpec("DTS", R.drawable.ic_spec_dts); audioAdded = true }
+        RX_DTS.containsMatchIn(t) -> { out += SourceSpec("DTS", R.drawable.ic_spec_dts) }
     }
-    if (RX_TRUEHD.containsMatchIn(t)) { out += SourceSpec("TrueHD", R.drawable.ic_spec_dolby); audioAdded = true }
-    if (!audioAdded && ch != null) out += SourceSpec(ch)
+    if (RX_TRUEHD.containsMatchIn(t)) { out += SourceSpec("TrueHD", R.drawable.brand_dolby_mark) }
+    if (ch != null) out += SourceSpec(ch, R.drawable.ic_spec_audio)
 
     when {
-        RX_DV.containsMatchIn(t) -> out += SourceSpec("Dolby Vision", R.drawable.ic_spec_dolby_vision)
+        RX_DV.containsMatchIn(t) -> out += SourceSpec("Dolby Vision", R.drawable.brand_dolby_vision)
     }
     when {
-        RX_HDR10P.containsMatchIn(t) -> out += SourceSpec("HDR10+", R.drawable.ic_spec_hdr)
-        RX_HDR10.containsMatchIn(t) -> out += SourceSpec("HDR10", R.drawable.ic_spec_hdr)
-        RX_HDR.containsMatchIn(t) -> out += SourceSpec("HDR", R.drawable.ic_spec_hdr)
+        RX_HDR10P.containsMatchIn(t) -> out += SourceSpec("HDR10+", R.drawable.brand_hdr10plus)
+        RX_HDR10.containsMatchIn(t) -> out += SourceSpec("HDR10")
+        RX_HDR.containsMatchIn(t) -> out += SourceSpec("HDR")
         RX_SDR.containsMatchIn(t) -> out += SourceSpec("SDR")
     }
     when {
@@ -134,7 +132,7 @@ internal fun SourceSpecChips(
     specs: List<SourceSpec>,
     selected: Boolean,
     modifier: Modifier = Modifier,
-    maxChips: Int = 8
+    maxChips: Int = Int.MAX_VALUE
 ) {
     if (specs.isEmpty()) return
     val fg = if (selected) Color.Black.copy(alpha = 0.85f) else Color.White.copy(alpha = 0.85f)
@@ -148,19 +146,23 @@ internal fun SourceSpecChips(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .height(22.dp)
                     .background(bg, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(horizontal = 6.dp)
             ) {
                 if (spec.icon != null) {
                     Icon(
                         painter = painterResource(spec.icon),
                         contentDescription = null,
                         tint = fg,
-                        modifier = Modifier.size(12.dp)
+                        modifier = if (spec.icon == R.drawable.brand_hdr10plus) Modifier.width(42.dp).height(15.dp)
+                            else if (spec.icon == R.drawable.brand_dolby_vision) Modifier.width(72.dp).height(14.dp)
+                            else if (spec.icon == R.drawable.brand_dolby_mark) Modifier.width(19.dp).height(14.dp)
+                            else Modifier.size(12.dp)
                     )
                     Spacer(Modifier.width(4.dp))
                 }
-                Text(text = spec.label, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1)
+                if (spec.icon != R.drawable.brand_hdr10plus && spec.icon != R.drawable.brand_dolby_vision) Text(text = spec.label, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1)
             }
         }
     }

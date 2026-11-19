@@ -174,6 +174,18 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
         mediaMetadata: androidx.media3.common.MediaMetadata? = null,
         cacheKey: String? = null
     ): MediaSource {
+        com.nuvio.tv.downloads.AdaptiveStreamDownloads.playbackFactory(context, url)?.let { offline ->
+            val kind = com.nuvio.tv.downloads.AdaptiveStreamDownloads.markerType(url)
+            val item = MediaItem.Builder().setUri(url)
+                .setMimeType(if (kind == "hls") MimeTypes.APPLICATION_M3U8 else MimeTypes.APPLICATION_MPD)
+                .setStreamKeys(com.nuvio.tv.downloads.AdaptiveStreamDownloads.streamKeys(url))
+                .setSubtitleConfigurations(subtitleConfigurations).build()
+            val source = if (subtitleConfigurations.isNotEmpty()) SubtitleRoutingDataSourceFactory(offline, url, headers, subtitleRoutes) else offline
+            val factory = DefaultMediaSourceFactory(source, customExtractorsFactory ?: DefaultExtractorsFactory()).apply {
+                customSubtitleParserFactory?.let { setSubtitleParserFactory(it) }
+            }
+            return wrapAudioDelay(factory.createMediaSource(item), audioDelayUsProvider)
+        }
         val sanitizedHeaders = sanitizeHeaders(headers)
         val resolvedMimeType = mimeTypeOverride ?: inferMimeType(
             url = url,
