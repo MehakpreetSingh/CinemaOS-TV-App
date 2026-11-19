@@ -111,6 +111,7 @@ fun ContentCard(
     onBackdropExpandedChanged: ((Boolean) -> Unit)? = null,
     expandedDownFocusRequester: FocusRequester? = null,
     expandedUpFocusRequester: FocusRequester? = null,
+    showArtworkLabels: Boolean = true,
     onLongPress: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
@@ -520,7 +521,7 @@ fun ContentCard(
                             }
                     )
 
-                    Column(
+                    if (showArtworkLabels) Column(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .padding(start = NuvioTheme.spacing.md, end = NuvioTheme.spacing.md, bottom = NuvioTheme.spacing.md)
@@ -551,7 +552,7 @@ fun ContentCard(
                 // Landscape overlay — rendered AFTER trailer so it stays on top.
                 // Show on backdrop cards always; also show on any landscape card when expanded
                 // (trailer playing) so the logo stays visible over the video.
-                val showLandscapeOverlay = globalLandscape && (isLandscapeBackdropCard || isBackdropExpanded) &&
+                val showLandscapeOverlay = showArtworkLabels && globalLandscape && (isLandscapeBackdropCard || isBackdropExpanded) &&
                     !(useLandscapeAsExpanded && !trailerFirstFrameRendered)
                 val showLandscapeLogoOverlay = showLandscapeOverlay &&
                     !cardLogo.isNullOrBlank() && !logoLoadFailed

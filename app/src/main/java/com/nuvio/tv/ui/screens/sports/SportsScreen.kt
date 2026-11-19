@@ -83,7 +83,7 @@ private const val RESTORE_ONLY_ATTEMPTS = 4
  * is shown with the sidebar closed and nothing inside it focused: the last focused chip/card
  * (also after returning from details), else the selected chip, else the first card.
  */
-@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun SportsScreen(
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit,
@@ -160,26 +160,28 @@ fun SportsScreen(
             .toInt()
             .coerceAtLeast(1)
 
+        Text(
+            text = stringResource(R.string.sports_title),
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Medium,
+            color = NuvioTheme.colors.TextPrimary,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 48.dp, top = 28.dp)
+        )
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(top = 76.dp)
                 .onFocusChanged { pageHasFocus = it.hasFocus },
-            contentPadding = PaddingValues(top = NuvioTheme.spacing.xl, bottom = NuvioTheme.spacing.huge),
+            contentPadding = PaddingValues(bottom = NuvioTheme.spacing.huge),
             verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xl)
         ) {
-            item(key = "sports_header", contentType = "header") {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        text = stringResource(R.string.sports_title),
-                        style = NuvioTheme.textStyles.headline,
-                        color = NuvioTheme.colors.TextPrimary,
-                        modifier = Modifier.padding(horizontal = horizontalPadding)
-                    )
+            stickyHeader(key = "sports_header") {
+                Column(modifier = Modifier.fillMaxWidth().background(NuvioTheme.colors.Background)) {
                     if (showChips) {
                         LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = NuvioTheme.spacing.md)
+                                .padding(vertical = 4.dp)
                                 .focusRestorer(),
                             contentPadding = PaddingValues(horizontal = horizontalPadding),
                             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
@@ -355,6 +357,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.liveTvContent(
                             item = card.preview,
                             focusRequester = requesterFor(key),
                             showImdbRatings = false,
+                            showArtworkLabels = false,
                             onFocus = {
                                 onFocusKey(key)
                                 // Page in more channels as focus nears the end of the list.
@@ -414,6 +417,7 @@ private fun SportsRow(
                         item = card.preview,
                         focusRequester = requesterFor(key),
                         showImdbRatings = false,
+                        showArtworkLabels = false,
                         onFocus = { onFocusKey(key) },
                         onClick = { onItemClick(card) }
                     )

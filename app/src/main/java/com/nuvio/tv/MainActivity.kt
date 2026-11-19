@@ -51,7 +51,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material.icons.filled.SportsSoccer
+import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -1172,7 +1172,7 @@ open class MainActivity : ComponentActivity() {
                                 DrawerItem(
                                     route = Screen.Sports.route,
                                     label = strNavSports,
-                                    icon = Icons.Default.SportsSoccer
+                                    icon = Icons.Default.LiveTv
                                 )
                             )
                             add(

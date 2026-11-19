@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="nav_sports">Sports</string>
-    <string name="sports_title">Sports</string>
+    <string name="nav_sports">Live TV</string>
+    <string name="sports_title">Live TV</string>
     <string name="sports_filter_all">All</string>
     <string name="sports_row_live">🔴 Live Now</string>
     <string name="sports_row_upcoming">⏱️ Upcoming</string>

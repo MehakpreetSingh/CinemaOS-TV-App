@@ -86,7 +86,7 @@ data class SportsUiState(
     val hasLiveTv: Boolean = false,
     /** True when that catalog accepts a `search` extra. */
     val liveTvSearchSupported: Boolean = false,
-    val isLiveTvSelected: Boolean = false,
+    val isLiveTvSelected: Boolean = true,
     val liveTv: LiveTvState = LiveTvState()
 )
 
