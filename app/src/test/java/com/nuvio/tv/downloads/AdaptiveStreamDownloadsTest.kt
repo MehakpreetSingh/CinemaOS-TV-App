@@ -16,7 +16,7 @@ import org.robolectric.annotation.Config
 import org.junit.Assert.*
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [28], manifest = Config.NONE)
+@Config(sdk = [28], manifest = Config.NONE, application = android.app.Application::class)
 class AdaptiveStreamDownloadsTest {
     private val context get() = RuntimeEnvironment.getApplication()
     private fun read(factory: androidx.media3.datasource.DataSource.Factory, url: String): Pair<String, String> {
