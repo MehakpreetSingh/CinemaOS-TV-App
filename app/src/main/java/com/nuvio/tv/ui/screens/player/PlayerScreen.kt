@@ -1948,6 +1948,7 @@ fun PlayerScreen(
             visible = uiState.showSourcesPanel && uiState.error == null,
             uiState = uiState,
             currentFilename = viewModel.playerStreamFilename(),
+            downloadHeaders = viewModel.getCurrentHeaders(),
             streamsFocusRequester = sourceStreamsFocusRequester,
             onClose = {
                 if (uiState.currentStreamUrl.isNullOrBlank()) {

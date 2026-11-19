@@ -114,6 +114,7 @@ internal fun StreamSourcesSidePanel(
     visible: Boolean,
     uiState: PlayerUiState,
     currentFilename: String?,
+    downloadHeaders: Map<String, String> = emptyMap(),
     streamsFocusRequester: FocusRequester,
     onClose: () -> Unit,
     onReload: () -> Unit,
@@ -133,7 +134,7 @@ internal fun StreamSourcesSidePanel(
         )
     } else {
         StreamSourcesPanelContent(
-            visible, uiState, currentFilename, streamsFocusRequester, onClose, onReload,
+            visible, uiState, currentFilename, downloadHeaders, streamsFocusRequester, onClose, onReload,
             onAddonFilterSelected, onStreamSelected, onExpandStreams, modifier
         )
     }
@@ -144,6 +145,7 @@ private fun StreamSourcesPanelContent(
     visible: Boolean,
     uiState: PlayerUiState,
     currentFilename: String?,
+    downloadHeaders: Map<String, String> = emptyMap(),
     streamsFocusRequester: FocusRequester,
     onClose: () -> Unit,
     onReload: () -> Unit,
@@ -303,7 +305,7 @@ private fun StreamSourcesPanelContent(
                                         title = listOfNotNull(uiState.title, seasonEpisodeCode, episodeTitle).distinct().joinToString(" · "),
                                         url = uiState.currentStreamUrl ?: downloadSource.getStreamUrl().orEmpty(),
                                         filename = downloadSource.behaviorHints?.filename ?: currentFilename,
-                                        headers = downloadSource.behaviorHints?.proxyHeaders?.request.orEmpty(),
+                                        headers = downloadSource.behaviorHints?.proxyHeaders?.request.orEmpty() + downloadHeaders,
                                         streamType = downloadSource.behaviorHints?.streamType,
                                     )
                                 }
