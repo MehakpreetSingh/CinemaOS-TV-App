@@ -98,7 +98,9 @@ class AdaptiveDownloadJobService : JobService() {
         val id = params.extras.getLong("id")
         val record = AdaptiveDownloadJobs.get(this, id) ?: return false
         val notifications = getSystemService(NotificationManager::class.java)
-        notifications.createNotificationChannel(NotificationChannel("offline_downloads", "Offline downloads", NotificationManager.IMPORTANCE_LOW))
+        if (Build.VERSION.SDK_INT >= 26) {
+            notifications.createNotificationChannel(NotificationChannel("offline_downloads", "Offline downloads", NotificationManager.IMPORTANCE_LOW))
+        }
         if (Build.VERSION.SDK_INT >= 34) setNotification(params, (-id).toInt(),
             Notification.Builder(this, "offline_downloads").setSmallIcon(android.R.drawable.stat_sys_download)
                 .setContentTitle(record.getString("title")).setContentText("Downloading for offline playback").setOngoing(true).build(),
