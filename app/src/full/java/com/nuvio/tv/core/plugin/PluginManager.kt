@@ -64,7 +64,7 @@ private const val MAX_RESPONSE_SIZE = 5 * 1024 * 1024L
 private const val SCRAPER_TIMEOUT_MS = 120_000L
 private const val MANIFEST_SUFFIX = "/manifest.json"
 private val DEFAULT_REPOSITORY_MANIFESTS = listOf(
-    "https://raw.githubusercontent.com/MehakpreetSingh/CinemaOS-TV-App/cinemaos/plugins/cinemaos/manifest.json"
+    "https://raw.githubusercontent.com/cinema-os/CinemaOS-TV-App/cinemaos/plugins/cinemaos/manifest.json"
 )
 
 @Singleton

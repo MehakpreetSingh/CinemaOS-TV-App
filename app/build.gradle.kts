@@ -177,7 +177,7 @@ android {
         buildConfigField("String", "SENTRY_DSN", buildConfigString(sentryDsn))
 
         // In-app updater (GitHub Releases)
-        buildConfigField("String", "GITHUB_OWNER", "\"MehakpreetSingh\"")
+        buildConfigField("String", "GITHUB_OWNER", "\"cinema-os\"")
         buildConfigField("String", "GITHUB_REPO", "\"CinemaOS-TV-App\"")
     }
 
