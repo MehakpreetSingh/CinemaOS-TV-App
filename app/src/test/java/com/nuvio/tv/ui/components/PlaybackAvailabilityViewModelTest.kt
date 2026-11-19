@@ -32,6 +32,14 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaybackAvailabilityViewModelTest {
     @Test
+    fun `CinemaOS built-in movie sources are available before addons load`() {
+        val availability = com.nuvio.tv.core.streams.PlaybackAvailability(isLoaded = true)
+        assertTrue(availability.canStream("movie", "tt123") == AppFeaturePolicy.pluginsEnabled)
+        assertTrue(availability.canStream("series", "tt123:1:1") == AppFeaturePolicy.pluginsEnabled)
+        assertFalse(availability.canStream("custom-video", "custom:1"))
+    }
+
+    @Test
     fun `source changes update availability without fetching metadata or executing sources`() = runTest {
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         val viewModelStore = ViewModelStore()
@@ -66,34 +74,34 @@ class PlaybackAvailabilityViewModelTest {
             }
             runCurrent()
             assertTrue(viewModel.availability.value.isLoaded)
-            assertFalse(viewModel.availability.value.canStream("movie", "tt123"))
+            assertFalse(viewModel.availability.value.canStream("custom-video", "tt123"))
 
             val addon = Addon(
                 id = "addon", name = "Addon", version = "1", description = null, logo = null,
                 baseUrl = "https://example.com", catalogs = emptyList(), types = emptyList(),
-                resources = listOf(AddonResource("stream", listOf("movie"), null))
+                resources = listOf(AddonResource("stream", listOf("custom-video"), null))
             )
             addons.value = listOf(addon)
             runCurrent()
-            assertTrue(viewModel.availability.value.canStream("movie", "tt123"))
+            assertTrue(viewModel.availability.value.canStream("custom-video", "tt123"))
             addons.value = listOf(addon.copy(enabled = false))
             runCurrent()
-            assertFalse(viewModel.availability.value.canStream("movie", "tt123"))
+            assertFalse(viewModel.availability.value.canStream("custom-video", "tt123"))
 
             scrapers.value = listOf(ScraperInfo(
                 id = "scraper", name = "Scraper", description = "", version = "1", filename = "scraper.js",
-                supportedTypes = listOf("movie"), enabled = true, manifestEnabled = true, logo = null,
+                supportedTypes = listOf("custom-video"), enabled = true, manifestEnabled = true, logo = null,
                 contentLanguage = emptyList(), repositoryId = "repo", formats = null
             ))
             runCurrent()
-            assertTrue(viewModel.availability.value.canStream("movie", "tt123") == AppFeaturePolicy.pluginsEnabled)
+            assertTrue(viewModel.availability.value.canStream("custom-video", "tt123") == AppFeaturePolicy.pluginsEnabled)
             pluginsEnabled.value = false
             runCurrent()
-            assertFalse(viewModel.availability.value.canStream("movie", "tt123"))
+            assertFalse(viewModel.availability.value.canStream("custom-video", "tt123"))
             addons.value = emptyList()
             scrapers.value = emptyList()
             runCurrent()
-            assertFalse(viewModel.availability.value.canStream("movie", "tt123"))
+            assertFalse(viewModel.availability.value.canStream("custom-video", "tt123"))
 
             coVerify(exactly = 0) { addonRepository.fetchAddon(any()) }
             verify(exactly = 0) { metaRepository.getMetaFromAllAddons(any(), any(), any()) }
