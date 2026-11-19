@@ -462,7 +462,8 @@ internal fun PlayerRuntimeController.showStreamSourceIndicator(stream: Stream) {
 }
 
 internal fun PlayerRuntimeController.updateActiveSkipInterval(positionMs: Long) {
-    if (skipIntervals.isEmpty()) {
+    // Live playback has no intro/recap/credits to skip.
+    if (skipIntervals.isEmpty() || _playbackTimeline.value.isLive) {
         if (_uiState.value.activeSkipInterval != null) {
             _uiState.update { it.copy(activeSkipInterval = null, skipIntervalDismissed = false) }
         }

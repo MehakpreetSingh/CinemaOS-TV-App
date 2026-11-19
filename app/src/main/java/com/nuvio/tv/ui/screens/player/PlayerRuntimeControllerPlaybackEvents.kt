@@ -471,7 +471,12 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
                     currentPosition = displayPosition,
                     duration = playerDuration.coerceAtLeast(0L),
                     bufferedPosition = player.bufferedPosition.coerceAtLeast(displayPosition),
-                    playerReportsLive = player.isCurrentMediaItemLive,
+                    playerReportsLive = LivePlaybackUiPolicy.exoReportsLive(
+                        isCurrentMediaItemLive = player.isCurrentMediaItemLive,
+                        playbackState = player.playbackState,
+                        durationMs = playerDuration,
+                        isCurrentMediaItemSeekable = player.isCurrentMediaItemSeekable
+                    ),
                     isPlaying = player.isPlaying
                 )
                 playbackAnalyticsDiagnostics.recordProgressSnapshot(
@@ -961,6 +966,8 @@ internal fun PlayerRuntimeController.currentWatchProgress(
 )
 
 internal fun PlayerRuntimeController.saveWatchProgressInternal(position: Long, duration: Long, syncRemote: Boolean = true, final: Boolean = false) {
+    // Live playback (incl. external-player hand-offs of a live sports item) never saves progress.
+    if (knownLiveSportsItem || _playbackTimeline.value.isLive) return
     if (contentType.equals("cloud", ignoreCase = true)) {
         saveCloudLibraryProgress(position, duration, completed = false)
         return

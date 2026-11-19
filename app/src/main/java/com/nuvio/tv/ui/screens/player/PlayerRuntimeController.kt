@@ -186,6 +186,9 @@ class PlayerRuntimeController(
     internal val headersJson: String? = navigationArgs.headersJson
     internal val contentId: String? = navigationArgs.contentId
     internal val contentType: String? = navigationArgs.contentType
+    /** A Sports addon live event / 24/7 channel (not a replay): live mode from the first frame. */
+    internal val knownLiveSportsItem: Boolean =
+        com.nuvio.tv.domain.model.SportsAddon.isLiveSportsItem(navigationArgs.contentId ?: navigationArgs.videoId)
     internal val contentName: String? = navigationArgs.contentName
     internal val poster: String? = navigationArgs.poster
     internal val backdrop: String? = navigationArgs.backdrop
@@ -349,7 +352,8 @@ class PlayerRuntimeController(
             currentSeason = currentSeason,
             currentEpisode = currentEpisode,
             currentVideoId = currentVideoId,
-            currentEpisodeTitle = currentEpisodeTitle
+            currentEpisodeTitle = currentEpisodeTitle,
+            isLive = knownLiveSportsItem
         )
     )
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
@@ -369,7 +373,7 @@ class PlayerRuntimeController(
         _uiState.update { it.copy(pendingExitReason = null) }
     }
 
-    internal val _playbackTimeline = MutableStateFlow(PlaybackTimelineState())
+    internal val _playbackTimeline = MutableStateFlow(PlaybackTimelineState(isLive = knownLiveSportsItem))
     val playbackTimeline: StateFlow<PlaybackTimelineState> = _playbackTimeline.asStateFlow()
 
     internal val liveWatchClock = LivePlaybackWatchClock()
@@ -411,7 +415,8 @@ class PlayerRuntimeController(
         val isLive = LivePlaybackUiPolicy.isLivePlayback(
             playerReportsLive = playerReportsLive,
             contentType = contentType,
-            latchedLive = livePlaybackLatched
+            latchedLive = livePlaybackLatched,
+            knownLiveItem = knownLiveSportsItem
         )
         val watched = liveWatchClock.watchedDurationMs(
             isLive = isLive,
@@ -432,10 +437,10 @@ class PlayerRuntimeController(
         mpvDurationGrowth = LivePlaybackUiPolicy.DurationGrowth()
         liveWatchClock.reset()
         pendingPreviewSeekPosition = null
-        if (_uiState.value.isLive) {
-            _uiState.update { it.copy(isLive = false) }
+        if (_uiState.value.isLive != knownLiveSportsItem) {
+            _uiState.update { it.copy(isLive = knownLiveSportsItem) }
         }
-        _playbackTimeline.value = PlaybackTimelineState()
+        _playbackTimeline.value = PlaybackTimelineState(isLive = knownLiveSportsItem)
     }
 
     internal var _exoPlayer: ExoPlayer? = null

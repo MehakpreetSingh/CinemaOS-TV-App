@@ -41,6 +41,30 @@ object SportsAddon {
 
     fun isSportsItemId(id: String?): Boolean = id?.startsWith(ID_PREFIX, ignoreCase = true) == true
 
+    // Item ids alone cannot tell a live event from a replay (replays use several id shapes), so
+    // the Sports screen records which catalog each item came from. The player reads this to
+    // decide live mode before the stream reports anything; unknown ids fall back to the player.
+    private val liveItemIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+    private val replayItemIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    private fun itemKey(id: String): String = id.trim().substringBefore(':').lowercase()
+
+    /** True for catalogs whose items are VOD replays rather than live events or channels. */
+    fun isReplayCatalog(catalogId: String): Boolean = catalogId.startsWith(CATALOG_REPLAYS)
+
+    /** Records the items of [catalogId] as live (live/upcoming/per-sport/24-7) or replay. */
+    fun rememberCatalogItems(catalogId: String, itemIds: Collection<String>) {
+        val target = if (isReplayCatalog(catalogId)) replayItemIds else liveItemIds
+        itemIds.forEach { id -> if (isSportsItemId(id)) target += itemKey(id) }
+    }
+
+    /** True when [id] was listed by a live/upcoming/per-sport/24-7 catalog and never by a replay one. */
+    fun isLiveSportsItem(id: String?): Boolean {
+        if (id == null || !isSportsItemId(id)) return false
+        val key = itemKey(id)
+        return key in liveItemIds && key !in replayItemIds
+    }
+
     /**
      * Drops an image URL that points at the addon's own branding (its logo), so the UI falls back
      * to the plain title instead of showing the provider's logo. Match/channel artwork served from

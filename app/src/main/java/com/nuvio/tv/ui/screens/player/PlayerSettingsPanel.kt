@@ -34,7 +34,8 @@ internal fun PlayerSettingsPanel(
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(onClick = onDismiss, modifier = Modifier.focusRequester(first)) { Text("Close settings") }
-                speeds.forEach { speed ->
+                // Live playback runs at the live edge: no playback speed.
+                if (!uiState.isLive) speeds.forEach { speed ->
                     Button(onClick = { onSpeedSelected(speed) }) {
                         Text(if (speed == currentSpeed) "✓ ${speed}×" else "${speed}×")
                     }

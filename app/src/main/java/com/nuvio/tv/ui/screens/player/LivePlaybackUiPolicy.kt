@@ -45,14 +45,39 @@ object LivePlaybackUiPolicy {
     /** Growth past the first reading that marks a live stream (a VOD's duration only settles by a little). */
     const val LIVE_DURATION_GROWTH_MS = 10_000L
 
+    /**
+     * The single live/VOD decision the player UI and key handling consume (via
+     * `PlayerUiState.isLive` / `PlaybackTimelineState.isLive`).
+     *
+     * [knownLiveItem]: a Sports addon event or 24/7 channel listed by a live, upcoming, per-sport
+     * or channels catalog (never a replay, which is VOD), known before the stream reports anything.
+     */
     fun isLivePlayback(
         playerReportsLive: Boolean,
         contentType: String?,
-        latchedLive: Boolean = false
+        latchedLive: Boolean = false,
+        knownLiveItem: Boolean = false
     ): Boolean {
-        return latchedLive ||
+        return knownLiveItem ||
+            latchedLive ||
             playerReportsLive ||
             isLiveContentType(contentType)
+    }
+
+    /**
+     * ExoPlayer's live signal: a live window, or a prepared stream with no duration that cannot
+     * be seeked (e.g. an MPEG-TS channel over plain HTTP, which Media3 does not flag as live).
+     */
+    fun exoReportsLive(
+        isCurrentMediaItemLive: Boolean,
+        playbackState: Int,
+        durationMs: Long,
+        isCurrentMediaItemSeekable: Boolean
+    ): Boolean {
+        if (isCurrentMediaItemLive) return true
+        return playbackState == androidx.media3.common.Player.STATE_READY &&
+            durationMs == androidx.media3.common.C.TIME_UNSET &&
+            !isCurrentMediaItemSeekable
     }
 }
 

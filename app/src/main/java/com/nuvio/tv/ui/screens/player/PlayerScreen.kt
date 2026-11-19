@@ -216,6 +216,9 @@ fun PlayerScreen(
     onOpenPartyMedia: (PartyMedia) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    // Live mode (LivePlaybackUiPolicy.isLivePlayback, published by the controller): no seeking,
+    // skipping or chapter keys; the controls overlay reads the same flag.
+    val isLivePlayback = uiState.isLive
     val playerBadges = rememberPlayerBadges(viewModel, uiState)
     val partyState by viewModel.party.state.collectAsState()
     val partyPlayback by viewModel.party.playback.collectAsState()
@@ -865,7 +868,7 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_DPAD_LEFT,
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
                             if (!uiState.showControls) {
-                                viewModel.onEvent(PlayerEvent.OnCommitPreviewSeek)
+                                if (!isLivePlayback) viewModel.onEvent(PlayerEvent.OnCommitPreviewSeek)
                                 return@onKeyEvent true
                             }
                         }
@@ -907,7 +910,13 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_DPAD_RIGHT -> {
                             val overlayButtonsCoexist = skipButtonActuallyVisible &&
                                 uiState.postPlayMode is PostPlayMode.AutoPlay
-                            if (!uiState.showControls && !overlayButtonsCoexist) {
+                            if (!uiState.showControls && !overlayButtonsCoexist && isLivePlayback) {
+                                // Live: nothing to seek; reveal the controls instead.
+                                if (keyEvent.nativeKeyEvent.repeatCount == 0) {
+                                    viewModel.onEvent(PlayerEvent.OnToggleControls)
+                                }
+                                true
+                            } else if (!uiState.showControls && !overlayButtonsCoexist) {
                                 val isLeft =
                                     keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_DPAD_LEFT
                                 val deltaMs = PlayerScrubRates.deltaMsForKeyRepeat(
@@ -980,7 +989,7 @@ fun PlayerScreen(
                         KeyEvent.KEYCODE_CHANNEL_UP,
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS,
                         KeyEvent.KEYCODE_CHANNEL_DOWN -> {
-                            if (uiState.chapters.isEmpty()) {
+                            if (uiState.chapters.isEmpty() || isLivePlayback) {
                                 false
                             } else {
                                 val forward = keyEvent.nativeKeyEvent.keyCode == KeyEvent.KEYCODE_MEDIA_NEXT ||
@@ -990,7 +999,7 @@ fun PlayerScreen(
                             }
                         }
                         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
-                            viewModel.onEvent(
+                            if (!isLivePlayback) viewModel.onEvent(
                                 PlayerEvent.OnSeekBy(
                                     PlayerScrubRates.deltaMsForKeyRepeat(
                                         repeatCount = keyEvent.nativeKeyEvent.repeatCount,
@@ -1001,7 +1010,7 @@ fun PlayerScreen(
                             true
                         }
                         KeyEvent.KEYCODE_MEDIA_REWIND -> {
-                            viewModel.onEvent(
+                            if (!isLivePlayback) viewModel.onEvent(
                                 PlayerEvent.OnSeekBy(
                                     PlayerScrubRates.deltaMsForKeyRepeat(
                                         repeatCount = keyEvent.nativeKeyEvent.repeatCount,
@@ -2839,8 +2848,8 @@ private fun PlayerControlsOverlay(
     val customAspectPainter = painterResource(R.drawable.ic_player_noir_fullscreen)
     val customEpisodesPainter = painterResource(R.drawable.ic_player_noir_episodes)
     var showEngineSwitchConfirm by remember { mutableStateOf(false) }
-    val playbackTimeline by viewModel.playbackTimeline.collectAsState()
-    val isLivePlayback = playbackTimeline.isLive
+    // Same live decision as the key handling (PlayerUiState.isLive).
+    val isLivePlayback = uiState.isLive
     val progressUpTarget = if (isLivePlayback) {
         progressBarUpFocusRequester ?: playPauseFocusRequester
     } else {
@@ -3014,7 +3023,7 @@ private fun PlayerControlsOverlay(
                     val hasEpisodeContext = uiState.currentSeason != null && uiState.currentEpisode != null
                     val hasSubtitleControl = uiState.subtitleTracks.isNotEmpty() || uiState.addonSubtitles.isNotEmpty()
                     val hasAudioControl = uiState.audioTracks.isNotEmpty()
-                    val showNextEpisodeButton = uiState.nextEpisode?.hasAired == true &&
+                    val showNextEpisodeButton = !isLivePlayback && uiState.nextEpisode?.hasAired == true &&
                         (uiState.postPlayMode as? PostPlayMode.AutoPlay)?.let {
                             !it.searching && it.countdownSec == null
                         } != false
@@ -3117,7 +3126,7 @@ private fun PlayerControlsOverlay(
                         onFocused = onResetHideTimer
                     )
 
-                    if (hasEpisodeContext) {
+                    if (hasEpisodeContext && !isLivePlayback) {
                         ControlButton(
                             icon = Icons.AutoMirrored.Filled.List,
                             iconPainter = customEpisodesPainter,
@@ -3214,8 +3223,12 @@ private fun PlayerControlsOverlay(
 
                 }
 
-                // Right side - Time display only
-                PlayerControlsTimeTextHost(viewModel = viewModel)
+                // Right side - time display, or the LIVE pill for live playback
+                if (isLivePlayback) {
+                    PlayerLivePill()
+                } else {
+                    PlayerControlsTimeTextHost(viewModel = viewModel)
+                }
             }
             }
         }
@@ -3274,6 +3287,19 @@ private fun PlayerControlsProgressBarHost(
         onFocused = onFocused,
         onClick = onClick,
         bufferedPosition = playbackTimeline.bufferedPosition
+    )
+}
+
+@Composable
+private fun PlayerLivePill() {
+    Text(
+        text = stringResource(R.string.player_live_pill),
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Bold,
+        color = NuvioTheme.colors.OnPrimary,
+        modifier = Modifier
+            .background(NuvioTheme.colors.Error, RoundedCornerShape(NuvioTheme.radii.md))
+            .padding(horizontal = NuvioTheme.spacing.md, vertical = NuvioTheme.spacing.xs)
     )
 }
 

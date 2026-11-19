@@ -134,4 +134,40 @@ class LivePlaybackUiPolicyTest {
         assertFalse(next.grew)
         assertEquals(2_700_000L, next.firstDurationMs)
     }
+
+    @Test
+    fun `known live sports item is live before the player reports`() {
+        assertTrue(
+            LivePlaybackUiPolicy.isLivePlayback(
+                playerReportsLive = false,
+                contentType = "tv",
+                knownLiveItem = true
+            )
+        )
+    }
+
+    @Test
+    fun `exo unbounded unseekable ready stream counts as live`() {
+        val unset = androidx.media3.common.C.TIME_UNSET
+        val ready = androidx.media3.common.Player.STATE_READY
+        val buffering = androidx.media3.common.Player.STATE_BUFFERING
+        assertTrue(LivePlaybackUiPolicy.exoReportsLive(true, buffering, 10_000L, true))
+        assertTrue(LivePlaybackUiPolicy.exoReportsLive(false, ready, unset, false))
+        assertFalse(LivePlaybackUiPolicy.exoReportsLive(false, buffering, unset, false))
+        assertFalse(LivePlaybackUiPolicy.exoReportsLive(false, ready, 3_600_000L, true))
+        assertFalse(LivePlaybackUiPolicy.exoReportsLive(false, ready, unset, true))
+    }
+
+    @Test
+    fun `sports replay items are never known live`() {
+        val sports = com.nuvio.tv.domain.model.SportsAddon
+        sports.rememberCatalogItems(sports.CATALOG_LIVE, listOf("nuvio_sport_test_live_event"))
+        sports.rememberCatalogItems(sports.CATALOG_NETWORKS, listOf("nuvio_sport_test_channel"))
+        sports.rememberCatalogItems("nuvio_sports_replays_football_recent", listOf("nuvio_sport_test_replay"))
+        assertTrue(sports.isLiveSportsItem("nuvio_sport_test_live_event"))
+        assertTrue(sports.isLiveSportsItem("nuvio_sport_test_channel"))
+        assertFalse(sports.isLiveSportsItem("nuvio_sport_test_replay"))
+        assertFalse(sports.isLiveSportsItem("nuvio_sport_test_unknown"))
+        assertFalse(sports.isLiveSportsItem("tt1234567"))
+    }
 }

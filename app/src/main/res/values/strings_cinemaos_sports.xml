@@ -13,4 +13,10 @@
     <string name="sports_empty_subtitle">No live or upcoming events were found. Check back soon.</string>
     <string name="sports_error_unavailable">Sports are unavailable right now. Check your connection and try again.</string>
     <string name="sports_row_error">Couldn\'t load this row</string>
+    <string name="sports_filter_live_tv">Live TV</string>
+    <string name="sports_live_tv_search_hint">Search channels</string>
+    <string name="sports_live_tv_filter_hint">Filter channels</string>
+    <string name="sports_live_tv_empty_title">No channels available right now</string>
+    <string name="sports_live_tv_no_results">No channels match your search</string>
+    <string name="player_live_pill">LIVE</string>
 </resources>

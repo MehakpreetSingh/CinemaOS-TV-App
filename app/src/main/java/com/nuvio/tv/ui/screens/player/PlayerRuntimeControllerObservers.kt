@@ -531,6 +531,8 @@ internal fun PlayerRuntimeController.observeSubtitleSettings() {
 }
 
 internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode: Int?) {
+    // Live sports events / channels never resume: there is no saved position to return to.
+    if (knownLiveSportsItem) return
     val isCloudLibraryPlayback = contentType.equals("cloud", ignoreCase = true)
     val progressContentId = contentId
     if (!isCloudLibraryPlayback && progressContentId == null) return
@@ -588,6 +590,10 @@ internal fun PlayerRuntimeController.loadSavedProgressFor(season: Int?, episode:
  * player lifecycle and can lose the resume position entirely.
  */
 internal suspend fun PlayerRuntimeController.loadSavedProgressSuspend(season: Int?, episode: Int?) {
+    if (knownLiveSportsItem) {
+        pendingResumeProgress = null
+        return
+    }
     val isCloudLibraryPlayback = contentType.equals("cloud", ignoreCase = true)
     val progressContentId = contentId
     if (!isCloudLibraryPlayback && progressContentId == null) return
@@ -738,7 +744,7 @@ internal fun PlayerRuntimeController.recomputeMergedSkipIntervals() {
 
 internal fun PlayerRuntimeController.tryApplyPendingResumeProgress(player: Player) {
     val saved = pendingResumeProgress ?: return
-    if (!player.isCurrentMediaItemSeekable) {
+    if (!player.isCurrentMediaItemSeekable || _playbackTimeline.value.isLive) {
         pendingResumeProgress = null
         _uiState.update { it.copy(pendingSeekPosition = null) }
         return

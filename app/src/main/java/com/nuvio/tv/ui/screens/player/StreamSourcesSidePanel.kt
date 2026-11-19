@@ -838,10 +838,15 @@ internal fun findCurrentStreamIndex(
     return -1
 }
 
+/** Quality options built from a specific [source] list, so the UI can tell when they are still catching up. */
+private class QualitySnapshot(val source: List<Stream>, val options: List<QualityOptionModel>)
+
 /**
- * CinemaOS quality picker: lists the qualities the CURRENT provider offers (Auto = unknown quality),
- * with the playing one checked. Selecting switches to the best link of that quality from the same
- * provider, falling back to any provider.
+ * CinemaOS quality picker: lists every quality offered by ALL loaded sources (4K, 1440p, 1080p, 720p,
+ * 480p, SD, Auto), one entry per quality with its source count and the best source's size/badges, and
+ * marks the playing one. Selecting an entry switches to the best source of that quality: same provider
+ * as the playing source first, then larger size, then richer badges. Parsing/grouping runs off the
+ * main thread (shared parse cache with the sources panel), so opening the picker never janks.
  */
 @Composable
 private fun StreamQualityPanel(
@@ -870,21 +875,24 @@ private fun StreamQualityPanel(
     }
     val currentStream = allStreams.getOrNull(currentIdx)
     val provider = currentStream?.addonName ?: uiState.currentStreamAddonName
-    // Quality per stream is parsed once here instead of once per row per recomposition.
-    val byQuality = remember(allStreams, provider) {
-        allStreams.filter { !it.isExternal() && (provider == null || it.addonName == provider) }
-            .groupBy { it.sourceQuality() }
-    }
-    val anyByQuality = remember(allStreams) {
-        allStreams.filter { !it.isExternal() }.groupBy { it.sourceQuality() }
-    }
-    val qualities = remember(byQuality) { byQuality.keys.sortedDescending() }
-    val currentQuality = remember(currentStream) { currentStream?.sourceQuality() }
-    val requesters = remember(qualities.size) { List(qualities.size) { FocusRequester() } }
+    val currentKey = remember(currentStream) { currentStream?.sourceContentKey() }
 
-    LaunchedEffect(visible, qualities) {
-        if (!visible || qualities.isEmpty()) return@LaunchedEffect
-        val target = qualities.indexOf(currentQuality).coerceAtLeast(0)
+    val snapshot by produceState<QualitySnapshot?>(null, allStreams, currentKey, provider) {
+        value = withContext(Dispatchers.Default) {
+            QualitySnapshot(
+                allStreams,
+                buildQualityOptions(buildSourceRows(allStreams), currentKey, provider)
+            )
+        }
+    }
+    val pending = snapshot?.source !== allStreams && allStreams.isNotEmpty()
+    val options = snapshot?.options.orEmpty()
+    val requesters = remember(options.size) { List(options.size) { FocusRequester() } }
+    val sourceTotal = remember(options) { options.sumOf { it.sourceCount } }
+
+    LaunchedEffect(visible, options) {
+        if (!visible || options.isEmpty()) return@LaunchedEffect
+        val target = options.indexOfFirst { it.current != null }.coerceAtLeast(0)
         repeat(12) {
             withFrameNanos { }
             if (runCatching { requesters[target].requestFocus() }.isSuccess) return@LaunchedEffect
@@ -913,9 +921,9 @@ private fun StreamQualityPanel(
                 color = Color.White,
                 modifier = Modifier.padding(bottom = 2.dp)
             )
-            if (provider != null) {
+            if (options.isNotEmpty()) {
                 Text(
-                    text = provider,
+                    text = if (sourceTotal == 1) "1 source" else "$sourceTotal sources",
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.7f),
                     maxLines = 1,
@@ -923,9 +931,9 @@ private fun StreamQualityPanel(
                     modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
                 )
             }
-            if (qualities.isEmpty()) {
+            if (options.isEmpty()) {
                 Text(
-                    text = if (uiState.isLoadingSourceStreams) "Loading qualities…"
+                    text = if (pending || uiState.isLoadingSourceStreams) "Loading qualities…"
                     else stringResource(R.string.sources_no_streams),
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.75f)
@@ -936,24 +944,13 @@ private fun StreamQualityPanel(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)
                 ) {
-                    itemsIndexed(items = qualities, key = { _, q -> q }) { i, q ->
-                        val sameProvider = byQuality[q].orEmpty()
-                        val pick = remember(sameProvider, anyByQuality, q, currentStream) {
-                            sameProvider.firstOrNull { it !== currentStream }
-                                ?: sameProvider.firstOrNull()
-                                ?: anyByQuality[q]?.firstOrNull()
-                        }
-                        val active = q == currentQuality
-                        val shownStream = if (active && currentStream != null) currentStream else pick
+                    itemsIndexed(items = options, key = { _, o -> o.bucket }) { i, option ->
                         QualityOptionRow(
-                            quality = q,
-                            stream = shownStream,
-                            provider = provider,
-                            count = sameProvider.size,
-                            active = active,
+                            option = option,
                             focusRequester = requesters[i],
                             onClick = {
-                                if (pick != null && pick !== currentStream) onStreamSelected(pick) else onClose()
+                                // The playing quality keeps playing; any other switches to its best source.
+                                if (option.current != null) onClose() else onStreamSelected(option.best.stream)
                             }
                         )
                     }
@@ -965,18 +962,21 @@ private fun StreamQualityPanel(
 
 @Composable
 private fun QualityOptionRow(
-    quality: Int,
-    stream: Stream?,
-    provider: String?,
-    count: Int,
-    active: Boolean,
+    option: QualityOptionModel,
     focusRequester: FocusRequester,
     onClick: () -> Unit
 ) {
     var focused by remember { mutableStateOf(false) }
-    val parsed = remember(stream) { stream?.parsedSource() }
+    val active = option.current != null
+    // The playing entry shows the playing source; others show the source selecting them would play.
+    val shown = option.current ?: option.best
     val fg = if (focused) Color.Black else Color.White
     val secondary = if (focused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.6f)
+    val sizeText = if (shown.sizeBytes > 0) shown.detail?.substringBefore(" · ") else null
+    val countText = buildString {
+        append(option.sourceCount).append(if (option.sourceCount == 1) " source" else " sources")
+        if (option.providerCount > 1) append(" · ").append(option.providerCount).append(" providers")
+    }
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -1014,25 +1014,23 @@ private fun QualityOptionRow(
                     )
             )
             QualityTile(
-                label = com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(quality),
-                format = parsed?.format ?: "",
-                quality = quality,
+                label = qualityBucketShortLabel(option.bucket),
+                format = shown.format,
+                quality = option.bucket,
                 onLight = focused
             )
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
-                    text = listOfNotNull(
-                        if (quality > 0) "${quality}p" else "Auto",
-                        parsed?.size ?: formatSourceSize(stream?.behaviorHints?.videoSize)
-                    ).joinToString(" · "),
+                    text = listOfNotNull(qualityBucketTitle(option.bucket), sizeText).joinToString(" · "),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold,
-                    color = fg
+                    color = fg,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                SourceSpecChips(specs = parsed?.specs.orEmpty(), selected = focused, maxChips = 7)
+                SourceSpecChips(specs = shown.specs, selected = focused, maxChips = 7)
                 Text(
-                    text = listOfNotNull(provider, "$count link${if (count != 1) "s" else ""}")
-                        .joinToString(" · "),
+                    text = "${shown.provider} · $countText",
                     style = MaterialTheme.typography.labelLarge,
                     color = secondary,
                     maxLines = 1,

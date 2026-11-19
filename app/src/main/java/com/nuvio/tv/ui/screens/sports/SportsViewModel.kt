@@ -10,6 +10,7 @@ import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.SportsAddon
+import com.nuvio.tv.domain.model.supportsExtra
 import com.nuvio.tv.domain.repository.AddonRepository
 import com.nuvio.tv.domain.repository.CatalogRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +28,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -60,14 +62,32 @@ data class SportsRowModel(
     val items: List<SportsCardModel>
 )
 
+/** The "Live TV" chip's view: only the 24/7 channels catalog, paged, with optional search. */
+@Immutable
+data class LiveTvState(
+    val query: String = "",
+    val items: List<SportsCardModel> = emptyList(),
+    val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val hasMore: Boolean = false,
+    val loaded: Boolean = false,
+    @StringRes val errorRes: Int? = null
+)
+
 @Immutable
 data class SportsUiState(
     val filters: List<SportFilter> = emptyList(),
-    /** null means "All". */
+    /** null means "All". Kept while [isLiveTvSelected] so leaving Live TV returns to it. */
     val selectedSportId: String? = null,
     val rows: List<SportsRowModel> = emptyList(),
     val isLoading: Boolean = true,
-    @StringRes val errorRes: Int? = null
+    @StringRes val errorRes: Int? = null,
+    /** True when the addon lists the 24/7 channels catalog, which backs the "Live TV" chip. */
+    val hasLiveTv: Boolean = false,
+    /** True when that catalog accepts a `search` extra. */
+    val liveTvSearchSupported: Boolean = false,
+    val isLiveTvSelected: Boolean = false,
+    val liveTv: LiveTvState = LiveTvState()
 )
 
 @HiltViewModel
@@ -82,6 +102,9 @@ class SportsViewModel @Inject constructor(
     private var addon: Addon? = null
     private var loadJob: Job? = null
     private var liveRefreshJob: Job? = null
+    private var liveTvJob: Job? = null
+    /** Next `skip` for the unfiltered channel list; search results are a single page. */
+    private var liveTvNextSkip: Int = 0
 
     /** Latest fetched items per catalog id, so filter changes and live refreshes reuse them. */
     private val catalogItems = HashMap<String, List<MetaPreview>>()
@@ -94,8 +117,17 @@ class SportsViewModel @Inject constructor(
                 .distinctUntilChangedBy { it.catalogs }
                 .collect { current ->
                     addon = current
-                    _uiState.update { it.copy(filters = buildFilters(current.catalogs)) }
+                    val networks = current.catalogs.firstOrNull { it.id == SportsAddon.CATALOG_NETWORKS }
+                    _uiState.update {
+                        it.copy(
+                            filters = buildFilters(current.catalogs),
+                            hasLiveTv = networks != null,
+                            liveTvSearchSupported = networks?.supportsExtra("search") == true,
+                            isLiveTvSelected = it.isLiveTvSelected && networks != null
+                        )
+                    }
                     reload()
+                    if (_uiState.value.isLiveTvSelected) loadLiveTv(reset = true)
                 }
         }
         viewModelScope.launch { ensureManifest() }
@@ -117,13 +149,106 @@ class SportsViewModel @Inject constructor(
         } else {
             synchronized(catalogItemsLock) { catalogItems.clear() }
             reload()
+            if (_uiState.value.isLiveTvSelected) loadLiveTv(reset = true)
         }
     }
 
     fun selectSport(sportId: String?) {
-        if (_uiState.value.selectedSportId == sportId) return
-        _uiState.update { it.copy(selectedSportId = sportId) }
-        reload()
+        val state = _uiState.value
+        if (state.selectedSportId == sportId && !state.isLiveTvSelected) return
+        _uiState.update { it.copy(selectedSportId = sportId, isLiveTvSelected = false) }
+        if (state.selectedSportId != sportId) reload()
+    }
+
+    /** Shows only the 24/7 channels catalog. */
+    fun selectLiveTv() {
+        val state = _uiState.value
+        if (state.isLiveTvSelected || !state.hasLiveTv) return
+        _uiState.update { it.copy(isLiveTvSelected = true) }
+        if (!state.liveTv.loaded || state.liveTv.errorRes != null) loadLiveTv(reset = true)
+    }
+
+    fun onLiveTvQueryChange(query: String) {
+        if (query == _uiState.value.liveTv.query) return
+        _uiState.update { it.copy(liveTv = it.liveTv.copy(query = query)) }
+        loadLiveTv(reset = true, debounce = true)
+    }
+
+    /** Fetches the next page of channels; ignored while searching or when nothing is left. */
+    fun loadMoreLiveTv() {
+        val live = _uiState.value.liveTv
+        if (!live.hasMore || live.isLoading || live.isLoadingMore || live.query.isNotBlank()) return
+        if (liveTvJob?.isActive == true) return
+        loadLiveTv(reset = false)
+    }
+
+    private fun loadLiveTv(reset: Boolean, debounce: Boolean = false) {
+        val current = addon ?: return
+        val catalog = current.catalogs.firstOrNull { it.id == SportsAddon.CATALOG_NETWORKS } ?: return
+        liveTvJob?.cancel()
+        liveTvJob = viewModelScope.launch {
+            val query = _uiState.value.liveTv.query.trim()
+            if (debounce) delay(LIVE_TV_SEARCH_DEBOUNCE_MS)
+            val searching = query.isNotEmpty() && _uiState.value.liveTvSearchSupported
+            if (reset) liveTvNextSkip = 0
+            val skip = if (searching) 0 else liveTvNextSkip
+            _uiState.update {
+                it.copy(
+                    liveTv = it.liveTv.copy(
+                        isLoading = reset,
+                        isLoadingMore = !reset,
+                        errorRes = null,
+                        items = if (reset) emptyList() else it.liveTv.items
+                    )
+                )
+            }
+            val row = fetchCatalogRow(
+                addon = current,
+                catalog = catalog,
+                skip = skip,
+                extraArgs = if (searching) mapOf("search" to query) else emptyMap()
+            )
+            if (!isActive) return@launch
+            if (row == null) {
+                _uiState.update {
+                    it.copy(
+                        liveTv = it.liveTv.copy(
+                            isLoading = false,
+                            isLoadingMore = false,
+                            loaded = true,
+                            hasMore = false,
+                            errorRes = if (reset) R.string.sports_error_unavailable else null
+                        )
+                    )
+                }
+                return@launch
+            }
+            // Without server search, narrow the loaded channels locally.
+            val matching = if (query.isNotEmpty() && !searching) {
+                row.items.filter { it.name.contains(query, ignoreCase = true) }
+            } else {
+                row.items
+            }
+            val cards = withContext(Dispatchers.Default) {
+                matching.map { toCard(it, SportsRowKind.NETWORKS) }
+            }
+            if (!searching) liveTvNextSkip = row.nextSkip
+            _uiState.update { state ->
+                val merged = (if (reset) cards else state.liveTv.items + cards).distinctBy { it.key }
+                state.copy(
+                    liveTv = state.liveTv.copy(
+                        items = merged,
+                        isLoading = false,
+                        isLoadingMore = false,
+                        loaded = true,
+                        // A page that adds nothing new ends paging (guards against repeating pages).
+                        hasMore = !searching && row.hasMore && cards.isNotEmpty() &&
+                            merged.size > state.liveTv.items.size,
+                        errorRes = null
+                    )
+                )
+            }
+        }
     }
 
     /** Starts the ~60s Live Now refresh; call while the screen is visible. */
@@ -189,6 +314,20 @@ class SportsViewModel @Inject constructor(
 
     private suspend fun fetchCatalog(addon: Addon, catalog: CatalogDescriptor): List<MetaPreview>? {
         val skipRequired = catalog.extra.any { it.name.equals("skip", ignoreCase = true) && it.isRequired }
+        return fetchCatalogRow(
+            addon = addon,
+            catalog = catalog,
+            skip = 0,
+            extraArgs = if (skipRequired) mapOf("skip" to "0") else emptyMap()
+        )?.items
+    }
+
+    private suspend fun fetchCatalogRow(
+        addon: Addon,
+        catalog: CatalogDescriptor,
+        skip: Int,
+        extraArgs: Map<String, String>
+    ): com.nuvio.tv.domain.model.CatalogRow? {
         return try {
             val result = catalogRepository.getCatalog(
                 addonBaseUrl = addon.baseUrl,
@@ -197,9 +336,14 @@ class SportsViewModel @Inject constructor(
                 catalogId = catalog.id,
                 catalogName = catalog.name,
                 type = catalog.apiType,
-                extraArgs = if (skipRequired) mapOf("skip" to "0") else emptyMap()
+                skip = skip,
+                extraArgs = extraArgs,
+                supportsSkip = catalog.supportsExtra("skip")
             ).first { it !is NetworkResult.Loading }
-            (result as? NetworkResult.Success)?.data?.items
+            val row = (result as? NetworkResult.Success)?.data ?: return null
+            // Lets the player tell live events and channels from replays (VOD).
+            SportsAddon.rememberCatalogItems(catalog.id, row.items.map { it.id })
+            row
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
@@ -299,6 +443,7 @@ class SportsViewModel @Inject constructor(
     companion object {
         private const val LIVE_REFRESH_INTERVAL_MS = 60_000L
         private const val MAX_PARALLEL_CATALOG_REQUESTS = 4
+        private const val LIVE_TV_SEARCH_DEBOUNCE_MS = 400L
         private val LIVE_PREFIX = Regex("""(?i)^\s*\S*\s*LIVE\s*:\s*""")
         private val NON_SPORT_SUFFIXES = setOf("live", "upcoming", "networks")
 

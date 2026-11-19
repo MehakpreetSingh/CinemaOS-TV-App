@@ -56,7 +56,9 @@ internal class ParsedSource(
     val quality: Int,
     val format: String,
     val specs: List<SourceSpec>,
-    val size: String?
+    val size: String?,
+    /** Best-effort size in bytes (0 when unknown); used to rank links of the same quality. */
+    val sizeBytes: Long = 0L
 )
 
 private val SIZE_SUFFIXES = arrayOf(" GB", " MB")
@@ -81,6 +83,16 @@ private object SourceParseCache {
     val entries = LruCache<String, ParsedSource>(2048)
 }
 
+private fun sizeLabelToBytes(label: String?): Long {
+    if (label == null) return 0L
+    val n = label.substringBefore(' ').toDoubleOrNull() ?: return 0L
+    return when {
+        label.endsWith(" GB") -> (n * 1_073_741_824.0).toLong()
+        label.endsWith(" MB") -> (n * 1_048_576.0).toLong()
+        else -> 0L
+    }
+}
+
 internal fun Stream.parsedSource(): ParsedSource {
     val key = parseKey()
     SourceParseCache.entries.get(key)?.let { return it }
@@ -90,7 +102,8 @@ internal fun Stream.parsedSource(): ParsedSource {
         quality = sourceQuality(),
         format = sourceFormat(),
         specs = if (sizeSpec == null) allSpecs else allSpecs - sizeSpec,
-        size = sizeSpec?.label
+        size = sizeSpec?.label,
+        sizeBytes = behaviorHints?.videoSize?.takeIf { it > 0 } ?: sizeLabelToBytes(sizeSpec?.label)
     )
     SourceParseCache.entries.put(key, parsed)
     return parsed
@@ -111,7 +124,8 @@ internal class SourceRowModel(
     val title: String,
     val specs: List<SourceSpec>,
     /** "4.2 GB · Plugin name", or null. */
-    val detail: String?
+    val detail: String?,
+    val sizeBytes: Long = 0L
 )
 
 @Immutable
@@ -151,7 +165,8 @@ internal fun buildSourceRows(streams: List<Stream>): List<SourceRowModel> {
             format = parsed.format,
             title = s.getDisplayNameOrNull() ?: s.name ?: s.addonName,
             specs = parsed.specs,
-            detail = listOfNotNull(parsed.size, plugin).joinToString(" · ").ifEmpty { null }
+            detail = listOfNotNull(parsed.size, plugin).joinToString(" · ").ifEmpty { null },
+            sizeBytes = parsed.sizeBytes
         )
     }
     return out
@@ -188,4 +203,74 @@ internal fun groupSourceRows(
                 .thenByDescending { it.rank }
                 .thenByDescending { it.bestQuality }
         )
+}
+
+/** Quality bucket used by the player's Quality picker: 2160 / 1440 / 1080 / 720 / 480 / 360 (SD) / 0 (Auto). */
+internal fun qualityBucket(q: Int): Int = when {
+    q >= 2000 -> 2160
+    q >= 1300 -> 1440
+    q >= 1000 -> 1080
+    q >= 700 -> 720
+    q >= 400 -> 480
+    q > 0 -> 360
+    else -> 0
+}
+
+/** Short tile label for a [qualityBucket]. */
+internal fun qualityBucketShortLabel(bucket: Int): String = when (bucket) {
+    2160 -> "4K"
+    360 -> "SD"
+    0 -> "Auto"
+    else -> "${bucket}p"
+}
+
+/** Title line for a [qualityBucket]. */
+internal fun qualityBucketTitle(bucket: Int): String = when (bucket) {
+    2160 -> "Ultra HD 4K"
+    1440 -> "QHD 1440p"
+    1080 -> "Full HD 1080p"
+    720 -> "HD 720p"
+    480 -> "SD 480p"
+    360 -> "SD"
+    else -> "Auto"
+}
+
+/** One entry of the Quality picker: every loaded source of one quality bucket. */
+@Immutable
+internal class QualityOptionModel(
+    val bucket: Int,
+    /** Number of distinct sources (links) in this bucket, across all providers. */
+    val sourceCount: Int,
+    val providerCount: Int,
+    /** The source selecting this entry switches to. */
+    val best: SourceRowModel,
+    /** The playing source when it belongs to this bucket, else null. */
+    val current: SourceRowModel?
+)
+
+/**
+ * Groups ALL loaded sources by quality bucket (best first). The pick for each bucket is, in order:
+ * same provider as the playing source, larger size, richer badges (spec chips). Cheap and pure, but
+ * run it off the main thread together with [buildSourceRows].
+ */
+internal fun buildQualityOptions(
+    rows: List<SourceRowModel>,
+    currentContentKey: String?,
+    currentProvider: String?
+): List<QualityOptionModel> {
+    val pickOrder = compareByDescending<SourceRowModel> { it.provider == currentProvider }
+        .thenByDescending { it.sizeBytes }
+        .thenByDescending { it.specs.size }
+        .thenByDescending { it.quality }
+    return rows.groupBy { qualityBucket(it.quality) }
+        .map { (bucket, list) ->
+            QualityOptionModel(
+                bucket = bucket,
+                sourceCount = list.size,
+                providerCount = list.asSequence().map { it.provider }.distinct().count(),
+                best = list.sortedWith(pickOrder).first(),
+                current = currentContentKey?.let { key -> list.firstOrNull { it.contentKey == key } }
+            )
+        }
+        .sortedByDescending { it.bucket }
 }
