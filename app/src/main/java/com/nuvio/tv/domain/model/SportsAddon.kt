@@ -53,7 +53,7 @@ object SportsAddon {
     fun isReplayCatalog(catalogId: String): Boolean = catalogId.startsWith(CATALOG_REPLAYS)
 
     /** Records the items of [catalogId] as live (live/upcoming/per-sport/24-7) or replay. */
-    fun rememberCatalogItems(catalogId: String, itemIds: Collection<String>) {
+    fun rememberCatalogItems(catalogId: String, itemIds: kotlin.collections.Collection<String>) {
         val target = if (isReplayCatalog(catalogId)) replayItemIds else liveItemIds
         itemIds.forEach { id -> if (isSportsItemId(id)) target += itemKey(id) }
     }
