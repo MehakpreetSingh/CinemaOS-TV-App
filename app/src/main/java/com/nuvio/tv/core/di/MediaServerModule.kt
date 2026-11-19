@@ -62,3 +62,13 @@ object MediaServerModule {
                 PlexProvider(http, clientIdentity),
                 SiloProvider(http, clientIdentity)
             ),
+            scope = scope
+        )
+        scope.launch { profileDataStore.activeProfileId.collect(repository::selectProfile) }
+        return repository
+    }
+
+    @Provides
+    @IntoSet
+    fun credentialStore(repository: ServerRepository): ProfileScopedCredentialStore = repository
+}
