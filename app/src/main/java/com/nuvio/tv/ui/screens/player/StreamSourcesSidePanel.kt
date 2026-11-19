@@ -5,18 +5,18 @@
 
 package com.nuvio.tv.ui.screens.player
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,84 +24,61 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.withFrameNanos
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.launch as coroutineLaunch
-import kotlinx.coroutines.flow.first
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import android.view.KeyEvent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
-import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.tv.material3.Border
+import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
+import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.Stream
-import com.nuvio.tv.ui.components.LoadingIndicator
+import com.nuvio.tv.ui.components.RefreshFilterChip
 import com.nuvio.tv.ui.components.SourceChipStatus
 import com.nuvio.tv.ui.theme.NuvioTheme
-import androidx.compose.ui.res.stringResource
-import com.nuvio.tv.R
 import com.nuvio.tv.ui.util.localizeEpisodeTitle
-import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch as coroutineLaunch
 
-private enum class SourceFormatFilter(val label: String) {
-    ALL("All"), HD("1080p+"), FILE("MP4 / MKV"), HLS("HLS"), DASH("DASH")
-}
+private val PanelRowShape = RoundedCornerShape(14.dp)
+private val PillShape = RoundedCornerShape(999.dp)
+private val UhdGold = Color(0xFFE8C062)
 
-private fun Stream.sourceQuality(): Int {
-    if (qualityValue > 0) return qualityValue
-    val text = listOfNotNull(name, title, description).joinToString(" ")
-    if (Regex("4k|2160|uhd", RegexOption.IGNORE_CASE).containsMatchIn(text)) return 2160
-    return Regex("(\\d{3,4})\\s*p", RegexOption.IGNORE_CASE).find(text)?.groupValues?.get(1)?.toIntOrNull() ?: 0
-}
-
-private fun Stream.sourceFormat(): String {
-    val u = (getStreamUrl() ?: return "P2P").lowercase().substringBefore('?')
-    return when {
-        u.contains(".m3u8") || u.contains("/hls") -> "HLS"
-        u.contains(".mpd") -> "DASH"
-        u.contains(".mkv") -> "MKV"
-        else -> "MP4"
-    }
-}
-
-private fun qualityLabel(q: Int): String? = when {
-    q >= 2160 -> "4K"
-    q > 0 -> "${q}p"
-    else -> null
-}
-
-private fun formatSize(bytes: Long?): String? {
-    if (bytes == null || bytes <= 0) return null
-    val gb = bytes / 1_073_741_824.0
-    return if (gb >= 1) String.format("%.1f GB", gb) else String.format("%.0f MB", bytes / 1_048_576.0)
-}
+/** Rows built from a specific [source] list, so the UI can tell when they are still catching up. */
+private class SourceRowsSnapshot(val source: List<Stream>, val rows: List<SourceRowModel>)
 
 /**
  * CinemaOS in-player sources panel, modelled on the phone app's ServerBrowser
@@ -165,6 +142,16 @@ private fun StreamSourcesPanelContent(
     val serverListState = rememberLazyListState()
 
     val allStreams = uiState.sourceAllStreams
+
+    // Parse every stream into a display row on a background thread. This composable stays in the
+    // composition while the panel is hidden, so the rows are already built by the time it opens;
+    // badge/debrid updates only re-key cached parses instead of re-running the regexes.
+    val built by produceState(SourceRowsSnapshot(emptyList(), emptyList()), allStreams) {
+        val rows = withContext(Dispatchers.Default) { buildSourceRows(allStreams) }
+        value = SourceRowsSnapshot(allStreams, rows)
+    }
+    val rowsPending = built.source !== allStreams && allStreams.isNotEmpty()
+
     val currentIdx = remember(
         allStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx, uiState.currentStreamAddonName,
         uiState.currentStreamUrl, uiState.currentStreamName, uiState.currentStreamDescription, currentFilename
@@ -182,83 +169,79 @@ private fun StreamSourcesPanelContent(
     }
     val currentStream = allStreams.getOrNull(currentIdx)
     val currentProvider = currentStream?.addonName
+    val currentKey = remember(currentStream) { currentStream?.sourceContentKey() }
 
-    val groups = remember(allStreams, filter, currentProvider) {
-        val kept = allStreams.filter { s ->
-            !s.isExternal() && when (filter) {
-                SourceFormatFilter.ALL -> true
-                SourceFormatFilter.HD -> s.sourceQuality() >= 1080
-                SourceFormatFilter.FILE -> s.sourceFormat().let { it == "MP4" || it == "MKV" }
-                SourceFormatFilter.HLS -> s.sourceFormat() == "HLS"
-                SourceFormatFilter.DASH -> s.sourceFormat() == "DASH"
-            }
-        }
-        kept.groupBy { it.addonName }
-            .map { (prov, list) ->
-                val sorted = list.sortedByDescending { it.sourceQuality() }
-                // Every distinct link is its own row (the quality panel keeps its own per-quality grouping).
-                val rows = sorted.distinctBy { it.getStreamUrl() ?: System.identityHashCode(it) }
-                prov to rows
-            }
-            .sortedWith(
-                compareByDescending<Pair<String, List<Stream>>> { it.first == currentProvider }
-                    .thenByDescending { it.first.let { n -> com.nuvio.tv.core.player.autoPlayProviderRank(n) } }
-                    .thenByDescending { (_, l) -> l.maxOf { it.sourceQuality() } }
-            )
+    val groups = remember(built, filter, currentProvider) {
+        groupSourceRows(built.rows, filter, currentProvider)
     }
+    val serverCount = remember(groups) { groups.sumOf { it.rows.size } }
 
     // The right column follows the focused provider; default to the one that is playing.
-    val activeProvider = groups.firstOrNull { it.first == selectedProvider }?.first
-        ?: groups.firstOrNull { it.first == currentProvider }?.first
-        ?: groups.firstOrNull()?.first
-    val activeServers = groups.firstOrNull { it.first == activeProvider }?.second.orEmpty()
+    val activeGroup = groups.firstOrNull { it.name == selectedProvider }
+        ?: groups.firstOrNull { it.name == currentProvider }
+        ?: groups.firstOrNull()
+    val activeProvider = activeGroup?.name
+    val activeServers = activeGroup?.rows.orEmpty()
     val rightTargetIdx = lastServerIndex[activeProvider]?.takeIf { it in activeServers.indices }
-        ?: activeServers.indexOfFirst { it === currentStream }.takeIf { it >= 0 }
+        ?: activeServers.indexOfFirst { it.contentKey == currentKey }.takeIf { it >= 0 }
         ?: 0
     val focusServers: () -> Unit = {
-        panelScope.coroutineLaunch {
-            serverListState.scrollToItem(rightTargetIdx)
-            withFrameNanos { }
-            runCatching { rightRequester.requestFocus() }
+        if (activeServers.isNotEmpty()) {
+            panelScope.coroutineLaunch {
+                serverListState.scrollToItem(rightTargetIdx)
+                withFrameNanos { }
+                runCatching { rightRequester.requestFocus() }
+            }
         }
     }
 
-    // Initial focus: the playing provider's card (or the first one) once results are there.
+    // Browsing providers always shows the top of the newly selected provider's servers.
+    LaunchedEffect(activeProvider) {
+        if (serverListState.firstVisibleItemIndex != 0 || serverListState.firstVisibleItemScrollOffset != 0) {
+            serverListState.scrollToItem(0)
+        }
+    }
+
+    // Initial focus: the playing provider's card (or the first one). Lands on the first frame the
+    // card is laid out instead of waiting a fixed number of frames plus 60 ms retries.
     var focusDone by remember { mutableStateOf(false) }
-    LaunchedEffect(visible, groups.isNotEmpty(), currentProvider) {
-        if (!visible) { focusDone = false; return@LaunchedEffect }
-        if (focusDone || groups.isEmpty()) return@LaunchedEffect
-        withFrameNanos { }
-        withFrameNanos { }
-        val target = (groups.indexOfFirst { it.first == currentProvider }).coerceAtLeast(0)
-        providerListState.scrollToItem(target)
-        withFrameNanos { }
-        repeat(6) {
-            val req = providerRequesters[groups[target].first]
+    LaunchedEffect(visible) { if (!visible) focusDone = false }
+    val hasGroups = groups.isNotEmpty()
+    LaunchedEffect(visible, hasGroups) {
+        if (!visible || focusDone || !hasGroups) return@LaunchedEffect
+        val target = groups.indexOfFirst { it.name == currentProvider }.coerceAtLeast(0)
+        val targetName = groups[target].name
+        if (providerListState.layoutInfo.visibleItemsInfo.none { it.key == targetName }) {
+            providerListState.scrollToItem(target)
+        }
+        repeat(12) {
+            withFrameNanos { }
+            val req = providerRequesters[targetName]
             if (req != null && runCatching { req.requestFocus() }.isSuccess) {
                 focusDone = true
                 return@LaunchedEffect
             }
-            kotlinx.coroutines.delay(60)
         }
     }
     // Nothing to land on yet: keep focus inside the panel.
-    LaunchedEffect(visible, groups.isEmpty()) {
-        if (visible && groups.isEmpty()) {
+    LaunchedEffect(visible, hasGroups) {
+        if (visible && !hasGroups) {
             withFrameNanos { }
-            runCatching { chipRequesters[0].requestFocus() }
+            runCatching { chipRequesters[filter.ordinal].requestFocus() }
         }
     }
 
     val searching = uiState.isLoadingSourceStreams ||
         uiState.sourceChips.any { it.status == SourceChipStatus.LOADING }
+    val showSkeletons = rowsPending || (groups.isEmpty() && searching)
 
     PlayerOverlayScaffold(
         visible = visible,
         onDismiss = onClose,
         modifier = modifier,
         captureKeys = false,
-        contentPadding = PaddingValues(start = 44.dp, end = 44.dp, top = 28.dp, bottom = 64.dp)
+        overlayTint = Color.Black.copy(alpha = 0.45f),
+        contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 32.dp, bottom = 40.dp)
     ) {
         Column(
             modifier = Modifier
@@ -267,12 +250,24 @@ private fun StreamSourcesPanelContent(
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Top
         ) {
-            Text(
-                text = stringResource(R.string.sources_title),
-                style = MaterialTheme.typography.headlineMedium,
-                color = Color.White,
-                modifier = Modifier.padding(bottom = NuvioTheme.spacing.xs)
-            )
+            // Header: title + live summary.
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.sources_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
+                )
+                SourceSummaryPill(
+                    providers = groups.size,
+                    servers = serverCount,
+                    searching = searching
+                )
+            }
 
             val context = LocalContext.current
             val seasonEpisodeCode = if (uiState.currentSeason != null && uiState.currentEpisode != null) {
@@ -286,10 +281,10 @@ private fun StreamSourcesPanelContent(
                     else -> uiState.title
                 },
                 style = MaterialTheme.typography.bodyLarge,
-                color = NuvioTheme.extendedColors.textSecondary,
+                color = Color.White.copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
+                modifier = Modifier.padding(bottom = NuvioTheme.spacing.md)
             )
 
             PlayerDownloadAction(uiState, currentFilename, downloadHeaders,
@@ -297,225 +292,113 @@ private fun StreamSourcesPanelContent(
 
             // Filter chips (RN FILTERS) + refresh.
             Row(
-                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm),
-                modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = NuvioTheme.spacing.md)
             ) {
                 SourceFormatFilter.values().forEachIndexed { i, f ->
-                    val selected = filter == f
-                    androidx.tv.material3.Card(
-                        onClick = { filter = f },
-                        modifier = Modifier
-                            .focusRequester(chipRequesters[i])
-                            .focusProperties {
-                                down = providerRequesters[activeProvider]
-                                    ?.takeIf { providerListState.layoutInfo.visibleItemsInfo.any { it.key == activeProvider } }
-                                    ?: FocusRequester.Default
-                            }
-                            .onFocusChanged { if (it.isFocused) filter = f },
-                        colors = androidx.tv.material3.CardDefaults.colors(
-                            containerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f),
-                            focusedContainerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.24f)
-                        ),
-                        shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(999.dp)),
-                        border = sourcePanelBorder(999.dp),
-                        scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.06f, pressedScale = 1f)
-                    ) {
-                        Text(
-                            text = f.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (selected) NuvioTheme.colors.OnSecondary else Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.padding(horizontal = NuvioTheme.spacing.md, vertical = 6.dp)
-                        )
-                    }
+                    SourceFilterChip(
+                        label = f.label,
+                        selected = filter == f,
+                        focusRequester = chipRequesters[i],
+                        downTarget = {
+                            providerRequesters[activeProvider]
+                                ?.takeIf { providerListState.layoutInfo.visibleItemsInfo.any { it.key == activeProvider } }
+                                ?: FocusRequester.Default
+                        },
+                        onSelect = { filter = f }
+                    )
                 }
-                com.nuvio.tv.ui.components.RefreshFilterChip(
+                RefreshFilterChip(
                     onClick = onReload,
                     isLoading = searching
                 )
             }
 
-            Text(
-                text = "${groups.size} providers \u00B7 ${groups.sumOf { it.second.size }} servers" +
-                    if (searching) " \u00B7 searching\u2026" else "",
-                style = MaterialTheme.typography.labelSmall,
-                color = NuvioTheme.extendedColors.textSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = NuvioTheme.spacing.xs)
-            )
-
             val emptyMessage: String? = when {
                 uiState.sourceStreamsError != null && allStreams.isEmpty() -> uiState.sourceStreamsError
-                groups.isEmpty() && !searching -> stringResource(R.string.sources_no_streams)
+                groups.isEmpty() && !searching && !rowsPending -> stringResource(R.string.sources_no_streams)
                 else -> null
             }
-            run {
-                Row(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    // Left column: providers.
+
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
+                verticalAlignment = Alignment.Top
+            ) {
+                // Left column: providers.
+                Column(modifier = Modifier.width(330.dp).fillMaxHeight()) {
+                    SourceColumnHeading(text = "Providers")
                     LazyColumn(
                         state = providerListState,
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
-                        modifier = Modifier.width(340.dp).fillMaxHeight()
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f)
                     ) {
-                        if (groups.isEmpty()) {
-                            items(count = if (searching) 7 else 0) { SourcePanelSkeletonRow(64.dp) }
+                        if (groups.isEmpty() && showSkeletons) {
+                            items(count = 6) { SourcePanelSkeletonRow(64.dp) }
                         }
-                        itemsIndexed(items = groups, key = { _, g -> g.first }) { provIdx, (prov, list) ->
-                            val req = providerRequesters.getOrPut(prov) {
-                                if (prov == groups.firstOrNull()?.first) streamsFocusRequester else FocusRequester()
+                        itemsIndexed(items = groups, key = { _, g -> g.name }) { provIdx, group ->
+                            val req = providerRequesters.getOrPut(group.name) {
+                                if (group.name == groups.firstOrNull()?.name) streamsFocusRequester else FocusRequester()
                             }
-                            val playing = prov == currentProvider
-                            val shown = prov == activeProvider
-                            val formats = list.map { it.sourceFormat() }.distinct().joinToString(", ")
-                            androidx.tv.material3.Card(
-                                onClick = { focusServers() },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(req)
-                                    // Up: previous provider (default search); only the first goes to the chips.
-                                    .focusProperties {
-                                        if (provIdx == 0) up = chipRequesters[filter.ordinal]
-                                    }
-                                    .onPreviewKeyEvent {
-                                        if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionRight) {
-                                            focusServers(); true
-                                        } else false
-                                    }
-                                    .onFocusChanged { if (it.isFocused) selectedProvider = prov },
-                                colors = androidx.tv.material3.CardDefaults.colors(
-                                    containerColor = if (shown) NuvioTheme.colors.Secondary else Color.Transparent,
-                                    focusedContainerColor = if (shown) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.22f)
-                                ),
-                                shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
-                                border = sourcePanelBorder(NuvioTheme.radii.md),
-                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.05f, pressedScale = 1f)
-                            ) {
-                                val primary = if (shown) NuvioTheme.colors.OnSecondary else Color.White
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .padding(horizontal = NuvioTheme.spacing.md, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier.size(8.dp).clip(RoundedCornerShape(4.dp))
-                                            .background(primary.copy(alpha = if (playing) 1f else 0.25f))
-                                    )
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = prov,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = primary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = "${list.size} server${if (list.size > 1) "s" else ""} · $formats",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = if (shown) NuvioTheme.colors.OnSecondary.copy(alpha = 0.72f)
-                                            else NuvioTheme.colors.TextTertiary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    qualityLabel(list.maxOf { it.sourceQuality() })?.let { SourcePanelBadge(it, shown) }
-                                }
-                            }
+                            SourceProviderCard(
+                                provider = group,
+                                playing = group.name == currentProvider,
+                                shown = group.name == activeProvider,
+                                focusRequester = req,
+                                // Up: previous provider (default search); only the first goes to the chips.
+                                upRequester = if (provIdx == 0) chipRequesters[filter.ordinal] else null,
+                                onFocused = { selectedProvider = group.name },
+                                onOpenServers = focusServers
+                            )
                         }
                     }
+                }
 
-                    // Right column: the focused provider's servers.
+                // Right column: the focused provider's servers.
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Color.White.copy(alpha = 0.04f))
+                ) {
+                    SourceColumnHeading(
+                        text = activeProvider?.let { "Servers · $it" } ?: "Servers",
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
                     LazyColumn(
                         state = serverListState,
                         verticalArrangement = Arrangement.spacedBy(6.dp),
-                        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
-                        modifier = Modifier.weight(1f).fillMaxHeight()
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.fillMaxWidth().weight(1f)
                     ) {
                         if (activeServers.isEmpty()) {
                             if (emptyMessage != null) {
-                                item {
+                                item(key = "empty") {
                                     Text(
                                         text = emptyMessage,
                                         style = MaterialTheme.typography.bodyLarge,
-                                        color = Color.White.copy(alpha = 0.7f),
+                                        color = Color.White.copy(alpha = 0.75f),
                                         modifier = Modifier.padding(NuvioTheme.spacing.md)
                                     )
                                 }
                             } else {
-                                items(count = 7) { SourcePanelSkeletonRow(72.dp) }
+                                items(count = 6) { SourcePanelSkeletonRow(76.dp) }
                             }
                         }
-                        itemsIndexed(
-                            items = activeServers,
-                            key = { i, _ -> "$activeProvider#$i" }
-                        ) { i, s ->
-                            val active = s === currentStream
-                            val isRightTarget = i == rightTargetIdx
-                            val title = s.getDisplayNameOrNull() ?: s.name ?: s.addonName
-                            val meta = s.pluginSourceName?.takeIf { it.isNotBlank() && it != s.addonName }.orEmpty()
-                            val specs = remember(s) { s.sourceSpecs() }
-                            val titleColor = if (active) NuvioTheme.colors.OnSecondary else Color.White
-                            androidx.tv.material3.Card(
-                                onClick = { onStreamSelected(s) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(if (isRightTarget) Modifier.focusRequester(rightRequester) else Modifier)
-                                    .focusProperties {
-                                        left = providerRequesters[activeProvider] ?: FocusRequester.Default
-                                        // Up: previous server (default search); only the first goes to the chips.
-                                        if (i == 0) up = chipRequesters[filter.ordinal]
-                                    }
-                                    .onFocusChanged { if (it.isFocused) activeProvider?.let { p -> lastServerIndex[p] = i } },
-                                colors = androidx.tv.material3.CardDefaults.colors(
-                                    containerColor = if (active) NuvioTheme.colors.Secondary else Color.Transparent,
-                                    focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.22f)
-                                ),
-                                shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
-                                border = sourcePanelBorder(NuvioTheme.radii.md),
-                                scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1.04f, pressedScale = 1f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .padding(horizontal = NuvioTheme.spacing.md, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    SourcePanelBadge(qualityLabel(s.sourceQuality()) ?: "Auto", active)
-                                    SourcePanelBadge(s.sourceFormat(), active)
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = title,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = titleColor,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        SourceSpecChips(
-                                            specs = specs,
-                                            selected = active,
-                                            modifier = Modifier.padding(top = 4.dp)
-                                        )
-                                        if (meta.isNotBlank()) {
-                                            Text(
-                                                text = meta,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = if (active) NuvioTheme.colors.OnSecondary.copy(alpha = 0.72f)
-                                                else NuvioTheme.colors.TextTertiary,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                    }
-                                    if (active) {
-                                        Text(text = "\u2713", style = MaterialTheme.typography.titleMedium, color = NuvioTheme.colors.OnSecondary)
-                                    }
-                                }
-                            }
+                        itemsIndexed(items = activeServers, key = { _, r -> r.key }) { i, row ->
+                            SourceServerRow(
+                                row = row,
+                                active = row.contentKey == currentKey,
+                                focusRequester = if (i == rightTargetIdx) rightRequester else null,
+                                leftRequester = providerRequesters[activeProvider],
+                                // Up: previous server (default search); only the first goes to the chips.
+                                upRequester = if (i == 0) chipRequesters[filter.ordinal] else null,
+                                onFocused = { activeProvider?.let { p -> lastServerIndex[p] = i } },
+                                onClick = { onStreamSelected(row.stream) }
+                            )
                         }
                     }
                 }
@@ -525,14 +408,342 @@ private fun StreamSourcesPanelContent(
 }
 
 @Composable
-private fun SourcePanelSkeletonRow(height: androidx.compose.ui.unit.Dp) {
-    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "srcSkel")
+private fun SourceSummaryPill(providers: Int, servers: Int, searching: Boolean) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .background(Color.White.copy(alpha = 0.1f), PillShape)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+    ) {
+        if (searching) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(PillShape)
+                    .background(NuvioTheme.colors.Secondary)
+            )
+        }
+        Text(
+            text = "$providers providers · $servers servers" + if (searching) " · searching…" else "",
+            style = MaterialTheme.typography.labelLarge,
+            color = Color.White.copy(alpha = 0.85f),
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun SourceColumnHeading(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = Color.White.copy(alpha = 0.55f),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.padding(start = 10.dp, bottom = 4.dp)
+    )
+}
+
+@Composable
+private fun SourceFilterChip(
+    label: String,
+    selected: Boolean,
+    focusRequester: FocusRequester,
+    downTarget: () -> FocusRequester,
+    onSelect: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    val fg = when {
+        focused -> Color.Black
+        selected -> NuvioTheme.colors.OnSecondary
+        else -> Color.White.copy(alpha = 0.85f)
+    }
+    Card(
+        onClick = onSelect,
+        modifier = Modifier
+            .focusRequester(focusRequester)
+            .focusProperties { down = downTarget() }
+            .onFocusChanged {
+                focused = it.isFocused
+                // Moving across the chips applies the filter right away.
+                if (it.isFocused) onSelect()
+            },
+        colors = CardDefaults.colors(
+            containerColor = if (selected) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.1f),
+            focusedContainerColor = Color.White,
+            pressedContainerColor = Color.White
+        ),
+        shape = CardDefaults.shape(PillShape),
+        border = sourcePanelBorder(999.dp),
+        scale = CardDefaults.scale(focusedScale = 1.08f, pressedScale = 1f)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Normal,
+            color = fg,
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun SourceProviderCard(
+    provider: SourceProviderModel,
+    playing: Boolean,
+    shown: Boolean,
+    focusRequester: FocusRequester,
+    upRequester: FocusRequester?,
+    onFocused: () -> Unit,
+    onOpenServers: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    val fg = if (focused) Color.Black else Color.White
+    val secondary = if (focused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.6f)
+    val accent = when {
+        focused -> Color.Black
+        shown -> NuvioTheme.colors.Secondary
+        else -> Color.Transparent
+    }
+    Card(
+        onClick = onOpenServers,
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .focusProperties { if (upRequester != null) up = upRequester }
+            .onPreviewKeyEvent {
+                if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionRight) {
+                    onOpenServers(); true
+                } else false
+            }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            },
+        colors = CardDefaults.colors(
+            containerColor = if (shown) Color.White.copy(alpha = 0.12f) else Color.Transparent,
+            focusedContainerColor = Color.White,
+            pressedContainerColor = Color.White
+        ),
+        shape = CardDefaults.shape(PanelRowShape),
+        border = sourcePanelBorder(14.dp),
+        scale = CardDefaults.scale(focusedScale = 1.03f, pressedScale = 1f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .padding(start = 8.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(34.dp)
+                    .clip(PillShape)
+                    .background(accent)
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = provider.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = fg,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (playing) NowPlayingPill(compact = true, onLight = focused)
+                    Text(
+                        text = "${provider.rows.size} server${if (provider.rows.size != 1) "s" else ""} · ${provider.formats}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (provider.bestQuality > 0) {
+                QualityBadge(label = sourceQualityLabel(provider.bestQuality), quality = provider.bestQuality, onLight = focused)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceServerRow(
+    row: SourceRowModel,
+    active: Boolean,
+    focusRequester: FocusRequester?,
+    leftRequester: FocusRequester?,
+    upRequester: FocusRequester?,
+    onFocused: () -> Unit,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    val fg = if (focused) Color.Black else Color.White
+    val secondary = if (focused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.6f)
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier)
+            .focusProperties {
+                left = leftRequester ?: FocusRequester.Default
+                if (upRequester != null) up = upRequester
+            }
+            .onFocusChanged {
+                focused = it.isFocused
+                if (it.isFocused) onFocused()
+            },
+        colors = CardDefaults.colors(
+            containerColor = if (active) Color.White.copy(alpha = 0.12f) else Color.Transparent,
+            focusedContainerColor = Color.White,
+            pressedContainerColor = Color.White
+        ),
+        shape = CardDefaults.shape(PanelRowShape),
+        border = sourcePanelBorder(14.dp),
+        scale = CardDefaults.scale(focusedScale = 1.02f, pressedScale = 1f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 76.dp)
+                .padding(start = 8.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(44.dp)
+                    .clip(PillShape)
+                    .background(
+                        when {
+                            !active -> Color.Transparent
+                            focused -> Color.Black
+                            else -> NuvioTheme.colors.Secondary
+                        }
+                    )
+            )
+            QualityTile(label = row.qualityLabel, format = row.format, quality = row.quality, onLight = focused)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    text = row.title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (focused || active) FontWeight.SemiBold else FontWeight.Normal,
+                    color = fg,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                SourceSpecChips(specs = row.specs, selected = focused, maxChips = 7)
+                if (row.detail != null) {
+                    Text(
+                        text = row.detail,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = secondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            if (active) NowPlayingPill(compact = false, onLight = focused)
+        }
+    }
+}
+
+/** Big quality block at the start of a server row: "4K" / "1080p" / "Auto" over the container format. */
+@Composable
+private fun QualityTile(label: String, format: String, quality: Int, onLight: Boolean) {
+    val uhd = quality >= 2160
+    val bg = when {
+        uhd -> UhdGold
+        onLight -> Color.Black.copy(alpha = 0.08f)
+        quality >= 1080 -> Color.White.copy(alpha = 0.18f)
+        else -> Color.White.copy(alpha = 0.1f)
+    }
+    val fg = if (uhd || onLight) Color.Black else Color.White
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .width(78.dp)
+            .heightIn(min = 54.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(bg)
+            .padding(vertical = 6.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = fg,
+            maxLines = 1
+        )
+        if (format.isNotBlank()) {
+            Text(
+                text = format,
+                style = MaterialTheme.typography.labelSmall,
+                color = fg.copy(alpha = 0.7f),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun QualityBadge(label: String, quality: Int, onLight: Boolean) {
+    val uhd = quality >= 2160
+    Box(
+        modifier = Modifier
+            .background(
+                when {
+                    uhd -> UhdGold
+                    onLight -> Color.Black.copy(alpha = 0.1f)
+                    else -> Color.White.copy(alpha = 0.14f)
+                },
+                RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = if (uhd || onLight) Color.Black else Color.White
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingPill(compact: Boolean, onLight: Boolean) {
+    Box(
+        modifier = Modifier
+            .background(if (onLight) Color.Black else NuvioTheme.colors.Secondary, PillShape)
+            .padding(horizontal = if (compact) 8.dp else 12.dp, vertical = if (compact) 2.dp else 5.dp)
+    ) {
+        Text(
+            text = "PLAYING",
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (onLight) Color.White else NuvioTheme.colors.OnSecondary,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
+private fun SourcePanelSkeletonRow(height: Dp) {
+    val t = rememberInfiniteTransition(label = "srcSkel")
     val a by t.animateFloat(
         initialValue = 0.05f,
         targetValue = 0.12f,
-        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+        animationSpec = infiniteRepeatable(
             animation = tween(900),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            repeatMode = RepeatMode.Reverse
         ),
         label = "srcSkelA"
     )
@@ -540,37 +751,24 @@ private fun SourcePanelSkeletonRow(height: androidx.compose.ui.unit.Dp) {
         modifier = Modifier
             .fillMaxWidth()
             .height(height)
-            .clip(RoundedCornerShape(NuvioTheme.radii.md))
+            .clip(PanelRowShape)
             .background(Color.White.copy(alpha = a))
     )
 }
 
+/** No outline: focus is shown by the white fill, which reads from across the room. */
 @Composable
-private fun SourcePanelBadge(label: String, selected: Boolean) {
-    Box(
-        modifier = Modifier
-            .background(
-                if (selected) NuvioTheme.colors.OnSecondary.copy(alpha = 0.14f) else Color.White.copy(alpha = 0.1f),
-                RoundedCornerShape(999.dp)
-            )
-            .padding(horizontal = NuvioTheme.spacing.sm, vertical = 3.dp)
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = if (selected) NuvioTheme.colors.OnSecondary.copy(alpha = 0.9f) else Color.White.copy(alpha = 0.85f)
-        )
-    }
-}
-
-@Composable
-private fun sourcePanelBorder(radius: androidx.compose.ui.unit.Dp) = androidx.tv.material3.CardDefaults.border(
-    border = androidx.tv.material3.Border(
-        border = androidx.compose.foundation.BorderStroke(NuvioTheme.spacing.xxs, Color.Transparent),
+private fun sourcePanelBorder(radius: Dp) = CardDefaults.border(
+    border = Border(
+        border = BorderStroke(0.dp, Color.Transparent),
         shape = RoundedCornerShape(radius)
     ),
-    focusedBorder = androidx.tv.material3.Border(
-        border = androidx.compose.foundation.BorderStroke(2.dp, Color.White),
+    focusedBorder = Border(
+        border = BorderStroke(0.dp, Color.Transparent),
+        shape = RoundedCornerShape(radius)
+    ),
+    pressedBorder = Border(
+        border = BorderStroke(0.dp, Color.Transparent),
         shape = RoundedCornerShape(radius)
     )
 )
@@ -672,19 +870,25 @@ private fun StreamQualityPanel(
     }
     val currentStream = allStreams.getOrNull(currentIdx)
     val provider = currentStream?.addonName ?: uiState.currentStreamAddonName
-    val candidates = remember(allStreams, provider) {
+    // Quality per stream is parsed once here instead of once per row per recomposition.
+    val byQuality = remember(allStreams, provider) {
         allStreams.filter { !it.isExternal() && (provider == null || it.addonName == provider) }
+            .groupBy { it.sourceQuality() }
     }
-    val qualities = remember(candidates) { candidates.map { it.sourceQuality() }.distinct().sortedDescending() }
-    val currentQuality = currentStream?.sourceQuality()
+    val anyByQuality = remember(allStreams) {
+        allStreams.filter { !it.isExternal() }.groupBy { it.sourceQuality() }
+    }
+    val qualities = remember(byQuality) { byQuality.keys.sortedDescending() }
+    val currentQuality = remember(currentStream) { currentStream?.sourceQuality() }
     val requesters = remember(qualities.size) { List(qualities.size) { FocusRequester() } }
 
     LaunchedEffect(visible, qualities) {
         if (!visible || qualities.isEmpty()) return@LaunchedEffect
-        withFrameNanos { }
-        withFrameNanos { }
         val target = qualities.indexOf(currentQuality).coerceAtLeast(0)
-        runCatching { requesters[target].requestFocus() }
+        repeat(12) {
+            withFrameNanos { }
+            if (runCatching { requesters[target].requestFocus() }.isSuccess) return@LaunchedEffect
+        }
     }
 
     PlayerOverlayScaffold(
@@ -692,11 +896,12 @@ private fun StreamQualityPanel(
         onDismiss = onClose,
         modifier = modifier,
         captureKeys = false,
-        contentPadding = PaddingValues(start = 44.dp, end = 44.dp, top = 28.dp, bottom = 64.dp)
+        overlayTint = Color.Black.copy(alpha = 0.45f),
+        contentPadding = PaddingValues(start = 48.dp, end = 48.dp, top = 32.dp, bottom = 56.dp)
     ) {
         Column(
             modifier = Modifier
-                .width(560.dp)
+                .width(580.dp)
                 .align(Alignment.BottomStart)
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Bottom
@@ -704,95 +909,137 @@ private fun StreamQualityPanel(
             Text(
                 text = "Quality",
                 style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.SemiBold,
                 color = Color.White,
-                modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
+                modifier = Modifier.padding(bottom = 2.dp)
             )
+            if (provider != null) {
+                Text(
+                    text = provider,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(bottom = NuvioTheme.spacing.sm)
+                )
+            }
             if (qualities.isEmpty()) {
                 Text(
-                    text = if (uiState.isLoadingSourceStreams) "Loading qualities\u2026"
+                    text = if (uiState.isLoadingSourceStreams) "Loading qualities…"
                     else stringResource(R.string.sources_no_streams),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.75f)
                 )
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                    contentPadding = PaddingValues(top = NuvioTheme.spacing.xs, bottom = NuvioTheme.spacing.sm),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
                     modifier = Modifier.fillMaxWidth().heightIn(max = 560.dp)
                 ) {
                     itemsIndexed(items = qualities, key = { _, q -> q }) { i, q ->
-                        val active = q == currentQuality
-                        val count = candidates.count { it.sourceQuality() == q }
-                        val pick = remember(candidates, allStreams, q, currentStream) {
-                            candidates.filter { it.sourceQuality() == q }
-                                .let { l -> l.firstOrNull { it !== currentStream } ?: l.firstOrNull() }
-                                ?: allStreams.filter { !it.isExternal() && it.sourceQuality() == q }.firstOrNull()
+                        val sameProvider = byQuality[q].orEmpty()
+                        val pick = remember(sameProvider, anyByQuality, q, currentStream) {
+                            sameProvider.firstOrNull { it !== currentStream }
+                                ?: sameProvider.firstOrNull()
+                                ?: anyByQuality[q]?.firstOrNull()
                         }
+                        val active = q == currentQuality
                         val shownStream = if (active && currentStream != null) currentStream else pick
-                        val specs = remember(shownStream) { shownStream?.sourceSpecs().orEmpty() }
-                        val fg = if (active) NuvioTheme.colors.OnSecondary else Color.White
-                        androidx.tv.material3.Card(
+                        QualityOptionRow(
+                            quality = q,
+                            stream = shownStream,
+                            provider = provider,
+                            count = sameProvider.size,
+                            active = active,
+                            focusRequester = requesters[i],
                             onClick = {
                                 if (pick != null && pick !== currentStream) onStreamSelected(pick) else onClose()
-                            },
-                            modifier = Modifier.fillMaxWidth().focusRequester(requesters[i]),
-                            colors = androidx.tv.material3.CardDefaults.colors(
-                                containerColor = if (active) NuvioTheme.colors.Secondary else Color.Transparent,
-                                focusedContainerColor = if (active) NuvioTheme.colors.Secondary else Color.White.copy(alpha = 0.08f)
-                            ),
-                            shape = androidx.tv.material3.CardDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md)),
-                            border = sourcePanelBorder(NuvioTheme.radii.md),
-                            scale = androidx.tv.material3.CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth()
-                                    .padding(horizontal = NuvioTheme.spacing.md, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(64.dp)
-                                        .background(
-                                            if (active) NuvioTheme.colors.OnSecondary.copy(alpha = 0.16f)
-                                            else Color.White.copy(alpha = 0.12f),
-                                            RoundedCornerShape(10.dp)
-                                        )
-                                        .padding(vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(q),
-                                        style = MaterialTheme.typography.titleLarge,
-                                        color = fg
-                                    )
-                                }
-                                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(
-                                        text = listOfNotNull(
-                                            if (q > 0) "${q}p" else "Auto",
-                                            formatSize(shownStream?.behaviorHints?.videoSize)
-                                        ).joinToString(" \u00B7 "),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = fg
-                                    )
-                                    SourceSpecChips(specs = specs, selected = active)
-                                    Text(
-                                        text = listOfNotNull(provider, "$count link${if (count > 1) "s" else ""}")
-                                            .joinToString(" \u00B7 "),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (active) NuvioTheme.colors.OnSecondary.copy(alpha = 0.72f)
-                                        else NuvioTheme.colors.TextTertiary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                if (active) Text(text = "\u2713", style = MaterialTheme.typography.titleLarge, color = fg)
                             }
-                        }
+                        )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun QualityOptionRow(
+    quality: Int,
+    stream: Stream?,
+    provider: String?,
+    count: Int,
+    active: Boolean,
+    focusRequester: FocusRequester,
+    onClick: () -> Unit
+) {
+    var focused by remember { mutableStateOf(false) }
+    val parsed = remember(stream) { stream?.parsedSource() }
+    val fg = if (focused) Color.Black else Color.White
+    val secondary = if (focused) Color.Black.copy(alpha = 0.6f) else Color.White.copy(alpha = 0.6f)
+    Card(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { focused = it.isFocused },
+        colors = CardDefaults.colors(
+            containerColor = if (active) Color.White.copy(alpha = 0.12f) else Color.Transparent,
+            focusedContainerColor = Color.White,
+            pressedContainerColor = Color.White
+        ),
+        shape = CardDefaults.shape(PanelRowShape),
+        border = sourcePanelBorder(14.dp),
+        scale = CardDefaults.scale(focusedScale = 1.02f, pressedScale = 1f)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(start = 8.dp, end = 14.dp, top = 10.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(44.dp)
+                    .clip(PillShape)
+                    .background(
+                        when {
+                            !active -> Color.Transparent
+                            focused -> Color.Black
+                            else -> NuvioTheme.colors.Secondary
+                        }
+                    )
+            )
+            QualityTile(
+                label = com.nuvio.tv.core.player.DeviceVideoCapabilities.badgeFor(quality),
+                format = parsed?.format ?: "",
+                quality = quality,
+                onLight = focused
+            )
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(
+                    text = listOfNotNull(
+                        if (quality > 0) "${quality}p" else "Auto",
+                        parsed?.size ?: formatSourceSize(stream?.behaviorHints?.videoSize)
+                    ).joinToString(" · "),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = fg
+                )
+                SourceSpecChips(specs = parsed?.specs.orEmpty(), selected = focused, maxChips = 7)
+                Text(
+                    text = listOfNotNull(provider, "$count link${if (count != 1) "s" else ""}")
+                        .joinToString(" · "),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = secondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            if (active) NowPlayingPill(compact = false, onLight = focused)
         }
     }
 }

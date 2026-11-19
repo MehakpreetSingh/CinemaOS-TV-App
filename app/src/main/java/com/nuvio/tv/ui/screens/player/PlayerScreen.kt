@@ -365,7 +365,8 @@ fun PlayerScreen(
             returnToDetailsFromEndPrompt()
         } else if (uiState.error != null) {
             exitPlayerFromError()
-        } else if (uiState.showAudioOverlay || uiState.showSubtitleOverlay) {
+        } else if (uiState.showAudioOverlay || uiState.showSubtitleOverlay || uiState.showSpeedDialog) {
+            // showSpeedDialog hosts the player settings panel; Back must close it, not the player.
             viewModel.onEvent(PlayerEvent.OnDismissTransientOverlay)
         } else if (uiState.showStreamInfoOverlay) {
             dismissStreamInfoOverlay()

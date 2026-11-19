@@ -18,9 +18,13 @@ internal fun PlayerDownloadAction(uiState: PlayerUiState, currentFilename: Strin
     val scope = rememberCoroutineScope()
     var enqueueing by remember { mutableStateOf(false) }
     if (uiState.currentStreamUrl?.let { it.startsWith("https://") || it.startsWith("http://") } != true) return
-    val index = findCurrentStreamIndex(uiState.sourceAllStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx,
-        uiState.currentStreamAddonName, uiState.currentStreamUrl, uiState.currentStreamName, uiState.currentStreamDescription, currentFilename)
-    val source = uiState.sourceAllStreams.getOrNull(index)
+    // Linear scan over every source: only redo it when its inputs change, not on every recomposition.
+    val source = remember(uiState.sourceAllStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx,
+        uiState.currentStreamAddonName, uiState.currentStreamUrl, uiState.currentStreamName, uiState.currentStreamDescription, currentFilename) {
+        val index = findCurrentStreamIndex(uiState.sourceAllStreams, uiState.currentStreamInfoHash, uiState.currentStreamFileIdx,
+            uiState.currentStreamAddonName, uiState.currentStreamUrl, uiState.currentStreamName, uiState.currentStreamDescription, currentFilename)
+        uiState.sourceAllStreams.getOrNull(index)
+    }
     Button(enabled = !enqueueing, modifier = modifier, onClick = {
         enqueueing = true
         scope.launch {

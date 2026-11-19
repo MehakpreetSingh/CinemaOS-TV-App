@@ -52,6 +52,8 @@ private val RX_10BIT = Regex("10[-. ]?bit|hi10", RegexOption.IGNORE_CASE)
 private val RX_CH = Regex("(?<![\\d.])([2578])[. ]([01])(?!\\d)", RegexOption.IGNORE_CASE)
 private val RX_DDP_CH = Regex("(?:ddp|dd\\+|dd|e-?ac-?3|ac-?3|aac|dts)[-. ]?([2578])(?![\\d])", RegexOption.IGNORE_CASE)
 private val RX_SIZE = Regex("(\\d+(?:[.,]\\d+)?)\\s?(gb|mb)\\b", RegexOption.IGNORE_CASE)
+private val RX_DOLBY_VISION_WORDS = Regex("(?i)\\bdolby\\s+vision\\b")
+private val RX_CH_COUNT = Regex("\\b([68])ch\\b", RegexOption.IGNORE_CASE)
 
 internal fun formatSourceSize(bytes: Long?): String? {
     if (bytes == null || bytes <= 0) return null
@@ -67,7 +69,7 @@ internal fun Stream.sourceSpecs(): List<SourceSpec> {
         name, title, description, behaviorHints?.filename, behaviorHints?.bingeGroup, urlName, quality
     ).joinToString(" ")
         .replace('_', ' ')
-        .replace(Regex("(?i)\\bdolby\\s+vision\\b"), "Dolby Vision")
+        .replace(RX_DOLBY_VISION_WORDS, "Dolby Vision")
     val out = ArrayList<SourceSpec>()
 
     when {
@@ -80,7 +82,7 @@ internal fun Stream.sourceSpecs(): List<SourceSpec> {
 
     val ch = RX_CH.find(t)?.let { "${it.groupValues[1]}.${it.groupValues[2]}" }
         ?: RX_DDP_CH.find(t)?.groupValues?.get(1)?.let { n -> if (n == "7") "7.1" else if (n == "5") "5.1" else "$n.0" }
-        ?: Regex("\\b([68])ch\\b", RegexOption.IGNORE_CASE).find(t)?.let { if (it.groupValues[1] == "6") "5.1" else "7.1" }
+        ?: RX_CH_COUNT.find(t)?.let { if (it.groupValues[1] == "6") "5.1" else "7.1" }
     val ddp = RX_DDP.containsMatchIn(t)
     if (RX_ATMOS.containsMatchIn(t)) {
         out += SourceSpec("Atmos", R.drawable.brand_dolby_mark)
@@ -146,9 +148,9 @@ internal fun SourceSpecChips(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .height(22.dp)
+                    .height(24.dp)
                     .background(bg, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 6.dp)
+                    .padding(horizontal = 7.dp)
             ) {
                 if (spec.icon != null) {
                     Icon(
@@ -162,7 +164,7 @@ internal fun SourceSpecChips(
                     )
                     Spacer(Modifier.width(4.dp))
                 }
-                if (spec.icon != R.drawable.brand_hdr10plus && spec.icon != R.drawable.brand_dolby_vision) Text(text = spec.label, style = MaterialTheme.typography.labelSmall, color = fg, maxLines = 1)
+                if (spec.icon != R.drawable.brand_hdr10plus && spec.icon != R.drawable.brand_dolby_vision) Text(text = spec.label, style = MaterialTheme.typography.labelMedium, color = fg, maxLines = 1)
             }
         }
     }
