@@ -1329,7 +1329,10 @@ private fun PlaybackNavHost(
                 onNavigateToLicensesAttributions = {
                     navController.navigate(Screen.LicensesAttributions.route)
                 },
-                onNavigateToWatchParty = { navController.navigate(Screen.WatchParty.createRoute()) }
+                onNavigateToWatchParty = { navController.navigate(Screen.WatchParty.createRoute()) },
+                onPlayDownload = { uri, title ->
+                    navController.navigate(Screen.Player.createRoute(streamUrl = uri, title = title))
+                }
             )
         }
 

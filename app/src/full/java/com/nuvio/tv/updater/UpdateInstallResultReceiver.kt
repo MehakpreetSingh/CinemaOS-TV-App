@@ -43,6 +43,8 @@ class UpdateInstallResultReceiver : BroadcastReceiver() {
                     }
                 }
             }
+            // A cancellation is final; do not open two more installer prompts.
+            PackageInstaller.STATUS_FAILURE_ABORTED -> Unit
             else -> retryAfterFailure(context, apkFile, background, withDexMetadata)
         }
     }
