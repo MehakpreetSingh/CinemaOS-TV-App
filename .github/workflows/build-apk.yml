@@ -47,12 +47,24 @@ jobs:
           done
 
       - name: Prepare CI signing config
+        # Must be the key the installed CinemaOS app (com.cinemaos.app) was signed with, or Android
+        # refuses the update with "App not installed". No fallback key on purpose.
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.NUVIO_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.NUVIO_RELEASE_KEY_PASSWORD }}
+          STORE_PASSWORD: ${{ secrets.NUVIO_RELEASE_STORE_PASSWORD }}
         run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$KEY_ALIAS" ] || [ -z "$STORE_PASSWORD" ]; then
+            echo "Missing NUVIO_RELEASE_* signing secrets" >&2
+            exit 1
+          fi
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
           {
-            echo "NUVIO_RELEASE_STORE_FILE=$GITHUB_WORKSPACE/ci/cinemaos-debug.jks"
-            echo "NUVIO_RELEASE_KEY_ALIAS=cinemaos"
-            echo "NUVIO_RELEASE_KEY_PASSWORD=cinemaosdebug"
-            echo "NUVIO_RELEASE_STORE_PASSWORD=cinemaosdebug"
+            echo "NUVIO_RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks"
+            echo "NUVIO_RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "NUVIO_RELEASE_KEY_PASSWORD=${KEY_PASSWORD:-$STORE_PASSWORD}"
+            echo "NUVIO_RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
           } >> "$GITHUB_ENV"
 
       - name: Compute version
@@ -60,24 +72,24 @@ jobs:
           echo "VERSION_CODE=$((2000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
           echo "VERSION_NAME=1.1.${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
 
-      - name: Build fullDebug APK
-        run: ./gradlew :app:assembleFullDebug -PappVersionCode=$VERSION_CODE -PappVersionName=$VERSION_NAME --stacktrace
+      # release build: package com.cinemaos.app, so it installs as an update over the old CinemaOS app
+      - name: Build fullRelease APK
+        run: ./gradlew :app:assembleFullRelease -PappVersionCode=$VERSION_CODE -PappVersionName=$VERSION_NAME --stacktrace
 
-      - name: Upload universal APK
+      # the old app's update prompt downloads the asset whose name contains "universal"
+      - name: Rename APKs
+        run: |
+          cd app/build/outputs/apk/full/release
+          for abi in universal arm64-v8a armeabi-v7a; do
+            mv "app-full-${abi}-release.apk" "CinemaOS-TV-${VERSION_NAME}-${abi}.apk"
+          done
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: cinemaos-tv-debug
-          path: app/build/outputs/apk/full/debug/app-full-universal-debug.apk
+          name: cinemaos-tv-release
+          path: app/build/outputs/apk/full/release/CinemaOS-TV-*.apk
           if-no-files-found: error
-
-      - name: Upload ABI APKs
-        uses: actions/upload-artifact@v4
-        with:
-          name: cinemaos-tv-debug-abi
-          path: |
-            app/build/outputs/apk/full/debug/app-full-arm64-v8a-debug.apk
-            app/build/outputs/apk/full/debug/app-full-armeabi-v7a-debug.apk
-          if-no-files-found: warn
 
       - name: Publish GitHub Release
         env:
@@ -88,11 +100,11 @@ jobs:
           NOTES=$(git log $RANGE --no-merges --pretty='- %s' | head -n 8)
           [ -z "$NOTES" ] && NOTES="- Performance and stability improvements"
           printf '%s\n' "$NOTES" > "$RUNNER_TEMP/release-notes.md"
-          cd app/build/outputs/apk/full/debug
+          cd app/build/outputs/apk/full/release
           gh release create "v${VERSION_NAME}" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "CinemaOS TV ${VERSION_NAME}" \
             --notes-file "$RUNNER_TEMP/release-notes.md" \
             --latest \
-            app-full-universal-debug.apk app-full-arm64-v8a-debug.apk app-full-armeabi-v7a-debug.apk
+            CinemaOS-TV-*.apk
