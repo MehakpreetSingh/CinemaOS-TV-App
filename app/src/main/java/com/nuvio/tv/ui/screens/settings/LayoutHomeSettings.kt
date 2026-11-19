@@ -55,6 +55,22 @@ internal fun LayoutHomeLayoutSection(
     uiState: LayoutSettingsUiState,
     onEvent: (LayoutSettingsEvent) -> Unit
 ) {
+    SettingsGroupCard(modifier = Modifier.fillMaxWidth()) {
+        Text("Pages in navigation", style = MaterialTheme.typography.titleMedium,
+            color = NuvioTheme.colors.TextPrimary)
+        listOf(
+            "anime" to stringResource(R.string.nav_anime),
+            "sports" to stringResource(R.string.nav_sports),
+            "discover" to stringResource(R.string.nav_discover),
+            "search" to stringResource(R.string.nav_search),
+            "library" to stringResource(R.string.nav_library),
+        ).forEach { (route, title) ->
+            SettingsToggleRow(title = title, subtitle = "Show in the navigation bar",
+                checked = route !in uiState.hiddenNavigationPages,
+                onToggle = { onEvent(LayoutSettingsEvent.SetNavigationPageVisible(route, route in uiState.hiddenNavigationPages)) })
+        }
+    }
+
     val firstHomeLayoutFocusRequester = remember { FocusRequester() }
     Row(
         modifier = Modifier

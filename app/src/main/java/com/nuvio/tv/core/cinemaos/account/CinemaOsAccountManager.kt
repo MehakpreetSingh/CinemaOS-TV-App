@@ -117,6 +117,7 @@ class CinemaOsAccountManager @Inject constructor(
             ?: throw CinemaOsAuthException("NO_UID")
         val session = CinemaOsSession(
             email = label,
+            displayName = lookup?.optString("displayName")?.takeIf(String::isNotBlank),
             uid = uid,
             refreshToken = res.getString("refreshToken"),
             idToken = idToken,

@@ -10,11 +10,20 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import okhttp3.ResponseBody.Companion.toResponseBody
+import com.squareup.moshi.Moshi
+import com.nuvio.tv.data.remote.dto.trakt.TraktDeviceTokenRequestDto
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import retrofit2.Response
 
 class TraktAuthServiceTest {
+    @Test
+    fun `native device token request works without a client secret`() {
+        val adapter = Moshi.Builder().build().adapter(TraktDeviceTokenRequestDto::class.java)
+        val body = adapter.toJson(TraktDeviceTokenRequestDto(code = "device-code", clientId = "test-client"))
+        assertFalse(body.contains("client_secret"))
+    }
+
     @Test
     fun `refresh token 400 clears credentials and prevents another refresh`() = runTest {
         val traktApi = mockk<TraktApi>()

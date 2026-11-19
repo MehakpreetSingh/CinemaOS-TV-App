@@ -17,7 +17,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.SportsSoccer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -47,6 +46,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
+import com.nuvio.tv.LocalContentFocusRequester
 import com.nuvio.tv.LocalSidebarExpanded
 import com.nuvio.tv.R
 import com.nuvio.tv.domain.model.PosterShape
@@ -57,7 +57,8 @@ import com.nuvio.tv.ui.components.ErrorState
 import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.LocalLandscapePosterMode
 import com.nuvio.tv.ui.components.PosterCardDefaults
-import com.nuvio.tv.ui.components.SourceStatusFilterChip
+import com.nuvio.tv.ui.screens.settings.SettingsTopBarSurface
+import com.nuvio.tv.ui.screens.settings.SettingsTopBarTab
 import com.nuvio.tv.ui.screens.collection.NuvioTextField
 import com.nuvio.tv.ui.theme.NuvioTheme
 import kotlinx.coroutines.delay
@@ -108,13 +109,15 @@ fun SportsScreen(
         }
     }
 
-    val horizontalPadding = NuvioTheme.spacing.xxl
+    val horizontalPadding = 48.dp
+    val contentFocusRequester = LocalContentFocusRequester.current
 
     // ---- Focus bookkeeping -------------------------------------------------------------------
     val focusRequesters = remember { HashMap<String, FocusRequester>() }
     fun requesterFor(key: String): FocusRequester = focusRequesters.getOrPut(key) { FocusRequester() }
     var lastFocusedKey by rememberSaveable { mutableStateOf<String?>(null) }
     var pageHasFocus by remember { mutableStateOf(false) }
+    var filterBarFocused by remember { mutableStateOf(false) }
     val sidebarExpanded = LocalSidebarExpanded.current
 
     val showChips = uiState.filters.isNotEmpty() || uiState.hasLiveTv
@@ -171,44 +174,54 @@ fun SportsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = 76.dp)
-                .onFocusChanged { pageHasFocus = it.hasFocus },
+                .onFocusChanged { pageHasFocus = it.hasFocus }
+                .focusRequester(contentFocusRequester)
+                .focusRestorer(),
             contentPadding = PaddingValues(bottom = NuvioTheme.spacing.huge),
-            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xl)
+            verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
         ) {
             stickyHeader(key = "sports_header") {
-                Column(modifier = Modifier.fillMaxWidth().background(NuvioTheme.colors.Background)) {
+                SettingsTopBarSurface(
+                    focused = filterBarFocused,
+                    modifier = Modifier.background(NuvioTheme.colors.Background)
+                ) { onFocusedTabPositioned ->
                     if (showChips) {
                         LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 4.dp)
-                                .focusRestorer(),
+                                .focusRestorer()
+                                .onFocusChanged { filterBarFocused = it.hasFocus },
                             contentPadding = PaddingValues(horizontal = horizontalPadding),
                             horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
                         ) {
                             if (uiState.hasLiveTv) {
                                 item(key = "filter_live_tv") {
-                                    SourceStatusFilterChip(
-                                        name = stringResource(R.string.sports_filter_live_tv),
+                                    SettingsTopBarTab(
+                                        title = stringResource(R.string.sports_filter_live_tv),
                                         isSelected = uiState.isLiveTvSelected,
                                         onClick = viewModel::selectLiveTv,
+                                        icon = com.nuvio.tv.ui.components.LiveTvIcon,
+                                        onFocusedTabPositioned = onFocusedTabPositioned,
                                         modifier = Modifier.chipFocus(CHIP_LIVE_TV, ::requesterFor, onFocusKey)
                                     )
                                 }
                             }
                             item(key = "filter_all") {
-                                SourceStatusFilterChip(
-                                    name = stringResource(R.string.sports_filter_all),
+                                SettingsTopBarTab(
+                                    title = stringResource(R.string.sports_filter_all),
                                     isSelected = !uiState.isLiveTvSelected && uiState.selectedSportId == null,
                                     onClick = { viewModel.selectSport(null) },
+                                    onFocusedTabPositioned = onFocusedTabPositioned,
                                     modifier = Modifier.chipFocus(CHIP_ALL, ::requesterFor, onFocusKey)
                                 )
                             }
                             items(uiState.filters, key = { "filter_${it.id}" }) { filter ->
-                                SourceStatusFilterChip(
-                                    name = filter.label,
+                                SettingsTopBarTab(
+                                    title = filter.label,
                                     isSelected = !uiState.isLiveTvSelected && uiState.selectedSportId == filter.id,
                                     onClick = { viewModel.selectSport(filter.id) },
+                                    onFocusedTabPositioned = onFocusedTabPositioned,
                                     modifier = Modifier.chipFocus(chipKey(filter.id), ::requesterFor, onFocusKey)
                                 )
                             }
@@ -335,7 +348,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.liveTvContent(
                 title = stringResource(
                     if (state.query.isBlank()) R.string.sports_live_tv_empty_title else R.string.sports_live_tv_no_results
                 ),
-                icon = Icons.Default.LiveTv
+                icon = com.nuvio.tv.ui.components.LiveTvIcon
             )
         }
         else -> {

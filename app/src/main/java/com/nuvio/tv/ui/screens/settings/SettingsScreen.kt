@@ -477,43 +477,12 @@ fun SettingsScreen(
             }
 
             if (isHorizonStyle) {
-                var topBarCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-                var focusedTabBounds by remember { mutableStateOf<Rect?>(null) }
-                val density = LocalDensity.current
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onGloballyPositioned { topBarCoordinates = it }
-                    ) {
-                        focusedTabBounds?.let { bounds ->
-                            val glideSpec = tween<Float>(durationMillis = 250, easing = FastOutSlowInEasing)
-                            val pillLeft by animateFloatAsState(bounds.left, glideSpec, label = "pillLeft")
-                            val pillTop by animateFloatAsState(bounds.top, glideSpec, label = "pillTop")
-                            val pillWidth by animateFloatAsState(bounds.width, glideSpec, label = "pillWidth")
-                            val pillHeight by animateFloatAsState(bounds.height, glideSpec, label = "pillHeight")
-                            val pillAlpha by animateFloatAsState(
-                                targetValue = if (railHadFocus) 1f else 0f,
-                                animationSpec = tween(durationMillis = 200),
-                                label = "pillAlpha"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .align(AbsoluteAlignment.TopLeft)
-                                    .absoluteOffset { IntOffset(pillLeft.roundToInt(), pillTop.roundToInt()) }
-                                    .size(
-                                        width = with(density) { pillWidth.toDp() },
-                                        height = with(density) { pillHeight.toDp() }
-                                    )
-                                    .graphicsLayer { alpha = pillAlpha }
-                                    .clip(RoundedCornerShape(SettingsPillRadius))
-                                    .background(NuvioTheme.colors.Secondary)
-                            )
-                        }
+                    SettingsTopBarSurface(focused = railHadFocus) { onFocusedTabPositioned ->
                         LazyRow(
                             state = railListState,
                             modifier = Modifier
@@ -591,11 +560,7 @@ fun SettingsScreen(
                                                 focusedTabCategory = section.category
                                             }
                                         },
-                                        onFocusedTabPositioned = { tabCoordinates ->
-                                            topBarCoordinates?.let { container ->
-                                                focusedTabBounds = container.localBoundingBoxOf(tabCoordinates, clipBounds = false)
-                                            }
-                                        },
+                                        onFocusedTabPositioned = onFocusedTabPositioned,
                                         suppressSelectedVisual = railHadFocus
                                             && focusedTabCategory != null
                                             && focusedTabCategory != section.category

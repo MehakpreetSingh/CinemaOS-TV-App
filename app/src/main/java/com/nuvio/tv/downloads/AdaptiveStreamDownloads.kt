@@ -41,7 +41,10 @@ internal object AdaptiveStreamDownloads {
         type(url, hint)?.let { return it }
         val path = Uri.parse(url).path.orEmpty().lowercase()
         if (listOf(".mp4", ".mkv", ".webm").any(path::endsWith)) return null
-        val source = DefaultHttpDataSource.Factory().setConnectTimeoutMs(15000).setReadTimeoutMs(15000)
+        val source = DefaultHttpDataSource.Factory()
+            .setUserAgent(headers.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value
+                ?: com.nuvio.tv.ui.screens.player.PlayerMediaSourceFactory.DEFAULT_USER_AGENT)
+            .setConnectTimeoutMs(15000).setReadTimeoutMs(15000)
             .setDefaultRequestProperties(headers.filterKeys { !it.equals("Range", true) }).createDataSource()
         return try {
             source.open(DataSpec(Uri.parse(url)))
@@ -97,7 +100,10 @@ internal object AdaptiveStreamDownloads {
     suspend fun download(context: Context, url: String, headers: Map<String, String>, kind: String,
         marker: File, onProgress: (Long, Long?) -> Unit): File = runInterruptible {
         marker.parentFile?.mkdirs()
-        val http = DefaultHttpDataSource.Factory().setConnectTimeoutMs(30000).setReadTimeoutMs(30000)
+        val http = DefaultHttpDataSource.Factory()
+            .setUserAgent(headers.entries.firstOrNull { it.key.equals("User-Agent", true) }?.value
+                ?: com.nuvio.tv.ui.screens.player.PlayerMediaSourceFactory.DEFAULT_USER_AGENT)
+            .setConnectTimeoutMs(30000).setReadTimeoutMs(30000)
             .setDefaultRequestProperties(headers.filterKeys { !it.equals("Range", true) && !it.equals("If-Range", true) })
         fun load(uri: Uri): Pair<Uri, ByteArray> {
             val source = http.createDataSource()

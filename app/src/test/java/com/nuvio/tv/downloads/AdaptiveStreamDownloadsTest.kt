@@ -52,6 +52,7 @@ class AdaptiveStreamDownloadsTest {
             val partial = AdaptiveStreamDownloads.download(context, url, mapOf("Authorization" to "Bearer fixture"), "hls", destination) { _, _ -> }
             assertTrue(partial.renameTo(destination))
             assertTrue(requests.all { it.getHeader("Authorization") == "Bearer fixture" })
+            assertTrue(requests.all { it.getHeader("User-Agent") == com.nuvio.tv.ui.screens.player.PlayerMediaSourceFactory.DEFAULT_USER_AGENT })
             assertFalse(requests.any { it.path.orEmpty().endsWith("/low.m3u8") })
             server.shutdown()
             val factory = requireNotNull(AdaptiveStreamDownloads.playbackFactory(context, destination.toURI().toString()))

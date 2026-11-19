@@ -148,7 +148,7 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
             val current = session
             if (current != null) {
                 SettingsActionRow(
-                    title = "Signed in",
+                    title = current.displayName ?: "Signed in",
                     subtitle = current.email,
                     onClick = {},
                     modifier = if (initialFocusRequester != null) Modifier.focusRequester(initialFocusRequester) else Modifier

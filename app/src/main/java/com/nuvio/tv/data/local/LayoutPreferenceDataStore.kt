@@ -77,6 +77,7 @@ class LayoutPreferenceDataStore @Inject constructor(
     private val homeCatalogOrderKeysKey = stringPreferencesKey("home_catalog_order_keys")
     private val disabledHomeCatalogKeysKey = stringPreferencesKey("disabled_home_catalog_keys")
     private val customCatalogTitlesKey = stringPreferencesKey("custom_catalog_titles")
+    private val hiddenNavigationPagesKey = stringSetPreferencesKey("hidden_navigation_pages")
     private val sidebarCollapsedKey = booleanPreferencesKey("sidebar_collapsed_by_default")
     private val modernSidebarEnabledKey = booleanPreferencesKey("modern_sidebar_enabled")
     private val legacyModernSidebarEnabledKey = booleanPreferencesKey("glass_sidepanel_enabled")
@@ -229,6 +230,18 @@ class LayoutPreferenceDataStore @Inject constructor(
         val effectivePid = if (usePrimary) 1 else pid
         factory.get(effectivePid, FEATURE).data.map { prefs ->
             parseCustomTitles(prefs.getStringOrMigrateSet(customCatalogTitlesKey))
+        }
+    }
+
+    val hiddenNavigationPages: Flow<Set<String>> = profileFlow { prefs ->
+        prefs[hiddenNavigationPagesKey].orEmpty().intersect(setOf("anime", "sports", "discover", "search", "library"))
+    }
+
+    suspend fun setNavigationPageVisible(route: String, visible: Boolean) {
+        if (route !in setOf("anime", "sports", "discover", "search", "library")) return
+        store().edit { prefs ->
+            val hidden = prefs[hiddenNavigationPagesKey].orEmpty()
+            prefs[hiddenNavigationPagesKey] = if (visible) hidden - route else hidden + route
         }
     }
 

@@ -51,7 +51,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Tv
-import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.runtime.Composable
@@ -920,6 +919,7 @@ open class MainActivity : ComponentActivity() {
                     val navBackStackEntry by navController.currentBackStackEntryAsState()
                     val actualRoute = navBackStackEntry?.destination?.route
                     val currentRoute = optimisticRoute ?: actualRoute
+                    val hiddenNavigationPages by layoutPreferenceDataStore.hiddenNavigationPages.collectAsState(initial = emptySet())
                     startupDestination = startupDestinationForRoute(actualRoute ?: startDestination)
 
                     LaunchedEffect(actualRoute) {
@@ -1142,7 +1142,8 @@ open class MainActivity : ComponentActivity() {
                         strNavSearch,
                         strNavLibrary,
                         strNavSettings,
-                        discoverLocation
+                        discoverLocation,
+                        hiddenNavigationPages
                     ) {
                         buildList {
                             add(
@@ -1172,7 +1173,7 @@ open class MainActivity : ComponentActivity() {
                                 DrawerItem(
                                     route = Screen.Sports.route,
                                     label = strNavSports,
-                                    icon = Icons.Default.LiveTv
+                                    icon = com.nuvio.tv.ui.components.LiveTvIcon
                                 )
                             )
                             add(
@@ -1196,7 +1197,7 @@ open class MainActivity : ComponentActivity() {
                                     iconRes = R.raw.sidebar_settings
                                 )
                             )
-                        }
+                        }.filterNot { it.route in hiddenNavigationPages }
                     }
                     val selectedDrawerRoute = drawerItems.firstOrNull { item ->
                         currentRoute == item.route || currentRoute?.startsWith("${item.route}/") == true

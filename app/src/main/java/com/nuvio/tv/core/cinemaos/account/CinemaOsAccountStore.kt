@@ -18,7 +18,8 @@ data class CinemaOsSession(
     val uid: String,
     val refreshToken: String,
     val idToken: String,
-    val idTokenExpiresAtMs: Long
+    val idTokenExpiresAtMs: Long,
+    val displayName: String? = null
 )
 
 /** Persists the CinemaOS session with values encrypted by an Android Keystore AES-GCM key. */
@@ -32,6 +33,7 @@ class CinemaOsAccountStore @Inject constructor(
         val email = prefs.getString(K_EMAIL, null)?.let(::decrypt) ?: return null
         CinemaOsSession(
             email = email,
+            displayName = prefs.getString("display_name", null)?.let(::decrypt),
             uid = prefs.getString(K_UID, null)?.let(::decrypt) ?: return null,
             refreshToken = prefs.getString(K_REFRESH, null)?.let(::decrypt) ?: return null,
             idToken = prefs.getString(K_ID, null)?.let(::decrypt) ?: "",
@@ -43,6 +45,7 @@ class CinemaOsAccountStore @Inject constructor(
         runCatching {
             prefs.edit()
                 .putString(K_EMAIL, encrypt(session.email))
+                .putString("display_name", session.displayName?.let(::encrypt))
                 .putString(K_UID, encrypt(session.uid))
                 .putString(K_REFRESH, encrypt(session.refreshToken))
                 .putString(K_ID, encrypt(session.idToken))

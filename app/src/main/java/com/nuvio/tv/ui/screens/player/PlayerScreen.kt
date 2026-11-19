@@ -1586,10 +1586,21 @@ fun PlayerScreen(
                 .reportSubtitleClearance(subtitleClearanceGapPx) { postPlayClearancePx = it },
         )
 
+        val (introVisible, introComplete) = rememberPlaybackTitleIntro(
+            contentKey = "${uiState.currentVideoId ?: uiState.contentName ?: uiState.title}:${uiState.currentSeason}:${uiState.currentEpisode}",
+            ready = uiState.isPlaying && !uiState.isBuffering && !uiState.showControls,
+        )
+        PlaybackTitleOverlay(
+            title = uiState.contentName ?: uiState.title,
+            episode = uiState.currentEpisodeTitle,
+            visible = introVisible,
+            modifier = Modifier.align(Alignment.TopStart).padding(start = 40.dp, top = 32.dp),
+        )
+
         // Parental guide overlay (shows when video first starts playing)
         ParentalGuideOverlay(
             warnings = uiState.parentalWarnings,
-            isVisible = uiState.showParentalGuide,
+            isVisible = uiState.showParentalGuide && introComplete,
             onAnimationComplete = {
                 viewModel.onEvent(PlayerEvent.OnParentalGuideHide)
             },

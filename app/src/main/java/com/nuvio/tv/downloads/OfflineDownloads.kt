@@ -50,6 +50,9 @@ internal object OfflineDownloads {
             .setDescription("CinemaOS offline video")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationUri(Uri.fromFile(file))
+        if (headers.keys.none { it.equals("User-Agent", true) }) {
+            request.addRequestHeader("User-Agent", com.nuvio.tv.ui.screens.player.PlayerMediaSourceFactory.DEFAULT_USER_AGENT)
+        }
         headers.forEach { (name, value) ->
             if (!name.equals("Range", true) && name.isNotBlank() && '\r' !in name && '\n' !in name &&
                 '\r' !in value && '\n' !in value) request.addRequestHeader(name, value)

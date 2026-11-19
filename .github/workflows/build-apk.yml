@@ -32,7 +32,6 @@ jobs:
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
           TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
-          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
           SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
           MDBLIST_CLIENT_ID: ${{ secrets.MDBLIST_CLIENT_ID }}
           INTRODB_API_URL: ${{ secrets.INTRODB_API_URL }}
@@ -41,7 +40,7 @@ jobs:
           : > local.dev.properties
           for f in local.properties local.dev.properties; do
             echo "TMDB_API_KEY=$TMDB_API_KEY" >> "$f"
-            for name in TRAKT_CLIENT_ID TRAKT_CLIENT_SECRET SIMKL_CLIENT_ID MDBLIST_CLIENT_ID INTRODB_API_URL; do
+            for name in TRAKT_CLIENT_ID SIMKL_CLIENT_ID MDBLIST_CLIENT_ID INTRODB_API_URL; do
               value="${!name}"
               if [ -n "$value" ]; then
                 echo "$name=$value" >> "$f"
@@ -79,6 +78,7 @@ jobs:
         run: |
           ./gradlew :app:testFullDebugUnitTest \
             --tests '*DirectDownloadPolicyTest' \
+            --tests '*TraktAuthServiceTest' \
             --tests '*AdaptiveStreamDownloadsTest' \
             --tests '*SettingsCatalogTest' \
             --tests '*PlaybackAvailabilityViewModelTest' \
