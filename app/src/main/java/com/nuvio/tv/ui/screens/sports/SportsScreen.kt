@@ -44,6 +44,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.tv.material3.Button
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Text
 import com.nuvio.tv.LocalContentFocusRequester
@@ -68,6 +69,7 @@ private const val CHIP_ALL = "chip|all"
 private fun chipKey(sportId: String) = "chip|$sportId"
 private fun rowCardKey(rowKey: String, cardKey: String) = "card|$rowKey|$cardKey"
 private fun channelKey(cardKey: String) = "tv|$cardKey"
+private fun recentCardKey(cardKey: String) = "recent|$cardKey"
 
 /** Frames the entry focus keeps retrying while the page composes / the sidebar lets go. */
 private const val ENTRY_FOCUS_ATTEMPTS = 12
@@ -91,6 +93,7 @@ fun SportsScreen(
     viewModel: SportsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val recentlyWatched by viewModel.recentlyWatched.collectAsStateWithLifecycle()
 
     // Live Now refreshes only while this screen is started (visible).
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -227,6 +230,22 @@ fun SportsScreen(
                             }
                         }
                     }
+                }
+            }
+
+            if (recentlyWatched.isNotEmpty() && (uiState.isLiveTvSelected || uiState.selectedSportId == null)) {
+                item(key = "sports_recent", contentType = "recent") {
+                    RecentlyWatchedRow(
+                        items = recentlyWatched,
+                        horizontalPadding = horizontalPadding,
+                        requesterFor = ::requesterFor,
+                        onFocusKey = onFocusKey,
+                        onItemClick = { card ->
+                            onNavigateToDetail(card.preview.id, card.preview.apiType, SportsAddon.BASE_URL)
+                        },
+                        onRemove = { card -> viewModel.removeRecent(card.preview.id) },
+                        onClear = viewModel::clearRecent
+                    )
                 }
             }
 
@@ -441,6 +460,67 @@ private fun SportsRow(
                                 .padding(NuvioTheme.spacing.sm)
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+/** Live items the user played recently: long-press a card to remove it, "Clear" empties the row. */
+@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalComposeUiApi::class)
+@Composable
+private fun RecentlyWatchedRow(
+    items: List<SportsCardModel>,
+    horizontalPadding: Dp,
+    requesterFor: (String) -> FocusRequester,
+    onFocusKey: (String) -> Unit,
+    onItemClick: (SportsCardModel) -> Unit,
+    onRemove: (SportsCardModel) -> Unit,
+    onClear: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = stringResource(R.string.sports_row_recent),
+            style = NuvioTheme.textStyles.sectionTitle,
+            color = NuvioTheme.colors.TextPrimary,
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = NuvioTheme.spacing.sm)
+        )
+        LazyRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRestorer(),
+            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = NuvioTheme.spacing.sm),
+            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            items(items, key = { "recent_${it.key}" }, contentType = { "sports_card" }) { card ->
+                val key = recentCardKey(card.key)
+                Box {
+                    ContentCard(
+                        item = card.preview,
+                        focusRequester = requesterFor(key),
+                        showImdbRatings = false,
+                        showArtworkLabels = false,
+                        onFocus = { onFocusKey(key) },
+                        onLongPress = { onRemove(card) },
+                        onClick = { onItemClick(card) }
+                    )
+                    LiveBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(NuvioTheme.spacing.sm)
+                    )
+                }
+            }
+            item(key = "recent_clear", contentType = "recent_clear") {
+                val key = "recent|clear"
+                Button(
+                    onClick = onClear,
+                    modifier = Modifier
+                        .focusRequester(requesterFor(key))
+                        .onFocusChanged { if (it.isFocused) onFocusKey(key) }
+                ) {
+                    Text(text = stringResource(R.string.sports_recent_clear))
                 }
             }
         }

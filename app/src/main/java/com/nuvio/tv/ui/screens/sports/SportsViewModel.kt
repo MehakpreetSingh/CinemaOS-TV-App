@@ -7,7 +7,11 @@ import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.R
 import com.nuvio.tv.core.network.NetworkResult
 import com.nuvio.tv.domain.model.Addon
+import com.nuvio.tv.data.local.RecentSportsItem
+import com.nuvio.tv.data.local.RecentSportsStore
 import com.nuvio.tv.domain.model.CatalogDescriptor
+import com.nuvio.tv.domain.model.ContentType
+import com.nuvio.tv.domain.model.PosterShape
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.domain.model.SportsAddon
 import com.nuvio.tv.domain.model.supportsExtra
@@ -22,6 +26,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChangedBy
@@ -93,8 +101,43 @@ data class SportsUiState(
 @HiltViewModel
 class SportsViewModel @Inject constructor(
     private val addonRepository: AddonRepository,
-    private val catalogRepository: CatalogRepository
+    private val catalogRepository: CatalogRepository,
+    private val recentSportsStore: RecentSportsStore
 ) : ViewModel() {
+
+    /** Recently played live items, most recent first; empty hides the Sports "Recently watched" row. */
+    val recentlyWatched: StateFlow<List<SportsCardModel>> = recentSportsStore.items
+        .map { items -> items.map { it.toCard() } }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    fun removeRecent(id: String) {
+        viewModelScope.launch { recentSportsStore.remove(id) }
+    }
+
+    fun clearRecent() {
+        viewModelScope.launch { recentSportsStore.clear() }
+    }
+
+    private fun RecentSportsItem.toCard(): SportsCardModel = SportsCardModel(
+        key = id,
+        isLive = true,
+        preview = MetaPreview(
+            id = id,
+            type = ContentType.fromString(type),
+            rawType = type,
+            name = SportsAddon.scrubRequired(name),
+            poster = SportsAddon.sanitizeImage(poster),
+            posterShape = PosterShape.LANDSCAPE,
+            background = null,
+            logo = SportsAddon.sanitizeImage(logo),
+            description = null,
+            releaseInfo = null,
+            imdbRating = null,
+            genres = emptyList(),
+            sourceAddonBaseUrl = addonBaseUrl
+        )
+    )
 
     private val _uiState = MutableStateFlow(SportsUiState())
     val uiState: StateFlow<SportsUiState> = _uiState.asStateFlow()

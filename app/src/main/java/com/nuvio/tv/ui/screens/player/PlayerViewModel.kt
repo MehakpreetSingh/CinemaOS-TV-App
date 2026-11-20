@@ -102,6 +102,7 @@ class PlayerViewModel @Inject constructor(
     private val tvRecommendationManager: com.nuvio.tv.core.recommendations.TvRecommendationManager,
     private val serverPlayback: com.nuvio.tv.data.mediaserver.ServerPlayback,
     private val serverStreams: com.nuvio.tv.data.mediaserver.ServerStreams,
+    private val recentSportsStore: com.nuvio.tv.data.local.RecentSportsStore,
     partyRepository: com.nuvio.tv.core.party.PartyRepository,
     profileManager: com.nuvio.tv.core.profile.ProfileManager,
     savedStateHandle: SavedStateHandle
@@ -161,6 +162,30 @@ class PlayerViewModel @Inject constructor(
 
     init {
         controller.bindParty()
+    }
+
+    init {
+        // Live sports items keep no watch progress, so remember them for the Sports screen.
+        val liveArgs = controller.navigationArgs
+        val liveId = liveArgs.contentId ?: liveArgs.videoId
+        if (controller.knownLiveSportsItem && liveId != null) {
+            viewModelScope.launch {
+                runCatching {
+                    recentSportsStore.record(
+                        com.nuvio.tv.data.local.RecentSportsItem(
+                            id = liveId,
+                            type = liveArgs.contentType?.takeIf { it.isNotBlank() }
+                                ?: com.nuvio.tv.domain.model.SportsAddon.CATALOG_TYPE,
+                            name = liveArgs.contentName?.takeIf { it.isNotBlank() } ?: liveArgs.title,
+                            poster = liveArgs.poster,
+                            logo = liveArgs.logo,
+                            addonBaseUrl = com.nuvio.tv.domain.model.SportsAddon.BASE_URL,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+            }
+        }
     }
 
     val party: com.nuvio.tv.core.party.PartyRepository

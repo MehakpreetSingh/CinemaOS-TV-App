@@ -7,6 +7,8 @@
     <string name="sports_row_upcoming">⏱️ Upcoming</string>
     <string name="sports_row_networks">📺 24/7 TV</string>
     <string name="sports_row_replays">⏪ Replays</string>
+    <string name="sports_row_recent">Recently watched</string>
+    <string name="sports_recent_clear">Clear</string>
     <string name="sports_live_badge">LIVE</string>
     <string name="sports_loading">Loading sports…</string>
     <string name="sports_empty_title">Nothing on right now</string>
