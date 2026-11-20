@@ -157,6 +157,11 @@ fun EssentialPlaybackSettingsContent(
                     )
                 }
             }
+            item(key = "network") {
+                SettingsGroupCard(modifier = Modifier.fillMaxWidth(), title = stringResource(R.string.network_secure_dns_group)) {
+                    SecureDnsSettingsRow()
+                }
+            }
         }
         SettingsVerticalScrollIndicators(state = listState)
     }

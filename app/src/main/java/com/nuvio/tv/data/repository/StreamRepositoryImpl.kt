@@ -8,6 +8,7 @@ import com.nuvio.tv.core.network.safeApiCall
 import com.nuvio.tv.core.debrid.DebridStreamPresentation
 import com.nuvio.tv.core.debrid.LocalDebridAvailabilityService
 import com.nuvio.tv.core.plugin.PluginManager
+import com.nuvio.tv.core.scrapers.CinemaNetworkStats
 import com.nuvio.tv.core.scrapers.CinemaScrapeRequest
 import com.nuvio.tv.core.scrapers.NativeCinemaScrapers
 import com.nuvio.tv.domain.model.pluginBingeGroup
@@ -46,6 +47,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.URLEncoder
 import java.security.MessageDigest
 import javax.inject.Inject
@@ -255,6 +257,13 @@ class StreamRepositoryImpl @Inject constructor(
             val attemptedFailures = java.util.Collections.synchronizedList(
                 mutableListOf<StreamAttemptFailure>()
             )
+            // Built-in sources (native scrapers, local plugins) are not addons: track whether they ran
+            // and whether the native ones reached any source host, so an empty result is reported as
+            // "couldn't reach sources" / "no streams" instead of "no installed addon supports ...".
+            val nativeStats = CinemaNetworkStats()
+            val nativeAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
+            val nativeTmdbLookupFailed = java.util.concurrent.atomic.AtomicBoolean(false)
+            val pluginsAttempted = java.util.concurrent.atomic.AtomicBoolean(false)
 
             // Accumulate results as they arrive
             val accumulatedResults = mutableListOf<AddonStreams>()
@@ -372,6 +381,7 @@ class StreamRepositoryImpl @Inject constructor(
                             season = season,
                             episode = episode
                         )
+                        pluginsAttempted.set(true)
                         val runPlugins: suspend () -> Unit = {
                             streamLocalPlugins(
                                 pluginId = pluginRequest.id,
@@ -408,7 +418,12 @@ class StreamRepositoryImpl @Inject constructor(
                     launch {
                         try {
                             val tmdbId = tmdbService.ensureTmdbId(videoId, type)
-                            if (tmdbId == null || !tmdbId.all { it.isDigit() }) return@launch
+                            if (tmdbId == null || !tmdbId.all { it.isDigit() }) {
+                                // An IMDb id that cannot be mapped is almost always TMDB being unreachable.
+                                nativeAttempted.set(true)
+                                nativeTmdbLookupFailed.set(true)
+                                return@launch
+                            }
                             val (nativeSeason, nativeEpisode) = resolvePluginSeasonEpisode(
                                 videoId = videoId,
                                 season = season,
@@ -421,13 +436,16 @@ class StreamRepositoryImpl @Inject constructor(
                                 episode = nativeEpisode ?: 1
                             )
                             val runNative: suspend () -> Unit = {
-                                streamNativeScrapers(
-                                    request = request,
-                                    priorityBingeGroup = priorityBingeGroup,
-                                    preferredPluginOnly = preferredPluginOnly,
-                                    continuePluginOnly = continuePluginOnly,
-                                    resultChannel = resultChannel
-                                )
+                                withContext(nativeStats) {
+                                    streamNativeScrapers(
+                                        request = request,
+                                        priorityBingeGroup = priorityBingeGroup,
+                                        preferredPluginOnly = preferredPluginOnly,
+                                        continuePluginOnly = continuePluginOnly,
+                                        resultChannel = resultChannel,
+                                        onStarted = { nativeAttempted.set(true) }
+                                    )
+                                }
                             }
                             if (continuePluginOnly) {
                                 runNative()
@@ -460,11 +478,22 @@ class StreamRepositoryImpl @Inject constructor(
 
             // Emit final result (even if empty)
             if (accumulatedResults.isEmpty()) {
+                val nativeUnreachable = nativeAttempted.get() &&
+                    (nativeTmdbLookupFailed.get() || nativeStats.responses.get() == 0)
+                if (nativeAttempted.get()) {
+                    Log.w(
+                        TAG,
+                        "Native sources empty for $videoId: responses=${nativeStats.responses.get()} " +
+                            "failures=${nativeStats.failures.get()} tmdbLookupFailed=${nativeTmdbLookupFailed.get()}"
+                    )
+                }
                 val errorMessage = buildAggregateFailureMessage(
                     type = type,
                     id = videoId,
                     attemptedAddonNames = attemptedAddonNames,
-                    failures = attemptedFailures.toList()
+                    failures = attemptedFailures.toList(),
+                    builtInSourcesAttempted = nativeAttempted.get() || pluginsAttempted.get(),
+                    builtInSourcesUnreachable = nativeUnreachable
                 )
                 if (errorMessage != null) {
                     emit(NetworkResult.Error(errorMessage))
@@ -677,7 +706,8 @@ class StreamRepositoryImpl @Inject constructor(
         priorityBingeGroup: String?,
         preferredPluginOnly: Boolean,
         continuePluginOnly: Boolean,
-        resultChannel: Channel<AddonStreams>
+        resultChannel: Channel<AddonStreams>,
+        onStarted: () -> Unit = {}
     ) {
         val all = nativeScrapers.providers
         val priorityId = com.nuvio.tv.domain.model.scraperIdFromPluginBingeGroup(priorityBingeGroup)
@@ -691,6 +721,7 @@ class StreamRepositoryImpl @Inject constructor(
             else -> all to false
         }
         if (order.isEmpty()) return
+        onStarted()
         nativeScrapers.stream(
             req = request,
             sequential = firstWins, // native sources always run in parallel (like the RN app)
@@ -949,10 +980,26 @@ class StreamRepositoryImpl @Inject constructor(
         type: String,
         id: String,
         attemptedAddonNames: List<String>,
-        failures: List<StreamAttemptFailure>
+        failures: List<StreamAttemptFailure>,
+        builtInSourcesAttempted: Boolean = false,
+        builtInSourcesUnreachable: Boolean = false
     ): String? {
         if (attemptedAddonNames.isEmpty()) {
-            return context.getString(R.string.error_stream_no_supported_addon, type)
+            // Default installs have no stream addon (Cinemeta / OpenSubtitles / Kitsu are metadata
+            // only), so the built-in CinemaOS sources are the only stream sources. When they ran, the
+            // "no installed addon supports streams" text blamed addons for a network / no-result failure.
+            return when {
+                builtInSourcesUnreachable -> context.getString(R.string.error_stream_sources_unreachable)
+                builtInSourcesAttempted -> context.getString(R.string.error_stream_sources_none_found)
+                else -> context.getString(R.string.error_stream_no_supported_addon, type)
+            }
+        }
+        if (builtInSourcesUnreachable &&
+            failures.size >= attemptedAddonNames.size &&
+            failures.all { it.kind == StreamFailureKind.REQUEST_FAILED }
+        ) {
+            // Every addon request and every built-in source failed at the network level.
+            return context.getString(R.string.error_stream_sources_unreachable)
         }
 
         val triedAddons = attemptedAddonNames.joinToString(", ")

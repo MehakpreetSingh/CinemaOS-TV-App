@@ -92,6 +92,7 @@ internal fun PlaybackBufferNetworkSection(
     DiskCacheControls(settings = settings, onUpdate = onUpdate)
 
     SettingsSectionLabel(text = stringResource(R.string.playback_network_label))
+    SecureDnsSettingsRow()
     SettingsToggleRow(
         title = stringResource(R.string.playback_net_custom),
         subtitle = stringResource(R.string.playback_net_custom_sub),

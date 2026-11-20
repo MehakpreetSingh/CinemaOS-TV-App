@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="network_secure_dns_group">Network</string>
+    <string name="network_secure_dns_title">Secure DNS (DNS over HTTPS)</string>
+    <string name="network_secure_dns_subtitle">Looks up servers through an encrypted DNS provider so sources blocked by your internet provider\'s DNS can still be reached.</string>
+    <string name="network_secure_dns_automatic">Automatic</string>
+    <string name="network_secure_dns_automatic_desc">Cloudflare, falls back to your system DNS</string>
+    <string name="network_secure_dns_cloudflare">Cloudflare</string>
+    <string name="network_secure_dns_cloudflare_desc">cloudflare-dns.com (1.1.1.1), falls back to your system DNS</string>
+    <string name="network_secure_dns_google">Google</string>
+    <string name="network_secure_dns_google_desc">dns.google (8.8.8.8), falls back to your system DNS</string>
+    <string name="network_secure_dns_off">Off</string>
+    <string name="network_secure_dns_off_desc">Use your system DNS only</string>
+
+    <string name="error_stream_sources_unreachable">Couldn\'t reach sources. Check your connection or try again.</string>
+    <string name="error_stream_sources_none_found">No streams found for this title. Try again later.</string>
+</resources>

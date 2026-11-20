@@ -2,6 +2,7 @@ package com.nuvio.tv.core.scrapers
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -19,6 +20,9 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
@@ -32,6 +36,19 @@ class CinemaResponse(val code: Int, val headers: Headers, val body: ByteArray) {
 }
 
 data class TmdbBrief(val title: String, val year: String, val imdbId: String)
+
+/**
+ * Network outcome of one native stream search, installed with `withContext(stats)` around the search.
+ * [responses] counts HTTP answers from source hosts; [failures] counts requests that got no answer at all
+ * (DNS failure, refused / reset connection, TLS failure, timeout). `responses == 0` after a search means no
+ * source host could be reached, which is what an ISP DNS block or a dead connection looks like.
+ */
+class CinemaNetworkStats : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<CinemaNetworkStats>
+
+    val responses = AtomicInteger()
+    val failures = AtomicInteger()
+}
 
 /**
  * Shared HTTP layer for the native scrapers. Uses the app OkHttpClient (same DNS / socket factory /
@@ -60,8 +77,10 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
         method: String = "GET",
         body: String? = null,
         timeoutMs: Long = 10_000,
-        maxBytes: Int = 4 * 1024 * 1024
+        maxBytes: Int = 4 * 1024 * 1024,
+        countResponse: Boolean = true
     ): CinemaResponse? {
+        val stats = currentCoroutineContext()[CinemaNetworkStats]
         return try {
             val builder = Request.Builder().url(url)
             headers.forEach { (k, v) -> builder.header(k, v) }
@@ -74,6 +93,7 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
             val call = client.newCall(builder.build())
             call.timeout().timeout(timeoutMs, TimeUnit.MILLISECONDS)
             val response = call.await()
+            if (countResponse) stats?.responses?.incrementAndGet()
             response.use { r ->
                 val bytes = withContext(Dispatchers.IO) {
                     val source = r.body?.source() ?: return@withContext ByteArray(0)
@@ -94,6 +114,7 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            stats?.failures?.incrementAndGet()
             null
         }
     }
@@ -114,9 +135,10 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
     suspend fun json(
         url: String,
         headers: Map<String, String> = emptyMap(),
-        timeoutMs: Long = 10_000
+        timeoutMs: Long = 10_000,
+        countResponse: Boolean = true
     ): JSONObject? {
-        val r = fetch(url, headers, timeoutMs = timeoutMs) ?: return null
+        val r = fetch(url, headers, timeoutMs = timeoutMs, countResponse = countResponse) ?: return null
         if (!r.ok) return null
         return runCatching { JSONObject(r.text) }.getOrNull()
     }
@@ -149,7 +171,9 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
                         "Sec-Fetch-Mode" to "cors",
                         "Sec-Fetch-Dest" to "empty"
                     ),
-                    timeoutMs = 6_000
+                    timeoutMs = 6_000,
+                    // Metadata helper, not a source: reaching it does not mean sources are reachable.
+                    countResponse = false
                 )
                 if (data != null) break
             }
@@ -173,7 +197,12 @@ class CinemaHttp @Inject constructor(baseClient: OkHttpClient) {
     /** True when ARM maps this TMDB id to an anime entry (those belong to the anime plugins). */
     suspend fun isAnimeTmdb(id: String): Boolean {
         animeCache[id]?.let { return it }
-        val r = fetch("https://arm.haglund.dev/api/v2/themoviedb?id=$id", timeoutMs = 4_000, maxBytes = 256 * 1024)
+        val r = fetch(
+            "https://arm.haglund.dev/api/v2/themoviedb?id=$id",
+            timeoutMs = 4_000,
+            maxBytes = 256 * 1024,
+            countResponse = false
+        )
         val v = if (r != null && r.ok) {
             runCatching { JSONArray(r.text).length() > 0 }.getOrDefault(false)
         } else {

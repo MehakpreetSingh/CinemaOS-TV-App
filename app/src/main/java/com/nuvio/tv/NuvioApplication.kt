@@ -24,7 +24,7 @@ import com.nuvio.tv.core.image.StaleWhileRevalidateCacheStrategy
 import com.nuvio.tv.core.runtime.PluginRuntimeHooks
 import com.nuvio.tv.core.sync.StartupSyncService
 import com.nuvio.tv.core.sync.androidtv.AndroidTvChannelSyncService
-import com.nuvio.tv.core.network.IPv4FirstDns
+import com.nuvio.tv.core.network.AppDns
 import com.nuvio.tv.core.network.NoDelaySocketFactory
 import com.nuvio.tv.core.network.imageNetworkFetcherFactory
 import com.nuvio.tv.data.local.ImagePerformancePreferences
@@ -92,6 +92,8 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         // Before super.onCreate(): Hilt creates injected services there, and the budget is read once.
         MemoryBudget.init(this)
+        // Secure DNS mode must be loaded before any injected client makes its first lookup.
+        AppDns.init(this)
         super.onCreate()
         SentryInitializer.start(this, sentrySettingsDataStore)
         PluginRuntimeHooks.onApplicationCreate(this)
@@ -114,7 +116,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
             }
             OkHttpClient.Builder()
                 .dispatcher(imageDispatcher)
-                .dns(IPv4FirstDns())
+                .dns(AppDns)
                 .socketFactory(NoDelaySocketFactory)
                 .connectTimeout(4, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)

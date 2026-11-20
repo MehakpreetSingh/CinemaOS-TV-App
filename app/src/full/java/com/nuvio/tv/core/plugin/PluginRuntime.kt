@@ -49,7 +49,7 @@ class PluginRuntime @Inject constructor() {
     private val gson: Gson = GsonBuilder().create()
 
     private val httpClient = OkHttpClient.Builder()
-        .dns(com.nuvio.tv.core.network.IPv4FirstDns())
+        .dns(com.nuvio.tv.core.network.AppDns)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .writeTimeout(30, TimeUnit.SECONDS)

@@ -55,6 +55,7 @@ object MdbListModule {
     fun http(configuration: MdbListConfiguration): MdbListHttpClient = MdbListHttpClient(
         OkHttpMdbListEngine(
             OkHttpClient.Builder()
+                .dns(com.nuvio.tv.core.network.AppDns)
                 .socketFactory(NoDelaySocketFactory)
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
