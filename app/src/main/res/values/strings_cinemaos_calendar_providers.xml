@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Calendar -->
+    <string name="nav_calendar">Calendar</string>
+    <string name="cinemaos_calendar_previous_month">Previous month</string>
+    <string name="cinemaos_calendar_next_month">Next month</string>
+    <string name="cinemaos_calendar_today">Today</string>
+    <string name="cinemaos_calendar_list_view">List view</string>
+    <string name="cinemaos_calendar_month_view">Month view</string>
+    <string name="cinemaos_calendar_loading">Loading releases…</string>
+    <string name="cinemaos_calendar_nothing_airing">Nothing airing this day</string>
+    <string name="cinemaos_calendar_month_empty">Nothing from your library airs this month</string>
+    <string name="cinemaos_calendar_no_sources">Add shows and movies to your library or watchlist to see when they air here.</string>
+    <string name="cinemaos_calendar_unavailable">The release calendar needs TMDB, which is not configured in this build.</string>
+    <string name="cinemaos_calendar_movie_release">Movie release</string>
+    <plurals name="cinemaos_calendar_episode_count">
+        <item quantity="one">%d episode</item>
+        <item quantity="other">%d episodes</item>
+    </plurals>
+    <plurals name="cinemaos_calendar_title_count">
+        <item quantity="one">%d release</item>
+        <item quantity="other">%d releases</item>
+    </plurals>
+
+    <!-- Providers -->
+    <string name="cinemaos_providers_row_title">Providers</string>
+    <string name="cinemaos_provider_eyebrow">STREAMING ON</string>
+    <string name="cinemaos_provider_tab_movies">Movies</string>
+    <string name="cinemaos_provider_tab_series">Series</string>
+    <string name="cinemaos_provider_sort_label">Sort</string>
+    <string name="cinemaos_provider_sort_popular">Popular</string>
+    <string name="cinemaos_provider_sort_newest">Newest</string>
+    <string name="cinemaos_provider_sort_top_rated">Top rated</string>
+    <string name="cinemaos_provider_empty">Nothing found for this service in your region.</string>
+    <string name="cinemaos_provider_error">Couldn\'t load titles. Check your connection.</string>
+    <string name="cinemaos_provider_retry">Retry</string>
+</resources>

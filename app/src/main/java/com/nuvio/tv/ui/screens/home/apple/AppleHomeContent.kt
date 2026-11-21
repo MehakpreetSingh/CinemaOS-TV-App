@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -83,6 +84,7 @@ import kotlinx.coroutines.delay
 private const val HERO_AUTO_ADVANCE_MS = 8_000L
 private val RowInset = 48.dp
 private val HeroBlockMinHeight = 290.dp
+private const val PROVIDERS_ROW_POSITION = 2
 
 private data class AppleCardStyle(
     val scale: Float,
@@ -110,7 +112,9 @@ fun AppleHomeContent(
     onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
     onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
     onContinueWatchingPlayManually: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
-    showContinueWatchingManualPlayOption: Boolean = false
+    showContinueWatchingManualPlayOption: Boolean = false,
+    /** When set, a CinemaOS "Providers" row of streaming-service tiles is shown after the first catalogs. */
+    onNavigateToProvider: ((String, String) -> Unit)? = null
 ) {
     val background = NuvioTheme.colors.Background
     val listState = rememberLazyListState()
@@ -342,46 +346,39 @@ fun AppleHomeContent(
                 }
             }
 
-            items(
-                items = homeRowList,
-                key = {
-                    when (it) {
-                        is HomeRow.Catalog -> it.row.stableKey()
-                        is HomeRow.CollectionRow -> "collection_${it.collection.id}"
-                        is HomeRow.PlaceholderCatalog -> it.stableCatalogKey
-                    }
-                },
-                contentType = { if (it is HomeRow.CollectionRow) "collectionRow" else "catalogRow" }
-            ) { homeRow ->
-                when (homeRow) {
-                    is HomeRow.Catalog -> {
-                        val row = homeRow.row
-                        AppleCatalogRow(
-                            row = row,
-                            viewModel = viewModel,
-                            style = cardStyle,
-                            showAddonName = uiState.catalogAddonNameEnabled,
-                            showTypeSuffix = uiState.catalogTypeSuffixEnabled,
-                            onItemClick = { item ->
-                                HeroBackdropState.update(item.backdropUrl)
-                                onNavigateToDetail(item.id, item.apiType, row.addonBaseUrl)
-                            },
-                            onItemLongPress = { item -> onCatalogItemLongPress(item, row.addonBaseUrl) },
-                            onItemFocused = { item ->
-                                viewModel.onItemFocus(item)
-                                rowFocus = item.toHeroDisplay().let { if (showRatings) it else it.copy(rating = null) }
-                            }
-                        )
-                    }
-                    is HomeRow.CollectionRow -> AppleCollectionRow(
-                        collection = homeRow.collection,
-                        style = cardStyle,
-                        onFolderClick = onNavigateToFolderDetail,
-                        onFocused = { rowFocus = it }
+            // Providers row sits after the first PROVIDERS_ROW_POSITION home rows.
+            val rowsBeforeProviders = if (onNavigateToProvider != null) homeRowList.take(PROVIDERS_ROW_POSITION) else homeRowList
+            val rowsAfterProviders = if (onNavigateToProvider != null) homeRowList.drop(PROVIDERS_ROW_POSITION) else emptyList()
+            appleHomeRows(
+                rows = rowsBeforeProviders,
+                viewModel = viewModel,
+                uiState = uiState,
+                cardStyle = cardStyle,
+                showRatings = showRatings,
+                onNavigateToDetail = onNavigateToDetail,
+                onCatalogItemLongPress = onCatalogItemLongPress,
+                onNavigateToFolderDetail = onNavigateToFolderDetail,
+                onRowFocus = { rowFocus = it }
+            )
+            if (onNavigateToProvider != null) {
+                item(key = "cinemaos_providers_row", contentType = "providersRow") {
+                    com.nuvio.tv.ui.screens.providers.ProvidersHomeRow(
+                        onProviderClick = { provider -> onNavigateToProvider(provider.id, provider.name) },
+                        rowInset = RowInset
                     )
-                    is HomeRow.PlaceholderCatalog -> Unit
                 }
             }
+            appleHomeRows(
+                rows = rowsAfterProviders,
+                viewModel = viewModel,
+                uiState = uiState,
+                cardStyle = cardStyle,
+                showRatings = showRatings,
+                onNavigateToDetail = onNavigateToDetail,
+                onCatalogItemLongPress = onCatalogItemLongPress,
+                onNavigateToFolderDetail = onNavigateToFolderDetail,
+                onRowFocus = { rowFocus = it }
+            )
         }
 
         val optionsItem = cwOptionsItem
@@ -429,6 +426,60 @@ fun AppleHomeContent(
                     viewModel.onEvent(HomeEvent.OnMarkContinueWatchingWatched(optionsItem))
                 }
             )
+        }
+    }
+}
+
+/** Home rows after Continue Watching: catalogs and collections, in the user's order. */
+private fun LazyListScope.appleHomeRows(
+    rows: List<HomeRow>,
+    viewModel: HomeViewModel,
+    uiState: HomeUiState,
+    cardStyle: AppleCardStyle,
+    showRatings: Boolean,
+    onNavigateToDetail: (String, String, String) -> Unit,
+    onCatalogItemLongPress: (MetaPreview, String) -> Unit,
+    onNavigateToFolderDetail: (String, String) -> Unit,
+    onRowFocus: (HeroDisplay) -> Unit
+) {
+    items(
+        items = rows,
+        key = {
+            when (it) {
+                is HomeRow.Catalog -> it.row.stableKey()
+                is HomeRow.CollectionRow -> "collection_${it.collection.id}"
+                is HomeRow.PlaceholderCatalog -> it.stableCatalogKey
+            }
+        },
+        contentType = { if (it is HomeRow.CollectionRow) "collectionRow" else "catalogRow" }
+    ) { homeRow ->
+        when (homeRow) {
+            is HomeRow.Catalog -> {
+                val row = homeRow.row
+                AppleCatalogRow(
+                    row = row,
+                    viewModel = viewModel,
+                    style = cardStyle,
+                    showAddonName = uiState.catalogAddonNameEnabled,
+                    showTypeSuffix = uiState.catalogTypeSuffixEnabled,
+                    onItemClick = { item ->
+                        HeroBackdropState.update(item.backdropUrl)
+                        onNavigateToDetail(item.id, item.apiType, row.addonBaseUrl)
+                    },
+                    onItemLongPress = { item -> onCatalogItemLongPress(item, row.addonBaseUrl) },
+                    onItemFocused = { item ->
+                        viewModel.onItemFocus(item)
+                        onRowFocus(item.toHeroDisplay().let { if (showRatings) it else it.copy(rating = null) })
+                    }
+                )
+            }
+            is HomeRow.CollectionRow -> AppleCollectionRow(
+                collection = homeRow.collection,
+                style = cardStyle,
+                onFolderClick = onNavigateToFolderDetail,
+                onFocused = onRowFocus
+            )
+            is HomeRow.PlaceholderCatalog -> Unit
         }
     }
 }

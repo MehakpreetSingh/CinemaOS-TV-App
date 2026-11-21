@@ -144,6 +144,17 @@ sealed class Screen(val route: String) {
     data object Discover : Screen("discover")
     data object Anime : Screen("anime")
     data object Sports : Screen("sports")
+    /** Release calendar for library / watchlist and Continue Watching titles (sidebar root). */
+    data object Calendar : Screen("calendar")
+
+    /** One streaming service's titles (TMDB discover with_watch_providers), opened from the Home Providers row. */
+    data object Provider : Screen("provider/{providerId}?providerName={providerName}") {
+        private fun encode(value: String): String =
+            URLEncoder.encode(value, "UTF-8").replace("+", "%20")
+
+        fun createRoute(providerId: String, providerName: String): String =
+            "provider/${encode(providerId)}?providerName=${encode(providerName)}"
+    }
     data object Library : Screen("library")
     data object Settings : Screen("settings")
     data object Tracking : Screen("trakt")

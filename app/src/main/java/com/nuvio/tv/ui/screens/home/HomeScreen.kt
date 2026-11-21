@@ -91,7 +91,9 @@ fun HomeScreen(
     onContinueWatchingStartFromBeginning: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
     onContinueWatchingPlayManually: (ContinueWatchingItem) -> Unit = onContinueWatchingClick,
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit = { _, _, _ -> },
-    onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> }
+    onNavigateToFolderDetail: (String, String) -> Unit = { _, _ -> },
+    /** Opens a streaming provider page (provider id, name) from the CinemaOS Providers row. */
+    onNavigateToProvider: ((String, String) -> Unit)? = null
 ) {
     val rawUiState by viewModel.uiState.collectAsStateWithLifecycle()
     // Anime tab: always the Apple look, and no Continue Watching rows (those live on Home).
@@ -190,6 +192,7 @@ fun HomeScreen(
     val onContinueWatchingPlayManuallyStable = remember(onContinueWatchingPlayManually) { onContinueWatchingPlayManually }
     val onNavigateToCatalogSeeAllStable = remember(onNavigateToCatalogSeeAll) { onNavigateToCatalogSeeAll }
     val onNavigateToFolderDetailStable = remember(onNavigateToFolderDetail) { onNavigateToFolderDetail }
+    val onNavigateToProviderStable = remember(onNavigateToProvider) { onNavigateToProvider }
     val onRemoveContinueWatchingStable = remember(viewModel) {
         { contentId: String, season: Int?, episode: Int?, isNextUp: Boolean ->
             viewModel.onEvent(HomeEvent.OnRemoveContinueWatching(contentId, season, episode, isNextUp))
@@ -399,7 +402,8 @@ fun HomeScreen(
                                 onNavigateToFolderDetail = onNavigateToFolderDetailStable,
                                 onContinueWatchingStartFromBeginning = onContinueWatchingStartFromBeginningStable,
                                 onContinueWatchingPlayManually = onContinueWatchingPlayManuallyStable,
-                                showContinueWatchingManualPlayOption = effectiveAutoplayEnabled
+                                showContinueWatchingManualPlayOption = effectiveAutoplayEnabled,
+                                onNavigateToProvider = if (viewModel.animeMode) null else onNavigateToProviderStable
                             )
 
                             HomeLayout.CLASSIC -> ClassicHomeRoute(

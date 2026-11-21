@@ -155,3 +155,10 @@
 # Audio Sync speech recognition uses JNI to read configuration fields by name.
 -keep class com.k2fsa.sherpa.onnx.** { *; }
 -keep interface com.k2fsa.sherpa.onnx.** { *; }
+
+# CinemaOS Calendar / Providers: extra TMDB Retrofit interface and its Moshi models
+-keep interface com.nuvio.tv.ui.screens.providers.CinemaosTmdbExtrasApi { *; }
+-keep class com.nuvio.tv.ui.screens.providers.Cinemaos*Response { *; }
+-keep class com.nuvio.tv.ui.screens.providers.Cinemaos*Entry { *; }
+-keep class com.nuvio.tv.ui.screens.providers.Cinemaos*Details { *; }
+-keep class com.nuvio.tv.ui.screens.providers.CinemaosEpisodeRef { *; }

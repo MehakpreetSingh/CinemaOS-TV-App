@@ -55,4 +55,25 @@
     <string name="discover_filter_chip_format">%1$s: %2$s</string>
     <string name="discover_filters_clear_all">Clear all</string>
     <string name="cd_discover_remove_filter">Remove filter %1$s</string>
+    <!-- Header and type switch -->
+    <string name="discover_subtitle">Browse movies, series and anime</string>
+    <string name="discover_type_anime">Anime</string>
+
+    <!-- Filter pill value when a filter is not set -->
+    <string name="discover_filter_value_any">Any</string>
+
+    <!-- Anime filters -->
+    <string name="discover_filter_format">Format</string>
+    <string name="discover_filter_season">Season</string>
+    <string name="discover_filter_status">Status</string>
+    <string name="discover_filter_any_season">Any season</string>
+    <string name="discover_filter_any_status">Any status</string>
+    <string name="discover_format_tv">TV</string>
+    <string name="discover_format_movie">Movie</string>
+    <string name="discover_season_winter">Winter</string>
+    <string name="discover_season_spring">Spring</string>
+    <string name="discover_season_summer">Summer</string>
+    <string name="discover_season_fall">Fall</string>
+    <string name="discover_status_airing">Airing</string>
+    <string name="discover_status_ended">Ended</string>
 </resources>

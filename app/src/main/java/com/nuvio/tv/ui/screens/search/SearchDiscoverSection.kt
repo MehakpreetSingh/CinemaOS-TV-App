@@ -63,7 +63,16 @@ import com.nuvio.tv.ui.util.contentTextDirection
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.tv.material3.Border
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
@@ -113,7 +122,7 @@ internal fun DiscoverSection(
 ) {
     val selectedCatalog = uiState.discoverCatalogs.firstOrNull { it.key == uiState.selectedDiscoverCatalogKey }
     val filteredCatalogs = uiState.discoverCatalogs.filter { it.type == uiState.selectedDiscoverType }
-    // Genres only: a catalog whose `genre` extra lists years exposes them under the Year picker.
+    // Genres only: a catalog whose `genre` extra lists years exposes them under the Year pill.
     // TMDB catalogs use TMDB's own genre list; an addon catalog without genres borrows those of
     // the other catalogs of its type so the picker is never empty.
     val genreOptions: List<DiscoverOption> = if (selectedCatalog?.isTmdbDiscover == true) {
@@ -127,141 +136,200 @@ internal fun DiscoverSection(
     } else {
         uiState.selectedDiscoverGenre
     }
-    val extraFilterKeys = discoverExtraFilterKeys(selectedCatalog)
-    // A required genre has no "Default" row: the catalog cannot be queried without one.
+    // A required genre has no "Any" row: the catalog cannot be queried without one.
     val genreIsRequired = selectedCatalog != null &&
         selectedCatalog.genreExtraRequired &&
         selectedCatalog.genres.isNotEmpty()
-    var expandedPicker by remember { mutableStateOf<String?>(null) }
-    val filterFocusRequester = remember { FocusRequester() }
-    var gridHasFocus by remember { mutableStateOf(false) }
 
+    var expandedPicker by remember { mutableStateOf<String?>(null) }
+    val filterRowRequester = remember { FocusRequester() }
+    val segmentRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val gridState = rememberLazyGridState()
+    val scope = rememberCoroutineScope()
+    var gridHasFocus by remember { mutableStateOf(false) }
+    // The grid leaves composition while loading; focus is no longer inside it then.
+    LaunchedEffect(uiState.discoverResults.isEmpty()) {
+        if (uiState.discoverResults.isEmpty()) gridHasFocus = false
+    }
+    val gridColumns by remember(gridState) {
+        derivedStateOf { (gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 0) + 1 }
+    }
+    // The header + filter pills give their space to the posters while focus is below the first
+    // row, and come back as soon as focus returns to it.
+    val headerVisible = !(gridHasFocus && focusedItemIndex >= gridColumns)
+
+    // Down from the filter pills: scroll the grid to the top and focus its first result.
+    fun focusFirstResult(): Boolean {
+        if (uiState.discoverResults.isEmpty()) return false
+        scope.launch {
+            if (gridState.firstVisibleItemIndex > 0 || gridState.firstVisibleItemScrollOffset > 0) {
+                gridState.scrollToItem(0)
+            }
+            firstItemFocusRequester.requestFocusAfterFrames(frames = 2)
+        }
+        return true
+    }
+
+    // Back from the grid returns to the filter pills instead of leaving the screen.
     androidx.activity.compose.BackHandler(enabled = gridHasFocus) {
-        try { filterFocusRequester.requestFocus() } catch (_: Exception) {}
+        scope.launch {
+            gridState.scrollToItem(0)
+            firstItemFocusRequester.requestFocusAfterFrames(frames = 2)
+            filterRowRequester.requestFocusAfterFrames(frames = 3)
+        }
     }
 
     val localContext = LocalContext.current
     fun localizedTypeLabel(type: String): String = localizedContentType(localContext, type)
 
-    val availableTypes = remember(uiState.discoverCatalogs) {
-        uiState.discoverCatalogs.map { it.type }.distinct()
-    }
-    val selectedTypeLabel = localizedTypeLabel(uiState.selectedDiscoverType)
+    val moviesLabel = stringResource(R.string.type_movies)
+    val seriesLabel = stringResource(R.string.type_series_plural)
+    val animeLabel = stringResource(R.string.discover_type_anime)
+    val typeOptions = uiState.discoverCatalogs.map { it.type }.distinct()
+        .sortedBy { type ->
+            when (type) {
+                DISCOVER_TYPE_MOVIE -> 0
+                DISCOVER_TYPE_SERIES -> 1
+                DISCOVER_TYPE_ANIME -> 2
+                else -> 3
+            }
+        }
+        .map { type ->
+            DiscoverOption(
+                label = when (type) {
+                    DISCOVER_TYPE_MOVIE -> moviesLabel
+                    DISCOVER_TYPE_SERIES -> seriesLabel
+                    DISCOVER_TYPE_ANIME -> animeLabel
+                    else -> localizedTypeLabel(type)
+                },
+                value = type
+            )
+        }
+
+    val anyValueLabel = stringResource(R.string.discover_filter_value_any)
     val selectedCatalogLabel = selectedCatalog?.catalogName ?: stringResource(R.string.discover_select_catalog)
-    val genreDefaultLabel = stringResource(R.string.discover_genre_default)
+    val catalogTitle = stringResource(R.string.discover_filter_catalog)
+    val genreTitle = stringResource(R.string.discover_filter_genre)
     val selectedGenreLabel = selectedGenreValue?.let { value ->
         genreOptions.firstOrNull { it.value == value }?.label ?: localizedGenreLabel(value)
-    } ?: genreDefaultLabel
+    } ?: anyValueLabel
+
+    val leadingPills = if (selectedCatalog != null) {
+        discoverFilterPills(discoverLeadingFilterKeys(selectedCatalog), uiState, selectedCatalog, onSelectFilter)
+    } else {
+        emptyList()
+    }
+    val extraPills = if (selectedCatalog != null) {
+        discoverFilterPills(
+            discoverExtraFilterKeys(selectedCatalog, uiState.discoverTmdbFilters),
+            uiState,
+            selectedCatalog,
+            onSelectFilter
+        )
+    } else {
+        emptyList()
+    }
+    val pills = buildList {
+        if (filteredCatalogs.size > 1) {
+            add(
+                DiscoverPillSpec(
+                    id = "catalog",
+                    title = catalogTitle,
+                    valueLabel = selectedCatalogLabel,
+                    active = false,
+                    options = filteredCatalogs.map { DiscoverOption(it.catalogName, it.key) },
+                    selectedValue = uiState.selectedDiscoverCatalogKey,
+                    onSelect = { option -> onSelectCatalog(option.value) }
+                )
+            )
+        }
+        addAll(leadingPills)
+        if (selectedCatalog != null) {
+            add(
+                DiscoverPillSpec(
+                    id = "genre",
+                    title = genreTitle,
+                    valueLabel = selectedGenreLabel,
+                    active = selectedGenreValue != null && !genreIsRequired,
+                    options = buildList {
+                        if (!genreIsRequired) add(DiscoverOption(anyValueLabel, DISCOVER_ANY_VALUE))
+                        addAll(genreOptions)
+                    },
+                    selectedValue = selectedGenreValue ?: DISCOVER_ANY_VALUE,
+                    onSelect = { option ->
+                        onSelectGenre(option.value.takeUnless { it == DISCOVER_ANY_VALUE })
+                    }
+                )
+            )
+        }
+        addAll(extraPills)
+    }
+    val selectedSegmentRequester = segmentRequesters.getOrPut(uiState.selectedDiscoverType) { FocusRequester() }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = NuvioTheme.spacing.xxxl),
-        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)
     ) {
-        Text(
-            text = stringResource(R.string.discover_title),
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-            color = if (showBuiltInHeader) NuvioTheme.colors.TextPrimary else Color.Transparent
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+        AnimatedVisibility(
+            visible = headerVisible,
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically()
         ) {
-            DiscoverDropdownPicker(
-                modifier = Modifier.weight(1f)
-                    .focusRequester(filterFocusRequester),
-                title = stringResource(R.string.discover_filter_type),
-                value = selectedTypeLabel,
-                selectedValue = uiState.selectedDiscoverType,
-                expanded = expandedPicker == "type",
-                options = availableTypes.map { type ->
-                    val label = localizedTypeLabel(type)
-                    DiscoverOption(label, type)
-                },
-                onExpandedChange = { shouldExpand ->
-                    expandedPicker = if (shouldExpand) "type" else null
-                },
-                onSelect = { option ->
-                    onSelectType(option.value)
-                    expandedPicker = null
-                },
-                blockFocus = blockFilterFocus
-            )
-
-            DiscoverDropdownPicker(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.discover_filter_catalog),
-                value = selectedCatalogLabel,
-                selectedValue = uiState.selectedDiscoverCatalogKey,
-                expanded = expandedPicker == "catalog",
-                options = filteredCatalogs.map { DiscoverOption(it.catalogName, it.key) },
-                onExpandedChange = { shouldExpand ->
-                    expandedPicker = if (shouldExpand) "catalog" else null
-                },
-                onSelect = { option ->
-                    onSelectCatalog(option.value)
-                    expandedPicker = null
-                },
-                blockFocus = blockFilterFocus
-            )
-
-            DiscoverDropdownPicker(
-                modifier = Modifier.weight(1f),
-                title = stringResource(R.string.discover_filter_genre),
-                value = selectedGenreLabel,
-                selectedValue = selectedGenreValue ?: DISCOVER_ANY_VALUE,
-                expanded = expandedPicker == "genre",
-                options = buildList {
-                    if (!genreIsRequired) {
-                        add(DiscoverOption(genreDefaultLabel, DISCOVER_ANY_VALUE))
+            Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.sm)) {
+                // The floating navigation pill overlays the top edge in that layout.
+                if (!showBuiltInHeader) Spacer(modifier = Modifier.height(32.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.discover_title),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                            color = NuvioTheme.colors.TextPrimary,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = stringResource(R.string.discover_subtitle),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = NuvioTheme.colors.TextTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(bottom = 3.dp)
+                        )
                     }
-                    addAll(genreOptions)
-                },
-                onExpandedChange = { shouldExpand ->
-                    expandedPicker = if (shouldExpand) "genre" else null
-                },
-                onSelect = { option ->
-                    onSelectGenre(option.value.takeUnless { it == DISCOVER_ANY_VALUE })
-                    expandedPicker = null
-                },
-                blockFocus = blockFilterFocus
-            )
-        }
-
-        selectedCatalog?.let { catalog ->
-            DiscoverExtraFilterRows(
-                keys = extraFilterKeys,
-                uiState = uiState,
-                catalog = catalog,
-                expandedPicker = expandedPicker,
-                onExpandedChange = { expandedPicker = it },
-                onSelectFilter = onSelectFilter,
-                onReset = onResetFilters,
-                blockFocus = blockFilterFocus
-            )
-        }
-
-        selectedCatalog?.let { catalog ->
-            val metadataSegments = buildList {
-                add(catalog.addonName)
-                if (uiState.catalogTypeSuffixEnabled) {
-                    localizedTypeLabel(catalog.type)
-                        .takeIf { it.isNotEmpty() }
-                        ?.let(::add)
+                    DiscoverTypeSwitch(
+                        types = typeOptions,
+                        selectedType = uiState.selectedDiscoverType,
+                        requesterFor = { type -> segmentRequesters.getOrPut(type) { FocusRequester() } },
+                        downRequester = filterRowRequester,
+                        blockFocus = blockFilterFocus,
+                        onSelectType = { type ->
+                            expandedPicker = null
+                            onSelectType(type)
+                        }
+                    )
                 }
-                selectedGenreValue?.let { value ->
-                    add(genreOptions.firstOrNull { it.value == value }?.label ?: localizedGenreLabel(value))
-                }
-                uiState.selectedDiscoverYear?.let(::add)
+
+                DiscoverFilterPillRow(
+                    pills = pills,
+                    expandedPicker = expandedPicker,
+                    onExpandedChange = { expandedPicker = it },
+                    onReset = onResetFilters,
+                    rowRequester = filterRowRequester,
+                    upRequester = selectedSegmentRequester,
+                    blockFocus = blockFilterFocus,
+                    onMoveDown = ::focusFirstResult
+                )
             }
-            Text(
-                text = metadataSegments.joinToString(" • "),
-                style = MaterialTheme.typography.bodySmall,
-                color = NuvioTheme.colors.TextSecondary
-            )
         }
 
         when {
@@ -281,6 +349,8 @@ internal fun DiscoverSection(
                 DiscoverGrid(
                     items = uiState.discoverResults,
                     posterCardStyle = posterCardStyle,
+                    gridState = gridState,
+                    upFocusRequester = filterRowRequester,
                     watchedMovieIds = watchedMovieIds,
                     watchedSeriesIds = watchedSeriesIds,
                     focusResults = focusResults,
@@ -329,193 +399,6 @@ internal fun DiscoverSection(
     }
 }
 
-@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
-@Composable
-internal fun DiscoverDropdownPicker(
-    modifier: Modifier = Modifier,
-    title: String,
-    value: String,
-    selectedValue: String?,
-    expanded: Boolean,
-    options: List<DiscoverOption>,
-    onExpandedChange: (Boolean) -> Unit,
-    onSelect: (DiscoverOption) -> Unit,
-    blockFocus: Boolean = false
-) {
-    var isFocused by remember { mutableStateOf(false) }
-    var anchorSize by remember { mutableStateOf(IntSize.Zero) }
-    // Seed focused option with the current selection so reopen highlights the right row
-    // even before focus lands (fixes #2848 / incomplete #2507 race on TV).
-    var focusedOptionValue by remember(expanded) {
-        mutableStateOf(if (expanded) selectedValue else null)
-    }
-    val selectedItemFocusRequester = remember { FocusRequester() }
-    val selectedBringIntoViewRequester = remember { BringIntoViewRequester() }
-
-    // Popup content attaches focus targets a few frames after expand. A fixed 50ms
-    // delay was flaky on TV and left focus on the first item for non-top selections.
-    LaunchedEffect(expanded, selectedValue) {
-        if (!expanded || selectedValue == null) return@LaunchedEffect
-        var focused = selectedItemFocusRequester.requestFocusAfterFrames(frames = 3)
-        var attempt = 0
-        while (!focused && attempt < 6) {
-            delay(32)
-            focused = runCatching { selectedItemFocusRequester.requestFocus() }.getOrDefault(false)
-            attempt++
-        }
-        if (!focused) return@LaunchedEffect
-        runCatching { selectedBringIntoViewRequester.bringIntoView() }
-        // Material DropdownMenu may still move initial focus to the first item after
-        // the popup settles; re-assert once so long lists keep the real selection.
-        delay(48)
-        if (runCatching { selectedItemFocusRequester.requestFocus() }.getOrDefault(false)) {
-            runCatching { selectedBringIntoViewRequester.bringIntoView() }
-        }
-    }
-
-    Box(modifier = modifier) {
-        Card(
-            onClick = { onExpandedChange(!expanded) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .onSizeChanged { anchorSize = it }
-                .onFocusChanged { state ->
-                    isFocused = state.isFocused
-                }
-                .then(
-                    if (blockFocus) Modifier.focusProperties { canFocus = false }
-                    else Modifier
-                ),
-            shape = CardDefaults.shape(shape = RoundedCornerShape(50)),
-            colors = CardDefaults.colors(
-                containerColor = Color.White.copy(alpha = 0.08f),
-                focusedContainerColor = Color.White.copy(alpha = 0.2f)
-            ),
-            border = CardDefaults.border(
-                border = Border(
-                    border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border),
-                    shape = RoundedCornerShape(50)
-                ),
-                focusedBorder = Border(
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.35f)),
-                    shape = RoundedCornerShape(50)
-                )
-            ),
-            scale = CardDefaults.scale(
-                focusedScale = 1.0f,
-                pressedScale = 1.0f
-            )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxs)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = NuvioTheme.colors.TextTertiary
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = value,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            textDirection = value.contentTextDirection()
-                        ),
-                        color = NuvioTheme.colors.TextPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Icon(
-                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (expanded) stringResource(R.string.cd_collapse, title) else stringResource(R.string.cd_expand, title),
-                        modifier = Modifier.size(20.dp),
-                        tint = if (isFocused) NuvioTheme.colors.FocusRing else NuvioTheme.colors.TextSecondary
-                    )
-                }
-            }
-        }
-
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = {
-                focusedOptionValue = null
-                onExpandedChange(false)
-            },
-            modifier = Modifier
-                .width(with(LocalDensity.current) { anchorSize.width.toDp() })
-                .heightIn(max = 320.dp),
-            shape = RoundedCornerShape(14.dp),
-            containerColor = NuvioTheme.colors.BackgroundCard,
-            tonalElevation = NuvioTheme.spacing.none,
-            shadowElevation = NuvioTheme.spacing.sm,
-            border = BorderStroke(NuvioTheme.spacing.hairline, NuvioTheme.colors.Border)
-        ) {
-            options.forEach { option ->
-                val isSelected = option.value == selectedValue
-                val isOptionFocused = option.value == focusedOptionValue
-                val itemTextColor = when {
-                    isOptionFocused -> NuvioTheme.colors.OnSecondary
-                    isSelected -> NuvioTheme.colors.TextPrimary
-                    else -> NuvioTheme.colors.TextPrimary
-                }
-                val itemBackgroundColor = when {
-                    isOptionFocused -> NuvioTheme.colors.Secondary
-                    isSelected -> NuvioTheme.colors.FocusBackground
-                    else -> Color.Transparent
-                }
-
-                DropdownMenuItem(
-                    modifier = Modifier
-                        .then(
-                            if (isSelected) {
-                                Modifier
-                                    .focusRequester(selectedItemFocusRequester)
-                                    .bringIntoViewRequester(selectedBringIntoViewRequester)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .padding(horizontal = 6.dp, vertical = NuvioTheme.spacing.xxs)
-                        .background(
-                            color = itemBackgroundColor,
-                            shape = RoundedCornerShape(10.dp)
-                        )
-                        .onFocusChanged { state ->
-                            val hasFocus = state.isFocused || state.hasFocus
-                            focusedOptionValue = when {
-                                hasFocus -> option.value
-                                focusedOptionValue == option.value -> null
-                                else -> focusedOptionValue
-                            }
-                        },
-                    text = {
-                        Text(
-                            text = option.label,
-                            color = itemTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = TextStyle(
-                                textDirection = option.label.contentTextDirection()
-                            )
-                        )
-                    },
-                    onClick = { onSelect(option) },
-                    colors = MenuDefaults.itemColors(
-                        textColor = itemTextColor,
-                        disabledTextColor = NuvioTheme.colors.TextDisabled
-                    )
-                )
-            }
-        }
-    }
-}
-
 internal data class DiscoverOption(
     val label: String,
     val value: String
@@ -526,6 +409,8 @@ internal data class DiscoverOption(
 internal fun DiscoverGrid(
     items: List<MetaPreview>,
     posterCardStyle: PosterCardStyle,
+    gridState: LazyGridState,
+    upFocusRequester: FocusRequester? = null,
     watchedMovieIds: Set<String> = emptySet(),
     watchedSeriesIds: Set<String> = emptySet(),
     focusResults: Boolean,
@@ -543,7 +428,10 @@ internal fun DiscoverGrid(
     filterKey: String = ""
 ) {
     val restoreFocusRequester = remember { FocusRequester() }
-    val gridState = rememberLazyGridState()
+    // Items of the first grid row send Up to the filter pill row.
+    val columnCount by remember(gridState) {
+        derivedStateOf { (gridState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.column } ?: 0) + 1 }
+    }
     var pendingFocusOnNewItemIndex by remember { mutableStateOf<Int?>(null) }
 
     // Scroll to top only when the filter combination actually changes (not on initial composition / back navigation).
@@ -629,7 +517,10 @@ internal fun DiscoverGrid(
     // Per-item FocusRequesters for focusRestorer on the grid.
     // Pre-create the requester for the focused item so focusRestorer can use it
     // even before the grid items are composed (first return from navigation).
-    val itemFocusRequesters = remember { mutableMapOf<Int, FocusRequester>() }
+    // Index 0 uses the shared first-item requester so the pill row can jump straight to it.
+    val itemFocusRequesters = remember(firstItemFocusRequester) {
+        mutableMapOf<Int, FocusRequester>(0 to firstItemFocusRequester)
+    }
     val focusedItemRequester = remember(focusedItemIndex) {
         itemFocusRequesters.getOrPut(focusedItemIndex) { FocusRequester() }
     }
@@ -696,7 +587,7 @@ internal fun DiscoverGrid(
             ),
         contentPadding = PaddingValues(bottom = NuvioTheme.spacing.xxl),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
+        verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.md)
     ) {
         itemsIndexed(
             items = items,
@@ -709,23 +600,39 @@ internal fun DiscoverGrid(
                 focusResults && index == 0 -> firstItemFocusRequester
                 else -> itemFocusReq
             }
-            GridContentCard(
-                item = item,
-                onClick = { onItemClick(index, item) },
-                onLongPress = { onItemLongPress(item) },
-                posterCardStyle = adaptiveStyle,
-                isWatched = run {
-                    val isSeries = item.apiType.equals("series", ignoreCase = true) || item.apiType.equals("tv", ignoreCase = true)
-                    if (isSeries) item.id in watchedSeriesIds else item.id in watchedMovieIds
-                },
-                modifier = Modifier
-                    .padding(top = 3.dp)
-                    .width(adaptiveStyle.width),
-                focusRequester = focusReq,
-                onFocused = {
-                    onItemFocused(index)
-                }
-            )
+            val itemRating = (item.imdbRating ?: item.tmdbRating)?.takeIf { it > 0f }
+            val itemYear = item.releaseInfo?.take(4)?.takeIf { it.isNotBlank() }
+            val itemMeta = listOfNotNull(
+                itemYear,
+                itemRating?.let { "\u2605 " + String.format(java.util.Locale.US, "%.1f", it) }
+            ).joinToString("  \u00B7  ")
+            Column(modifier = Modifier.width(adaptiveStyle.width)) {
+                GridContentCard(
+                    item = item,
+                    onClick = { onItemClick(index, item) },
+                    onLongPress = { onItemLongPress(item) },
+                    posterCardStyle = adaptiveStyle,
+                    isWatched = run {
+                        val isSeries = item.apiType.equals("series", ignoreCase = true) || item.apiType.equals("tv", ignoreCase = true)
+                        if (isSeries) item.id in watchedSeriesIds else item.id in watchedMovieIds
+                    },
+                    modifier = Modifier.padding(top = 3.dp),
+                    focusRequester = focusReq,
+                    upFocusRequester = if (index < columnCount) upFocusRequester else null,
+                    onFocused = {
+                        onItemFocused(index)
+                    }
+                )
+                // Year and rating under every title; always one line so rows stay the same height.
+                Text(
+                    text = itemMeta.ifEmpty { " " },
+                    style = MaterialTheme.typography.labelMedium,
+                    color = NuvioTheme.colors.TextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = NuvioTheme.spacing.xxs)
+                )
+            }
         }
 
         if (hasActionCell) {
@@ -856,7 +763,10 @@ private fun DiscoverActionCard(
             modifier = Modifier
                 .then(if (globalLandscape) Modifier.fillMaxWidth() else Modifier.width(posterCardStyle.width))
                 .padding(top = NuvioTheme.spacing.sm)
-                .height(MaterialTheme.typography.titleMedium.lineHeight.value.dp)
+                .height(
+                    MaterialTheme.typography.titleMedium.lineHeight.value.dp +
+                        MaterialTheme.typography.labelMedium.lineHeight.value.dp
+                )
         )
     }
 }

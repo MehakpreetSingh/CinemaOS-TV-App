@@ -18,7 +18,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Every filter the Discover screen can show. Addon catalogs only ever use [GENRE] and [YEAR]. */
-enum class DiscoverFilterKey { SORT, GENRE, YEAR, RATING, RUNTIME, LANGUAGE, COUNTRY, PROVIDER, NETWORK }
+enum class DiscoverFilterKey {
+    SORT, GENRE, YEAR, RATING, RUNTIME, LANGUAGE, COUNTRY, PROVIDER, NETWORK,
+    /** Anime only: TV series or movies. */
+    FORMAT,
+    /** Anime only: Winter / Spring / Summer / Fall, combined with the year filter. */
+    SEASON,
+    /** Anime only (TV format): airing or ended. */
+    STATUS
+}
 
 @Immutable
 data class DiscoverFilterOption(val label: String, val value: String)
@@ -64,7 +72,10 @@ object DiscoverSort {
     const val UPCOMING = "upcoming"
     const val NOW_PLAYING = "now_playing"
 
-    fun valuesFor(type: String): List<String> = buildList {
+    /** Anime keeps a short list: browsing seasonal charts needs nothing else. */
+    val animeValues = listOf(POPULAR, TOP_RATED, NEWEST)
+
+    fun valuesFor(type: String): List<String> = if (type == DISCOVER_TYPE_ANIME) animeValues else buildList {
         add(POPULAR)
         add(NEWEST)
         add(OLDEST)
@@ -85,7 +96,16 @@ internal const val TMDB_GENRE_ANIMATION = "16"
 /** Anime is Animation + original language Japanese. */
 internal const val ANIME_ORIGINAL_LANGUAGE = "ja"
 
-/** Series and anime are both served by TMDB's TV endpoints. */
+/** Anime formats: TMDB TV discover or movie discover (both Animation + Japanese). */
+internal const val ANIME_FORMAT_TV = "tv"
+internal const val ANIME_FORMAT_MOVIE = "movie"
+internal const val ANIME_STATUS_AIRING = "airing"
+internal const val ANIME_STATUS_ENDED = "ended"
+
+/** Genres that make no sense for anime (Animation itself, documentary, talk shows, ...). */
+private val ANIME_EXCLUDED_GENRE_IDS = setOf("16", "99", "37", "10763", "10764", "10766", "10767", "10770")
+
+/** Series and anime are both served by TMDB's TV endpoints (anime movies use the movie endpoint). */
 internal fun isTvLikeDiscoverType(type: String): Boolean =
     type == DISCOVER_TYPE_SERIES || type == DISCOVER_TYPE_ANIME
 
@@ -118,6 +138,10 @@ object DiscoverFilterValues {
     )
 
     /** TMDB network ids (series only). */
+    val animeFormats = listOf(ANIME_FORMAT_TV, ANIME_FORMAT_MOVIE)
+    val animeSeasons = listOf("winter", "spring", "summer", "fall")
+    val animeStatuses = listOf(ANIME_STATUS_AIRING, ANIME_STATUS_ENDED)
+
     val networks = listOf(
         "213" to "Netflix",
         "1024" to "Amazon Prime",
@@ -159,7 +183,11 @@ data class DiscoverTmdbFilters(
     val language: String? = null,
     val country: String? = null,
     val provider: String? = null,
-    val network: String? = null
+    val network: String? = null,
+    /** Anime format; null means TV. */
+    val format: String? = null,
+    val season: String? = null,
+    val status: String? = null
 ) {
     fun value(key: DiscoverFilterKey): String? = when (key) {
         DiscoverFilterKey.SORT -> sort
@@ -171,6 +199,9 @@ data class DiscoverTmdbFilters(
         DiscoverFilterKey.COUNTRY -> country
         DiscoverFilterKey.PROVIDER -> provider
         DiscoverFilterKey.NETWORK -> network
+        DiscoverFilterKey.FORMAT -> format
+        DiscoverFilterKey.SEASON -> season
+        DiscoverFilterKey.STATUS -> status
     }
 
     fun with(key: DiscoverFilterKey, value: String?): DiscoverTmdbFilters {
@@ -185,6 +216,17 @@ data class DiscoverTmdbFilters(
             DiscoverFilterKey.COUNTRY -> copy(country = clean)
             DiscoverFilterKey.PROVIDER -> copy(provider = clean)
             DiscoverFilterKey.NETWORK -> copy(network = clean)
+            DiscoverFilterKey.FORMAT -> {
+                val newFormat = clean?.takeIf { it != ANIME_FORMAT_TV }
+                if (newFormat == format) {
+                    this
+                } else {
+                    // Genre ids differ between TV and movies, and movies have no airing status.
+                    copy(format = newFormat, genre = null, status = null)
+                }
+            }
+            DiscoverFilterKey.SEASON -> copy(season = clean)
+            DiscoverFilterKey.STATUS -> copy(status = clean)
         }
     }
 
@@ -193,13 +235,30 @@ data class DiscoverTmdbFilters(
 
     /**
      * Movie and series genre ids differ on TMDB, networks exist only for series and revenue only
-     * for movies, so a type switch drops whatever the new type cannot honour.
+     * for movies, so a type switch drops whatever the new type cannot honour. Anime hides the
+     * rating, runtime, language, country, provider and network filters, so they are dropped too.
      */
-    fun adaptedTo(type: String): DiscoverTmdbFilters = copy(
-        genre = null,
-        network = network.takeIf { isTvLikeDiscoverType(type) },
-        sort = if (type != DISCOVER_TYPE_MOVIE && sort == DiscoverSort.REVENUE) DiscoverSort.POPULAR else sort
-    )
+    fun adaptedTo(type: String): DiscoverTmdbFilters {
+        val isAnime = type == DISCOVER_TYPE_ANIME
+        val sortOk = when {
+            isAnime -> sort in DiscoverSort.animeValues
+            type != DISCOVER_TYPE_MOVIE -> sort != DiscoverSort.REVENUE
+            else -> true
+        }
+        return copy(
+            genre = null,
+            network = network.takeIf { type == DISCOVER_TYPE_SERIES },
+            rating = rating.takeIf { !isAnime },
+            runtime = runtime.takeIf { !isAnime },
+            language = language.takeIf { !isAnime },
+            country = country.takeIf { !isAnime },
+            provider = provider.takeIf { !isAnime },
+            format = null,
+            season = null,
+            status = null,
+            sort = if (sortOk) sort else DiscoverSort.POPULAR
+        )
+    }
 }
 
 /** One synthetic TMDB catalog per type, selectable in the Catalog picker like any addon catalog. */
@@ -220,9 +279,27 @@ internal fun tmdbDiscoverCatalogs(catalogName: String): List<DiscoverCatalog> =
         )
     }
 
-/** Filters shown besides the always-present Type / Catalog / Genre pickers. */
-internal fun discoverExtraFilterKeys(catalog: DiscoverCatalog?): List<DiscoverFilterKey> = when {
+/** Filter shown before the Genre pill (anime format decides which genre list applies). */
+internal fun discoverLeadingFilterKeys(catalog: DiscoverCatalog?): List<DiscoverFilterKey> =
+    if (catalog != null && catalog.isTmdbDiscover && catalog.type == DISCOVER_TYPE_ANIME) {
+        listOf(DiscoverFilterKey.FORMAT)
+    } else {
+        emptyList()
+    }
+
+/** Filters shown after the Catalog / Genre pills. */
+internal fun discoverExtraFilterKeys(
+    catalog: DiscoverCatalog?,
+    filters: DiscoverTmdbFilters = DiscoverTmdbFilters()
+): List<DiscoverFilterKey> = when {
     catalog == null -> emptyList()
+    catalog.isTmdbDiscover && catalog.type == DISCOVER_TYPE_ANIME -> buildList {
+        add(DiscoverFilterKey.SEASON)
+        add(DiscoverFilterKey.YEAR)
+        // Movies have no airing status.
+        if (filters.format != ANIME_FORMAT_MOVIE) add(DiscoverFilterKey.STATUS)
+        add(DiscoverFilterKey.SORT)
+    }
     catalog.isTmdbDiscover -> buildList {
         add(DiscoverFilterKey.SORT)
         add(DiscoverFilterKey.YEAR)
@@ -254,10 +331,13 @@ class DiscoverTmdbSource @Inject constructor(
         runCatching { tmdbSettingsDataStore.settings.first().language }.getOrNull()
             ?.takeIf { it.isNotBlank() } ?: "en"
 
-    suspend fun genres(type: String): List<DiscoverFilterOption> {
-        val all = loadGenres(isTvLikeDiscoverType(type))
-        // Anime is always Animation, so offering it as a genre would be a no-op.
-        return if (type == DISCOVER_TYPE_ANIME) all.filter { it.value != TMDB_GENRE_ANIMATION } else all
+    /** Anime uses the TV or movie genre list depending on [format] (null = TV). */
+    suspend fun genres(type: String, format: String? = null): List<DiscoverFilterOption> {
+        val isAnime = type == DISCOVER_TYPE_ANIME
+        val isTv = if (isAnime) format != ANIME_FORMAT_MOVIE else isTvLikeDiscoverType(type)
+        val all = loadGenres(isTv)
+        // Anime is always Animation, so offering it (or non-anime genres like News) is pointless.
+        return if (isAnime) all.filter { it.value !in ANIME_EXCLUDED_GENRE_IDS } else all
     }
 
     private suspend fun loadGenres(isTv: Boolean): List<DiscoverFilterOption> = withContext(Dispatchers.IO) {
@@ -281,7 +361,8 @@ class DiscoverTmdbSource @Inject constructor(
         withContext(Dispatchers.IO) {
             val language = language()
             val isAnime = type == DISCOVER_TYPE_ANIME
-            val isSeries = isTvLikeDiscoverType(type)
+            val animeMovie = isAnime && filters.format == ANIME_FORMAT_MOVIE
+            val isSeries = isTvLikeDiscoverType(type) && !animeMovie
             val dateField = if (isSeries) "first_air_date" else "primary_release_date"
             val today = LocalDate.now()
 
@@ -298,8 +379,15 @@ class DiscoverTmdbSource @Inject constructor(
                     year = raw.toIntOrNull()
                 }
             }
+            // Anime season + year pin the air dates to that quarter.
+            val seasonRange = if (isAnime) animeSeasonRange(filters.season, filters.year) else null
+            seasonRange?.let { (from, to) ->
+                dateGte = from
+                dateLte = to
+                year = null
+            }
             // A year filter already pins the dates; only add the sort's own window without one.
-            if (filters.year == null) {
+            if (filters.year == null && seasonRange == null) {
                 when (filters.sort) {
                     DiscoverSort.UPCOMING -> dateGte = today.plusDays(1).toString()
                     DiscoverSort.NOW_PLAYING -> {
@@ -340,6 +428,16 @@ class DiscoverTmdbSource @Inject constructor(
             }
             val originalLanguage = filters.language ?: ANIME_ORIGINAL_LANGUAGE.takeIf { isAnime }
 
+            val withStatus = if (isAnime && !animeMovie) {
+                when (filters.status) {
+                    ANIME_STATUS_AIRING -> "0"
+                    ANIME_STATUS_ENDED -> "3|4"
+                    else -> null
+                }
+            } else {
+                null
+            }
+
             val response = if (isSeries) {
                 tmdbApi.discoverTv(
                     apiKey = BuildConfig.TMDB_API_KEY,
@@ -355,6 +453,7 @@ class DiscoverTmdbSource @Inject constructor(
                     withOriginalLanguage = originalLanguage,
                     withOriginCountry = filters.country,
                     firstAirDateYear = year,
+                    withStatus = withStatus,
                     watchRegion = watchRegion,
                     withWatchProviders = provider,
                     withWatchMonetizationTypes = monetization,
@@ -393,6 +492,29 @@ class DiscoverTmdbSource @Inject constructor(
             val totalPages = minOf(body.totalPages ?: currentPage, TMDB_MAX_PAGE)
             DiscoverTmdbPage(items = items, hasMore = items.isNotEmpty() && currentPage < totalPages)
         }
+
+    /**
+     * Air-date window of an anime season: Winter Jan-Mar, Spring Apr-Jun, Summer Jul-Sep, Fall
+     * Oct-Dec. The year is the picked year, the last year of a picked decade, or this year.
+     */
+    private fun animeSeasonRange(season: String?, rawYear: String?): Pair<String, String>? {
+        val (startMonth, endMonth, endDay) = when (season) {
+            "winter" -> Triple(1, 3, 31)
+            "spring" -> Triple(4, 6, 30)
+            "summer" -> Triple(7, 9, 30)
+            "fall" -> Triple(10, 12, 31)
+            else -> return null
+        }
+        val thisYear = LocalDate.now().year
+        val year = when {
+            rawYear == null -> thisYear
+            rawYear.startsWith(DISCOVER_DECADE_PREFIX) ->
+                rawYear.removePrefix(DISCOVER_DECADE_PREFIX).toIntOrNull()?.let { minOf(it + 9, thisYear) } ?: thisYear
+            else -> rawYear.toIntOrNull() ?: thisYear
+        }
+        fun two(n: Int) = n.toString().padStart(2, '0')
+        return "$year-${two(startMonth)}-01" to "$year-${two(endMonth)}-${two(endDay)}"
+    }
 
     private fun parseRuntime(raw: String?): Pair<Int?, Int?> {
         if (raw.isNullOrBlank()) return null to null

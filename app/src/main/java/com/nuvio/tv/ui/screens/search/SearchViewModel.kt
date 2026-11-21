@@ -1023,10 +1023,13 @@ class SearchViewModel @Inject constructor(
 
     private fun loadTmdbGenres(type: String) {
         val source = discoverTmdbSource ?: return
+        // Anime movies and anime series use different TMDB genre lists.
+        val format = _uiState.value.discoverTmdbFilters.format
         tmdbGenresJob?.cancel()
         tmdbGenresJob = viewModelScope.launch {
-            val genres = source.genres(type)
-            if (_uiState.value.selectedDiscoverType == type) {
+            val genres = source.genres(type, format)
+            val current = _uiState.value
+            if (current.selectedDiscoverType == type && current.discoverTmdbFilters.format == format) {
                 _uiState.update { it.copy(discoverTmdbGenres = genres) }
             }
         }
@@ -1138,8 +1141,19 @@ class SearchViewModel @Inject constructor(
         }
         val catalog = selectedDiscoverCatalog() ?: return
         when {
-            catalog.isTmdbDiscover -> refetchDiscover {
-                it.copy(discoverTmdbFilters = it.discoverTmdbFilters.with(key, value))
+            catalog.isTmdbDiscover -> {
+                val formatBefore = _uiState.value.discoverTmdbFilters.format
+                refetchDiscover { state ->
+                    val updated = state.discoverTmdbFilters.with(key, value)
+                    state.copy(
+                        discoverTmdbFilters = updated,
+                        // A format switch clears the genre, so the old genre list must go too.
+                        discoverTmdbGenres = if (updated.format != formatBefore) emptyList() else state.discoverTmdbGenres
+                    )
+                }
+                if (key == DiscoverFilterKey.FORMAT && _uiState.value.discoverTmdbFilters.format != formatBefore) {
+                    loadTmdbGenres(catalog.type)
+                }
             }
             key == DiscoverFilterKey.YEAR && catalog.years.isNotEmpty() -> refetchDiscover {
                 it.copy(selectedDiscoverYear = value ?: defaultGenreAndYear(catalog).second)
@@ -1150,13 +1164,19 @@ class SearchViewModel @Inject constructor(
     private fun resetDiscoverFilters() {
         val catalog = selectedDiscoverCatalog() ?: return
         val (defaultGenre, defaultYear) = defaultGenreAndYear(catalog)
+        // Resetting an anime movie format goes back to the TV genre list.
+        val formatWasReset = catalog.isTmdbDiscover && _uiState.value.discoverTmdbFilters.format != null
         refetchDiscover {
             if (catalog.isTmdbDiscover) {
-                it.copy(discoverTmdbFilters = DiscoverTmdbFilters())
+                it.copy(
+                    discoverTmdbFilters = DiscoverTmdbFilters(),
+                    discoverTmdbGenres = if (formatWasReset) emptyList() else it.discoverTmdbGenres
+                )
             } else {
                 it.copy(selectedDiscoverGenre = defaultGenre, selectedDiscoverYear = defaultYear)
             }
         }
+        if (formatWasReset) loadTmdbGenres(catalog.type)
     }
 
     private fun loadNextDiscoverResults() {

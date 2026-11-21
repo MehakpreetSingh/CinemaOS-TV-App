@@ -137,7 +137,7 @@ fun DiscoverScreen(
                 onItemLongPress = { item, addonBaseUrl ->
                     viewModel.posterOptions.show(item, addonBaseUrl)
                 },
-                modifier = Modifier.padding(top = NuvioTheme.spacing.lg)
+                modifier = Modifier.padding(top = NuvioTheme.spacing.sm)
             )
         }
 
