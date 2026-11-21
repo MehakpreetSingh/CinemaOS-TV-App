@@ -310,7 +310,6 @@ internal fun CinemaOsAccountSettingsContent(
             onDismiss = { showSignOutConfirmation = false }
         )
     }
-}
 
     val profileToEdit = activeProfile
     if (showProfileEditor && profileToEdit != null) {
