@@ -946,7 +946,8 @@ private fun SettingsDetailPane(
                 contentFocusRequesters[SettingsCategory.CINEMAOS_ACCOUNT]
             } else {
                 null
-            }
+            },
+            onNavigateToManageProfiles = onNavigateToManageProfiles
         )
         SettingsCategory.ACCOUNT -> AccountSettingsInline(
             onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,

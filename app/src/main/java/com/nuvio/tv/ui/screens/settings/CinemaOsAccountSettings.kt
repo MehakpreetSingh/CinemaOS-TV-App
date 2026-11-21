@@ -10,7 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
+import androidx.compose.material.icons.filled.People
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import com.nuvio.tv.domain.model.UserProfile
+import com.nuvio.tv.ui.components.ProfileAvatarCircle
+import com.nuvio.tv.ui.screens.profile.EditProfileOverlay
+import com.nuvio.tv.ui.screens.profile.ProfileSelectionViewModel
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -139,8 +148,31 @@ class CinemaOsAccountViewModel @Inject constructor(
 }
 
 @Composable
-internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequester?) {
+internal fun CinemaOsAccountSettingsContent(
+    initialFocusRequester: FocusRequester?,
+    onNavigateToManageProfiles: () -> Unit = {}
+) {
     val viewModel: CinemaOsAccountViewModel = hiltViewModel()
+    val profileViewModel: ProfileSelectionViewModel = hiltViewModel()
+    val profiles by profileViewModel.profiles.collectAsStateWithLifecycle()
+    val activeProfileId by profileViewModel.activeProfileId.collectAsStateWithLifecycle()
+    val avatarCatalog by profileViewModel.avatarCatalog.collectAsStateWithLifecycle()
+    val profileBackgroundCatalog by profileViewModel.profileBackgroundCatalog.collectAsStateWithLifecycle()
+    val hasProfileBackgroundAccess by profileViewModel.hasProfileBackgroundAccess.collectAsStateWithLifecycle()
+    val isSavingProfile by profileViewModel.isSaving.collectAsStateWithLifecycle()
+    val activeProfile = profiles.firstOrNull { it.id == activeProfileId } ?: profiles.firstOrNull()
+    var showProfileEditor by remember { mutableStateOf(false) }
+    val editProfileRequester = initialFocusRequester ?: remember { FocusRequester() }
+    var editorWasShown by remember { mutableStateOf(false) }
+    LaunchedEffect(showProfileEditor) {
+        if (showProfileEditor) {
+            editorWasShown = true
+        } else if (editorWasShown) {
+            // Give focus back to Edit profile once the editor dialog has closed.
+            kotlinx.coroutines.delay(150)
+            runCatching { editProfileRequester.requestFocus() }
+        }
+    }
     val session by viewModel.session.collectAsStateWithLifecycle()
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val lastSynced by viewModel.lastSyncedAt.collectAsStateWithLifecycle()
@@ -158,17 +190,35 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
     ) {
         SettingsDetailHeader(
             title = "CinemaOS Account",
-            subtitle = "Sync Continue Watching and your Library with cinemaos.tech"
+            subtitle = "Your profile, and sync of Continue Watching and your Library with cinemaos.tech"
         )
         SettingsGroupCard(modifier = Modifier.fillMaxWidth()) {
             val current = session
-            if (current != null) {
-                SettingsActionRow(
-                    title = current.displayName ?: "Signed in",
-                    subtitle = current.email,
-                    onClick = {},
-                    modifier = if (initialFocusRequester != null) Modifier.focusRequester(initialFocusRequester) else Modifier
+            if (activeProfile != null) {
+                CinemaOsProfileHeader(
+                    profile = activeProfile,
+                    avatarImageUrl = remember(activeProfile, avatarCatalog) {
+                        activeProfile.avatarUrl?.takeIf { it.isNotBlank() }
+                            ?: profileViewModel.getAvatarImageUrl(activeProfile.avatarId)
+                    },
+                    email = current?.email,
+                    signedIn = current != null
                 )
+                SettingsActionRow(
+                    title = "Edit profile",
+                    subtitle = "Change your name and avatar",
+                    leadingIcon = Icons.Default.Edit,
+                    onClick = { showProfileEditor = true },
+                    modifier = Modifier.focusRequester(editProfileRequester)
+                )
+                SettingsActionRow(
+                    title = "Manage profiles",
+                    subtitle = "Add, switch or remove profiles",
+                    leadingIcon = Icons.Default.People,
+                    onClick = onNavigateToManageProfiles
+                )
+            }
+            if (current != null) {
                 SettingsActionRow(
                     title = if (syncing) "Syncing..." else "Sync now",
                     subtitle = if (lastSynced > 0L) {
@@ -238,7 +288,11 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
                     title = "New code",
                     subtitle = null,
                     onClick = { viewModel.stopFlow(); viewModel.startFlow() },
-                    modifier = if (initialFocusRequester != null) Modifier.focusRequester(initialFocusRequester) else Modifier
+                    modifier = if (initialFocusRequester != null && activeProfile == null) {
+                        Modifier.focusRequester(initialFocusRequester)
+                    } else {
+                        Modifier
+                    }
                 )
             }
             ui.error?.let {
@@ -255,5 +309,70 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
             },
             onDismiss = { showSignOutConfirmation = false }
         )
+    }
+}
+
+    val profileToEdit = activeProfile
+    if (showProfileEditor && profileToEdit != null) {
+        Dialog(
+            onDismissRequest = { showProfileEditor = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            EditProfileOverlay(
+                profile = profileToEdit,
+                avatarCatalog = avatarCatalog,
+                profileBackgroundCatalog = profileBackgroundCatalog,
+                hasProfileBackgroundAccess = hasProfileBackgroundAccess,
+                isSaving = isSavingProfile,
+                avatarUrlResolver = { avatarId -> profileViewModel.getAvatarImageUrl(avatarId) },
+                onDismiss = { showProfileEditor = false },
+                onSaveProfile = { updated ->
+                    profileViewModel.updateProfile(updated)
+                    showProfileEditor = false
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun CinemaOsProfileHeader(
+    profile: UserProfile,
+    avatarImageUrl: String?,
+    email: String?,
+    signedIn: Boolean
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = NuvioTheme.spacing.md,
+                vertical = NuvioTheme.spacing.md
+            ),
+        horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ProfileAvatarCircle(
+            name = profile.name,
+            colorHex = profile.avatarColorHex,
+            size = 96.dp,
+            avatarImageUrl = avatarImageUrl
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.xxs)) {
+            Text(
+                text = profile.name,
+                style = MaterialTheme.typography.headlineSmall,
+                color = NuvioTheme.colors.TextPrimary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = if (signedIn) (email ?: "Signed in to CinemaOS") else "Not signed in to CinemaOS",
+                style = MaterialTheme.typography.bodyMedium,
+                color = NuvioTheme.colors.TextSecondary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+        }
     }
 }
