@@ -17,6 +17,9 @@ sealed interface SearchEvent {
     data class SelectDiscoverType(val type: String) : SearchEvent
     data class SelectDiscoverCatalog(val catalogKey: String) : SearchEvent
     data class SelectDiscoverGenre(val genre: String?) : SearchEvent
+    /** Sets (or, with null, clears) one extra Discover filter such as sort, year or rating. */
+    data class SelectDiscoverFilter(val key: DiscoverFilterKey, val value: String?) : SearchEvent
+    data object ResetDiscoverFilters : SearchEvent
     data object LoadNextDiscoverResults : SearchEvent
 
     data object Retry : SearchEvent

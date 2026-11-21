@@ -37,6 +37,11 @@ data class SearchUiState(
     val selectedDiscoverType: String = "movie",
     val selectedDiscoverCatalogKey: String? = null,
     val selectedDiscoverGenre: String? = null,
+    /** Year sent through a year-valued `genre` extra (Cinemeta "New"); see [DiscoverCatalog.years]. */
+    val selectedDiscoverYear: String? = null,
+    /** Filters for the TMDB-backed catalog ([DiscoverCatalog.isTmdbDiscover]). */
+    val discoverTmdbFilters: DiscoverTmdbFilters = DiscoverTmdbFilters(),
+    val discoverTmdbGenres: List<DiscoverFilterOption> = emptyList(),
     val discoverResults: List<MetaPreview> = emptyList(),
     val pendingDiscoverResults: List<MetaPreview> = emptyList(),
     val discoverHasMore: Boolean = true,
@@ -60,7 +65,17 @@ data class DiscoverCatalog(
     val catalogId: String,
     val catalogName: String,
     val type: String,
+    /** Real genre options of the catalog's `genre` extra. Never holds years. */
     val genres: List<String>,
     val supportsSkip: Boolean,
-    val skipStep: Int
+    val skipStep: Int,
+    /**
+     * Options of a `genre` extra that actually lists release years (Cinemeta's "New" catalog
+     * sends the year through `genre`). Shown under a Year picker, not as genres.
+     */
+    val years: List<String> = emptyList(),
+    /** The `genre` extra (genre or year) must be sent, so a value is always selected. */
+    val genreExtraRequired: Boolean = false,
+    /** Synthetic catalog served by TMDB discover, supporting every [DiscoverFilterKey]. */
+    val isTmdbDiscover: Boolean = false
 )

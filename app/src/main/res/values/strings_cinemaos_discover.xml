@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Catalog entry backed by TMDB discover, which supports every filter below. -->
+    <string name="discover_tmdb_catalog_name">Explore everything</string>
+
+    <!-- Filter titles -->
+    <string name="discover_filter_sort">Sort by</string>
+    <string name="discover_filter_year">Year</string>
+    <string name="discover_filter_rating">Rating</string>
+    <string name="discover_filter_runtime">Runtime</string>
+    <string name="discover_filter_language">Language</string>
+    <string name="discover_filter_country">Country</string>
+    <string name="discover_filter_provider">Streaming on</string>
+    <string name="discover_filter_network">Network</string>
+
+    <!-- "Any" option of each filter -->
+    <string name="discover_filter_any_year">Any year</string>
+    <string name="discover_filter_any_rating">Any rating</string>
+    <string name="discover_filter_any_runtime">Any length</string>
+    <string name="discover_filter_any_language">Any language</string>
+    <string name="discover_filter_any_country">Any country</string>
+    <string name="discover_filter_any_provider">Any service</string>
+    <string name="discover_filter_any_network">Any network</string>
+
+    <!-- Sort options -->
+    <string name="discover_sort_popular">Most popular</string>
+    <string name="discover_sort_newest">Newest first</string>
+    <string name="discover_sort_oldest">Oldest first</string>
+    <string name="discover_sort_top_rated">Top rated</string>
+    <string name="discover_sort_most_voted">Most voted</string>
+    <string name="discover_sort_revenue">Highest grossing</string>
+    <string name="discover_sort_upcoming_movie">Upcoming</string>
+    <string name="discover_sort_upcoming_tv">Coming soon</string>
+    <string name="discover_sort_now_playing_movie">In theaters</string>
+    <string name="discover_sort_now_playing_tv">Airing now</string>
+
+    <!-- Rating options -->
+    <string name="discover_rating_9">9+ Exceptional</string>
+    <string name="discover_rating_8">8+ Excellent</string>
+    <string name="discover_rating_7">7+ Good</string>
+    <string name="discover_rating_6">6+ Above average</string>
+    <string name="discover_rating_5">5+ Average</string>
+
+    <!-- Runtime options -->
+    <string name="discover_runtime_under_30">Under 30 min</string>
+    <string name="discover_runtime_30_60">30–60 min</string>
+    <string name="discover_runtime_60_90">60–90 min</string>
+    <string name="discover_runtime_90_120">90–120 min</string>
+    <string name="discover_runtime_over_120">Over 2 hours</string>
+
+    <!-- Year picker: a decade such as "2010s" -->
+    <string name="discover_filter_decade_format">%1$ds</string>
+
+    <!-- Active filter chips -->
+    <string name="discover_filter_chip_format">%1$s: %2$s</string>
+    <string name="discover_filters_clear_all">Clear all</string>
+    <string name="cd_discover_remove_filter">Remove filter %1$s</string>
+</resources>

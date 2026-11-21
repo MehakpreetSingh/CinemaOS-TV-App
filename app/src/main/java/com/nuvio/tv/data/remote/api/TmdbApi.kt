@@ -183,7 +183,10 @@ interface TmdbApi {
         @Query("without_companies") withoutCompanies: String? = null,
         @Query("without_genres") withoutGenres: String? = null,
         @Query("without_keywords") withoutKeywords: String? = null,
-        @Query("without_watch_providers") withoutWatchProviders: String? = null
+        @Query("without_watch_providers") withoutWatchProviders: String? = null,
+        @Query("with_runtime.gte") withRuntimeGte: Int? = null,
+        @Query("with_runtime.lte") withRuntimeLte: Int? = null,
+        @Query("include_adult") includeAdult: Boolean? = null
     ): Response<TmdbDiscoverResponse>
 
     @GET("discover/tv")
@@ -211,7 +214,10 @@ interface TmdbApi {
         @Query("without_companies") withoutCompanies: String? = null,
         @Query("without_genres") withoutGenres: String? = null,
         @Query("without_keywords") withoutKeywords: String? = null,
-        @Query("without_watch_providers") withoutWatchProviders: String? = null
+        @Query("without_watch_providers") withoutWatchProviders: String? = null,
+        @Query("with_runtime.gte") withRuntimeGte: Int? = null,
+        @Query("with_runtime.lte") withRuntimeLte: Int? = null,
+        @Query("include_adult") includeAdult: Boolean? = null
     ): Response<TmdbDiscoverResponse>
 
     @GET("list/{list_id}")

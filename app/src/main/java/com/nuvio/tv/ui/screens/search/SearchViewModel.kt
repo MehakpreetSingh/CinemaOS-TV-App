@@ -59,7 +59,9 @@ class SearchViewModel @Inject constructor(
     private val watchedSeriesStateHolder: com.nuvio.tv.data.local.WatchedSeriesStateHolder,
     val posterOptions: com.nuvio.tv.ui.components.posteroptions.PosterOptionsController,
     private val serverCatalog: ServerCatalog,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    // Last and defaulted so existing constructions keep compiling; Hilt always supplies it.
+    private val discoverTmdbSource: DiscoverTmdbSource? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SearchUiState())
@@ -90,6 +92,7 @@ class SearchViewModel @Inject constructor(
     private var activeSearchQuery: String? = null
     private var searchGeneration = 0L
     private var discoverJob: Job? = null
+    private var tmdbGenresJob: Job? = null
     private var catalogRowsUpdateJob: Job? = null
     private var suggestionJob: Job? = null
     private var liveSearchJob: Job? = null
@@ -140,6 +143,9 @@ class SearchViewModel @Inject constructor(
                             selectedDiscoverType = "movie",
                             selectedDiscoverCatalogKey = null,
                             selectedDiscoverGenre = null,
+                            selectedDiscoverYear = null,
+                            discoverTmdbFilters = DiscoverTmdbFilters(),
+                            discoverTmdbGenres = emptyList(),
                             discoverResults = emptyList(),
                             pendingDiscoverResults = emptyList(),
                             discoverHasMore = true,
@@ -247,6 +253,8 @@ class SearchViewModel @Inject constructor(
             is SearchEvent.SelectDiscoverType -> selectDiscoverType(event.type)
             is SearchEvent.SelectDiscoverCatalog -> selectDiscoverCatalog(event.catalogKey)
             is SearchEvent.SelectDiscoverGenre -> selectDiscoverGenre(event.genre)
+            is SearchEvent.SelectDiscoverFilter -> selectDiscoverFilter(event.key, event.value)
+            SearchEvent.ResetDiscoverFilters -> resetDiscoverFilters()
             SearchEvent.LoadNextDiscoverResults -> loadNextDiscoverResults()
             SearchEvent.Retry -> {
                 // An explicit retry must refetch even though nothing about the request changed.
@@ -941,10 +949,12 @@ class SearchViewModel @Inject constructor(
                         catalog.extra.any { it.name.equals("search", ignoreCase = true) && it.isRequired })
                 }
                 .map { catalog ->
-                    val genres = catalog.extra
+                    val genreExtra = catalog.extra
                         .firstOrNull { it.name.equals("genre", ignoreCase = true) }
-                        ?.options
-                        .orEmpty()
+                    val genreOptions = genreExtra?.options.orEmpty()
+                    // Cinemeta's "New" catalog sends the release year through `genre`; those
+                    // options are years and must never be listed as genres.
+                    val optionsAreYears = genreOptionsAreYears(genreOptions)
                     DiscoverCatalog(
                         key = catalogRowLegacyKey(addon.id, catalog.apiType, catalog.id),
                         addonId = addon.id,
@@ -953,11 +963,20 @@ class SearchViewModel @Inject constructor(
                         catalogId = catalog.id,
                         catalogName = catalog.name,
                         type = catalog.apiType,
-                        genres = genres,
+                        genres = if (optionsAreYears) emptyList() else genreOptions,
                         supportsSkip = catalog.supportsExtra("skip"),
-                        skipStep = catalog.skipStep()
+                        skipStep = catalog.skipStep(),
+                        years = if (optionsAreYears) genreOptions else emptyList(),
+                        genreExtraRequired = genreExtra?.isRequired == true && genreOptions.isNotEmpty()
                     )
                 }
+        }.let { addonCatalogs ->
+            val tmdbCatalogs = if (discoverTmdbSource?.isAvailable == true) {
+                tmdbDiscoverCatalogs(context.getString(R.string.discover_tmdb_catalog_name))
+            } else {
+                emptyList()
+            }
+            tmdbCatalogs + addonCatalogs
         }
 
         val selectedCatalog = resolveDiscoverCatalog(
@@ -966,7 +985,7 @@ class SearchViewModel @Inject constructor(
             currentKey = _uiState.value.selectedDiscoverCatalogKey
         )
         val selectedType = selectedCatalog?.type ?: "movie"
-        val selectedGenre: String? = null
+        val (selectedGenre, selectedYear) = defaultGenreAndYear(selectedCatalog)
 
         _uiState.update {
             it.copy(
@@ -975,6 +994,9 @@ class SearchViewModel @Inject constructor(
                 selectedDiscoverType = selectedType,
                 selectedDiscoverCatalogKey = selectedCatalog?.key,
                 selectedDiscoverGenre = selectedGenre,
+                selectedDiscoverYear = selectedYear,
+                discoverTmdbFilters = it.discoverTmdbFilters.adaptedTo(selectedType),
+                discoverTmdbGenres = emptyList(),
                 discoverInitialized = true,
                 discoverLoading = false,
                 discoverResults = emptyList(),
@@ -988,66 +1010,153 @@ class SearchViewModel @Inject constructor(
                 discoverSelectionDataStore.setSelectedCatalogKey(catalog.key)
             }
         }
+        if (selectedCatalog?.isTmdbDiscover == true) loadTmdbGenres(selectedType)
         fetchDiscoverContent(reset = true)
     }
 
-    private fun selectDiscoverType(type: String) {
-        val catalogs = _uiState.value.discoverCatalogs
-        val selectedCatalog = pickDiscoverCatalog(
-            catalogs = catalogs,
-            selectedType = type,
-            preferredKey = _uiState.value.selectedDiscoverCatalogKey
-        )
-        val selectedGenre: String? = null
+    /** A catalog whose `genre` extra is mandatory is never queried without a value. */
+    private fun defaultGenreAndYear(catalog: DiscoverCatalog?): Pair<String?, String?> = when {
+        catalog == null || !catalog.genreExtraRequired -> null to null
+        catalog.years.isNotEmpty() -> null to catalog.years.first()
+        else -> catalog.genres.firstOrNull() to null
+    }
+
+    private fun loadTmdbGenres(type: String) {
+        val source = discoverTmdbSource ?: return
+        tmdbGenresJob?.cancel()
+        tmdbGenresJob = viewModelScope.launch {
+            val genres = source.genres(type)
+            if (_uiState.value.selectedDiscoverType == type) {
+                _uiState.update { it.copy(discoverTmdbGenres = genres) }
+            }
+        }
+    }
+
+    /** Applies a state change that invalidates the current results, then refetches page one. */
+    private fun refetchDiscover(transform: (SearchUiState) -> SearchUiState) {
         _uiState.update {
-            it.copy(
-                selectedDiscoverType = type,
-                selectedDiscoverCatalogKey = selectedCatalog?.key,
-                selectedDiscoverGenre = selectedGenre,
+            transform(it).copy(
                 discoverResults = emptyList(),
                 pendingDiscoverResults = emptyList(),
                 discoverPage = 1,
                 discoverHasMore = true
             )
         }
+        fetchDiscoverContent(reset = true)
+    }
+
+    private fun selectDiscoverType(type: String) {
+        val state = _uiState.value
+        val selectedCatalog = pickDiscoverCatalog(
+            catalogs = state.discoverCatalogs,
+            selectedType = type,
+            preferredKey = state.selectedDiscoverCatalogKey
+        )
+        val typeChanged = type != state.selectedDiscoverType
+        val (selectedGenre, selectedYear) = defaultGenreAndYear(selectedCatalog)
         selectedCatalog?.let { catalog ->
             viewModelScope.launch {
                 discoverSelectionDataStore.setSelectedCatalogKey(catalog.key)
             }
         }
-        fetchDiscoverContent(reset = true)
+        refetchDiscover {
+            it.copy(
+                selectedDiscoverType = type,
+                selectedDiscoverCatalogKey = selectedCatalog?.key,
+                selectedDiscoverGenre = selectedGenre,
+                selectedDiscoverYear = selectedYear,
+                // Genre ids, networks and revenue sort differ per type, so a type change drops them.
+                discoverTmdbFilters = if (typeChanged) it.discoverTmdbFilters.adaptedTo(type) else it.discoverTmdbFilters,
+                discoverTmdbGenres = if (typeChanged) emptyList() else it.discoverTmdbGenres
+            )
+        }
+        if (selectedCatalog?.isTmdbDiscover == true) loadTmdbGenres(type)
     }
 
     private fun selectDiscoverCatalog(catalogKey: String) {
-        val catalog = _uiState.value.discoverCatalogs.firstOrNull { it.key == catalogKey } ?: return
-        _uiState.update {
-            it.copy(
-                selectedDiscoverCatalogKey = catalog.key,
-                selectedDiscoverType = catalog.type,
-                selectedDiscoverGenre = null,
-                discoverResults = emptyList(),
-                pendingDiscoverResults = emptyList(),
-                discoverPage = 1,
-                discoverHasMore = true
-            )
-        }
+        val state = _uiState.value
+        val catalog = state.discoverCatalogs.firstOrNull { it.key == catalogKey } ?: return
+        val typeChanged = catalog.type != state.selectedDiscoverType
+        val (selectedGenre, selectedYear) = defaultGenreAndYear(catalog)
         viewModelScope.launch {
             discoverSelectionDataStore.setSelectedCatalogKey(catalog.key)
         }
-        fetchDiscoverContent(reset = true)
-    }
-
-    private fun selectDiscoverGenre(genre: String?) {
-        _uiState.update {
+        refetchDiscover {
             it.copy(
-                selectedDiscoverGenre = genre,
-                discoverResults = emptyList(),
-                pendingDiscoverResults = emptyList(),
-                discoverPage = 1,
-                discoverHasMore = true
+                selectedDiscoverCatalogKey = catalog.key,
+                selectedDiscoverType = catalog.type,
+                selectedDiscoverGenre = selectedGenre,
+                selectedDiscoverYear = selectedYear,
+                discoverTmdbFilters = if (typeChanged) it.discoverTmdbFilters.adaptedTo(catalog.type) else it.discoverTmdbFilters,
+                discoverTmdbGenres = if (typeChanged) emptyList() else it.discoverTmdbGenres
             )
         }
-        fetchDiscoverContent(reset = true)
+        if (catalog.isTmdbDiscover) loadTmdbGenres(catalog.type)
+    }
+
+    private fun selectedDiscoverCatalog(state: SearchUiState = _uiState.value): DiscoverCatalog? =
+        state.discoverCatalogs.firstOrNull { it.key == state.selectedDiscoverCatalogKey }
+
+    /**
+     * TMDB catalogs take any genre of their own list (ANDed with Animation + Japanese for anime).
+     * An addon catalog that does not offer the genre (Kitsu Trending, Cinemeta New) hands over to
+     * the first catalog of the same type that does, so every genre in the picker is selectable.
+     */
+    private fun selectDiscoverGenre(genre: String?) {
+        val state = _uiState.value
+        val catalog = selectedDiscoverCatalog(state) ?: return
+        if (catalog.isTmdbDiscover) {
+            refetchDiscover { it.copy(discoverTmdbFilters = it.discoverTmdbFilters.with(DiscoverFilterKey.GENRE, genre)) }
+            return
+        }
+        fun DiscoverCatalog.offers(value: String) = genres.any { it.equals(value, ignoreCase = true) }
+        val target = if (genre == null || catalog.offers(genre)) {
+            catalog
+        } else {
+            state.discoverCatalogs.firstOrNull { !it.isTmdbDiscover && it.type == catalog.type && it.offers(genre) }
+                ?: catalog
+        }
+        val canonicalGenre = genre?.let { g -> target.genres.firstOrNull { it.equals(g, ignoreCase = true) } ?: g }
+        val (defaultGenre, defaultYear) = defaultGenreAndYear(target)
+        val switched = target.key != catalog.key
+        if (switched) {
+            viewModelScope.launch { discoverSelectionDataStore.setSelectedCatalogKey(target.key) }
+        }
+        refetchDiscover {
+            it.copy(
+                selectedDiscoverCatalogKey = target.key,
+                selectedDiscoverGenre = canonicalGenre ?: defaultGenre,
+                selectedDiscoverYear = if (switched || canonicalGenre != null) defaultYear else it.selectedDiscoverYear
+            )
+        }
+    }
+
+    private fun selectDiscoverFilter(key: DiscoverFilterKey, value: String?) {
+        if (key == DiscoverFilterKey.GENRE) {
+            selectDiscoverGenre(value)
+            return
+        }
+        val catalog = selectedDiscoverCatalog() ?: return
+        when {
+            catalog.isTmdbDiscover -> refetchDiscover {
+                it.copy(discoverTmdbFilters = it.discoverTmdbFilters.with(key, value))
+            }
+            key == DiscoverFilterKey.YEAR && catalog.years.isNotEmpty() -> refetchDiscover {
+                it.copy(selectedDiscoverYear = value ?: defaultGenreAndYear(catalog).second)
+            }
+        }
+    }
+
+    private fun resetDiscoverFilters() {
+        val catalog = selectedDiscoverCatalog() ?: return
+        val (defaultGenre, defaultYear) = defaultGenreAndYear(catalog)
+        refetchDiscover {
+            if (catalog.isTmdbDiscover) {
+                it.copy(discoverTmdbFilters = DiscoverTmdbFilters())
+            } else {
+                it.copy(selectedDiscoverGenre = defaultGenre, selectedDiscoverYear = defaultYear)
+            }
+        }
     }
 
     private fun loadNextDiscoverResults() {
@@ -1103,10 +1212,48 @@ class SearchViewModel @Inject constructor(
             }
 
             val currentPage = if (reset) 1 else state.discoverPage + 1
-            val skip = if (currentPage <= 1) 0 else (currentPage - 1) * selectedCatalog.skipStep
             val visibleCountBeforeRequest = state.discoverResults.size
+
+            if (selectedCatalog.isTmdbDiscover) {
+                val source = discoverTmdbSource
+                val page = if (source == null) {
+                    null
+                } else {
+                    try {
+                        source.discover(selectedCatalog.type, state.discoverTmdbFilters, currentPage)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+                if (_uiState.value.discoverLocation == DiscoverLocation.OFF) return@launch
+                if (page == null) {
+                    applyDiscoverError()
+                } else {
+                    applyDiscoverBatch(
+                        reset = reset,
+                        currentPage = currentPage,
+                        visibleCountBeforeRequest = visibleCountBeforeRequest,
+                        incoming = page.items,
+                        hasMore = page.hasMore,
+                        // "Upcoming" is exactly what the hide-unreleased setting would remove.
+                        filterUnreleased = hideUnreleasedContent &&
+                            state.discoverTmdbFilters.sort != DiscoverSort.UPCOMING
+                    )
+                }
+                return@launch
+            }
+
+            val skip = if (currentPage <= 1) 0 else (currentPage - 1) * selectedCatalog.skipStep
             val extraArgs = buildMap<String, String> {
-                state.selectedDiscoverGenre?.takeIf { it.isNotBlank() }?.let { put("genre", it) }
+                // A year-listing catalog receives the year through its `genre` extra.
+                val genreExtraValue = if (selectedCatalog.years.isNotEmpty()) {
+                    state.selectedDiscoverYear
+                } else {
+                    state.selectedDiscoverGenre
+                }
+                genreExtraValue?.takeIf { it.isNotBlank() }?.let { put("genre", it) }
             }
 
             catalogRepository.getCatalog(
@@ -1124,65 +1271,82 @@ class SearchViewModel @Inject constructor(
             ).collect { result ->
                 if (_uiState.value.discoverLocation == DiscoverLocation.OFF) return@collect
                 when (result) {
-                    is NetworkResult.Success -> {
-                        val incoming = result.data.items
-                        val existing = if (reset) {
-                            emptyList()
-                        } else {
-                            _uiState.value.discoverResults + _uiState.value.pendingDiscoverResults
-                        }
-                        val existingKeys = existing.asSequence()
-                            .map { "${it.apiType}:${it.id}" }
-                            .toSet()
-                        val hasNewUniqueIncoming = incoming.any { item ->
-                            "${item.apiType}:${item.id}" !in existingKeys
-                        }
-                        val merged = if (reset) incoming else (existing + incoming)
-                        val rawDeduped = merged.distinctBy { "${it.apiType}:${it.id}" }
-                        val deduped = if (hideUnreleasedContent) {
-                            val today = LocalDate.now()
-                            rawDeduped.filterNot { it.isUnreleased(today) }
-                        } else {
-                            rawDeduped
-                        }
-                        val shouldRevealBatch = !reset && revealBatchAfterNextDiscoverFetch
-                        val visibleLimit = if (reset) {
-                            DISCOVER_INITIAL_LIMIT
-                        } else if (shouldRevealBatch) {
-                            (visibleCountBeforeRequest + DISCOVER_SHOW_MORE_BATCH)
-                                .coerceAtLeast(DISCOVER_INITIAL_LIMIT)
-                        } else {
-                            visibleCountBeforeRequest.coerceAtLeast(DISCOVER_INITIAL_LIMIT)
-                        }
-                        val visible = deduped.take(visibleLimit)
-                        val pending = deduped.drop(visibleLimit)
-                        val shouldStopPagination = !reset && !hasNewUniqueIncoming
-                        _uiState.update {
-                            it.copy(
-                                discoverLoading = false,
-                                discoverLoadingMore = false,
-                                discoverResults = visible,
-                                pendingDiscoverResults = pending,
-                                discoverHasMore = if (shouldStopPagination) false else result.data.hasMore,
-                                discoverPage = if (shouldStopPagination) it.discoverPage else currentPage
-                            )
-                        }
-                        revealBatchAfterNextDiscoverFetch = false
-                    }
-                    is NetworkResult.Error -> {
-                        revealBatchAfterNextDiscoverFetch = false
-                        _uiState.update {
-                            it.copy(
-                                discoverLoading = false,
-                                discoverLoadingMore = false,
-                                discoverHasMore = false
-                            )
-                        }
-                    }
+                    is NetworkResult.Success -> applyDiscoverBatch(
+                        reset = reset,
+                        currentPage = currentPage,
+                        visibleCountBeforeRequest = visibleCountBeforeRequest,
+                        incoming = result.data.items,
+                        hasMore = result.data.hasMore,
+                        filterUnreleased = hideUnreleasedContent
+                    )
+                    is NetworkResult.Error -> applyDiscoverError()
                     NetworkResult.Loading -> Unit
                 }
             }
         }
+    }
+
+    private fun applyDiscoverError() {
+        revealBatchAfterNextDiscoverFetch = false
+        _uiState.update {
+            it.copy(
+                discoverLoading = false,
+                discoverLoadingMore = false,
+                discoverHasMore = false
+            )
+        }
+    }
+
+    private fun applyDiscoverBatch(
+        reset: Boolean,
+        currentPage: Int,
+        visibleCountBeforeRequest: Int,
+        incoming: List<MetaPreview>,
+        hasMore: Boolean,
+        filterUnreleased: Boolean
+    ) {
+        val existing = if (reset) {
+            emptyList()
+        } else {
+            _uiState.value.discoverResults + _uiState.value.pendingDiscoverResults
+        }
+        val existingKeys = existing.asSequence()
+            .map { "${it.apiType}:${it.id}" }
+            .toSet()
+        val hasNewUniqueIncoming = incoming.any { item ->
+            "${item.apiType}:${item.id}" !in existingKeys
+        }
+        val merged = if (reset) incoming else (existing + incoming)
+        val rawDeduped = merged.distinctBy { "${it.apiType}:${it.id}" }
+        val deduped = if (filterUnreleased) {
+            val today = LocalDate.now()
+            rawDeduped.filterNot { it.isUnreleased(today) }
+        } else {
+            rawDeduped
+        }
+        val shouldRevealBatch = !reset && revealBatchAfterNextDiscoverFetch
+        val visibleLimit = if (reset) {
+            DISCOVER_INITIAL_LIMIT
+        } else if (shouldRevealBatch) {
+            (visibleCountBeforeRequest + DISCOVER_SHOW_MORE_BATCH)
+                .coerceAtLeast(DISCOVER_INITIAL_LIMIT)
+        } else {
+            visibleCountBeforeRequest.coerceAtLeast(DISCOVER_INITIAL_LIMIT)
+        }
+        val visible = deduped.take(visibleLimit)
+        val pending = deduped.drop(visibleLimit)
+        val shouldStopPagination = !reset && !hasNewUniqueIncoming
+        _uiState.update {
+            it.copy(
+                discoverLoading = false,
+                discoverLoadingMore = false,
+                discoverResults = visible,
+                pendingDiscoverResults = pending,
+                discoverHasMore = if (shouldStopPagination) false else hasMore,
+                discoverPage = if (shouldStopPagination) it.discoverPage else currentPage
+            )
+        }
+        revealBatchAfterNextDiscoverFetch = false
     }
 
     private fun pickDiscoverCatalog(

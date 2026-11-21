@@ -125,6 +125,14 @@ fun DiscoverScreen(
                     discoverFocusedItemIndex = 0
                     viewModel.onEvent(SearchEvent.SelectDiscoverGenre(it))
                 },
+                onSelectFilter = { key, value ->
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.SelectDiscoverFilter(key, value))
+                },
+                onResetFilters = {
+                    discoverFocusedItemIndex = 0
+                    viewModel.onEvent(SearchEvent.ResetDiscoverFilters)
+                },
                 onLoadMore = { viewModel.onEvent(SearchEvent.LoadNextDiscoverResults) },
                 onItemLongPress = { item, addonBaseUrl ->
                     viewModel.posterOptions.show(item, addonBaseUrl)

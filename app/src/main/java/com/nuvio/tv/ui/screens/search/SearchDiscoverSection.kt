@@ -105,13 +105,33 @@ internal fun DiscoverSection(
     onSelectType: (String) -> Unit,
     onSelectCatalog: (String) -> Unit,
     onSelectGenre: (String?) -> Unit,
+    onSelectFilter: (DiscoverFilterKey, String?) -> Unit = { _, _ -> },
+    onResetFilters: () -> Unit = {},
     onLoadMore: () -> Unit,
     onItemLongPress: (MetaPreview, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val selectedCatalog = uiState.discoverCatalogs.firstOrNull { it.key == uiState.selectedDiscoverCatalogKey }
     val filteredCatalogs = uiState.discoverCatalogs.filter { it.type == uiState.selectedDiscoverType }
-    val genres = selectedCatalog?.genres.orEmpty()
+    // Genres only: a catalog whose `genre` extra lists years exposes them under the Year picker.
+    // TMDB catalogs use TMDB's own genre list; an addon catalog without genres borrows those of
+    // the other catalogs of its type so the picker is never empty.
+    val genreOptions: List<DiscoverOption> = if (selectedCatalog?.isTmdbDiscover == true) {
+        uiState.discoverTmdbGenres.map { DiscoverOption(localizedGenreLabel(it.label), it.value) }
+    } else {
+        discoverAddonGenreOptions(uiState.discoverCatalogs, selectedCatalog)
+            .map { DiscoverOption(localizedGenreLabel(it), it) }
+    }
+    val selectedGenreValue: String? = if (selectedCatalog?.isTmdbDiscover == true) {
+        uiState.discoverTmdbFilters.genre
+    } else {
+        uiState.selectedDiscoverGenre
+    }
+    val extraFilterKeys = discoverExtraFilterKeys(selectedCatalog)
+    // A required genre has no "Default" row: the catalog cannot be queried without one.
+    val genreIsRequired = selectedCatalog != null &&
+        selectedCatalog.genreExtraRequired &&
+        selectedCatalog.genres.isNotEmpty()
     var expandedPicker by remember { mutableStateOf<String?>(null) }
     val filterFocusRequester = remember { FocusRequester() }
     var gridHasFocus by remember { mutableStateOf(false) }
@@ -128,7 +148,10 @@ internal fun DiscoverSection(
     }
     val selectedTypeLabel = localizedTypeLabel(uiState.selectedDiscoverType)
     val selectedCatalogLabel = selectedCatalog?.catalogName ?: stringResource(R.string.discover_select_catalog)
-    val selectedGenreLabel = uiState.selectedDiscoverGenre?.let { localizedGenreLabel(it) } ?: stringResource(R.string.discover_genre_default)
+    val genreDefaultLabel = stringResource(R.string.discover_genre_default)
+    val selectedGenreLabel = selectedGenreValue?.let { value ->
+        genreOptions.firstOrNull { it.value == value }?.label ?: localizedGenreLabel(value)
+    } ?: genreDefaultLabel
 
     Column(
         modifier = modifier
@@ -189,19 +212,34 @@ internal fun DiscoverSection(
                 modifier = Modifier.weight(1f),
                 title = stringResource(R.string.discover_filter_genre),
                 value = selectedGenreLabel,
-                selectedValue = uiState.selectedDiscoverGenre ?: "__default__",
+                selectedValue = selectedGenreValue ?: DISCOVER_ANY_VALUE,
                 expanded = expandedPicker == "genre",
                 options = buildList {
-                    add(DiscoverOption(stringResource(R.string.discover_genre_default), "__default__"))
-                    addAll(genres.map { DiscoverOption(localizedGenreLabel(it), it) })
+                    if (!genreIsRequired) {
+                        add(DiscoverOption(genreDefaultLabel, DISCOVER_ANY_VALUE))
+                    }
+                    addAll(genreOptions)
                 },
                 onExpandedChange = { shouldExpand ->
                     expandedPicker = if (shouldExpand) "genre" else null
                 },
                 onSelect = { option ->
-                    onSelectGenre(option.value.takeUnless { it == "__default__" })
+                    onSelectGenre(option.value.takeUnless { it == DISCOVER_ANY_VALUE })
                     expandedPicker = null
                 },
+                blockFocus = blockFilterFocus
+            )
+        }
+
+        selectedCatalog?.let { catalog ->
+            DiscoverExtraFilterRows(
+                keys = extraFilterKeys,
+                uiState = uiState,
+                catalog = catalog,
+                expandedPicker = expandedPicker,
+                onExpandedChange = { expandedPicker = it },
+                onSelectFilter = onSelectFilter,
+                onReset = onResetFilters,
                 blockFocus = blockFilterFocus
             )
         }
@@ -214,7 +252,10 @@ internal fun DiscoverSection(
                         .takeIf { it.isNotEmpty() }
                         ?.let(::add)
                 }
-                uiState.selectedDiscoverGenre?.let { add(localizedGenreLabel(it)) }
+                selectedGenreValue?.let { value ->
+                    add(genreOptions.firstOrNull { it.value == value }?.label ?: localizedGenreLabel(value))
+                }
+                uiState.selectedDiscoverYear?.let(::add)
             }
             Text(
                 text = metadataSegments.joinToString(" • "),
@@ -263,7 +304,8 @@ internal fun DiscoverSection(
                     onItemLongPress = { item ->
                         onItemLongPress(item, selectedCatalog?.addonBaseUrl ?: "")
                     },
-                    filterKey = "${uiState.selectedDiscoverType}|${uiState.selectedDiscoverCatalogKey}|${uiState.selectedDiscoverGenre}"
+                    filterKey = "${uiState.selectedDiscoverType}|${uiState.selectedDiscoverCatalogKey}|" +
+                        "${uiState.selectedDiscoverGenre}|${uiState.selectedDiscoverYear}|${uiState.discoverTmdbFilters}"
                 )
                 }
             }
@@ -289,7 +331,7 @@ internal fun DiscoverSection(
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun DiscoverDropdownPicker(
+internal fun DiscoverDropdownPicker(
     modifier: Modifier = Modifier,
     title: String,
     value: String,
@@ -474,7 +516,7 @@ private fun DiscoverDropdownPicker(
     }
 }
 
-private data class DiscoverOption(
+internal data class DiscoverOption(
     val label: String,
     val value: String
 )
