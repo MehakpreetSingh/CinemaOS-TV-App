@@ -3363,6 +3363,8 @@ private fun BackdropLayer(
     val isBackgroundTrailerPaused =
         isBackgroundTrailerPlaying && pauseBackgroundTrailerOnScroll && isScrolledPastHero
     val isBackgroundTrailerVisible = isBackgroundTrailerPlaying && !isBackgroundTrailerPaused
+    val isTrailerPlaybackPaused =
+        isTrailerPaused || isBackgroundTrailerPaused || LocalDetailChildOverlayVisible.current
     // Keep the backdrop until the trailer has a frame to show; the request alone can be many
     // seconds ahead of it while the stream is fetched and buffered.
     // Keyed on "any trailer playing" rather than the individual modes: switching between the
@@ -3431,7 +3433,7 @@ private fun BackdropLayer(
                 BackgroundTrailerRequest(
                     videoUrl = trailerUrl,
                     audioUrl = trailerAudioUrl,
-                    isPaused = isTrailerPaused || isBackgroundTrailerPaused,
+                    isPaused = isTrailerPlaybackPaused,
                     cropToFill = isBackgroundTrailerPlaying,
                     autoCropLetterbox = isBackgroundTrailerPlaying,
                     seekRequestToken = if (showTrailerControls) trailerSeekToken else 0,
@@ -3455,7 +3457,7 @@ private fun BackdropLayer(
                 trailerUrl = trailerUrl,
                 trailerAudioUrl = trailerAudioUrl,
                 isPlaying = isTrailerPlaying || isBackgroundTrailerPlaying,
-                isPaused = isTrailerPaused || isBackgroundTrailerPaused,
+                isPaused = isTrailerPlaybackPaused,
                 seekRequestToken = if (showTrailerControls) trailerSeekToken else 0,
                 seekDeltaMs = if (showTrailerControls) trailerSeekDeltaMs else 0L,
                 onRemoteKey = onTrailerControlKey,

@@ -244,7 +244,15 @@ fun ContentCard(
         } else {
             baseCardWidth
         }
-        val requestWidthPx = remember(maxRequestCardWidth, density) {
+        val imageRequestCardWidth = if (effectiveExpandEnabled && isBackdropExpanded) {
+            maxRequestCardWidth
+        } else {
+            baseCardWidth
+        }
+        val requestWidthPx = remember(imageRequestCardWidth, density) {
+            with(density) { imageRequestCardWidth.roundToPx() }.coerceAtLeast(1)
+        }
+        val logoRequestWidthPx = remember(maxRequestCardWidth, density) {
             with(density) { maxRequestCardWidth.roundToPx() }.coerceAtLeast(1)
         }
         val requestHeightPx = remember(baseCardHeight, density) {
@@ -290,13 +298,13 @@ fun ContentCard(
         }
         // Search/catalog items often lack a clearlogo; resolve via TMDB like Home does (landscape only).
         val cardLogo = rememberResolvedCardLogo(item, enabled = globalLandscape)
-        val logoModel = remember(cardLogo, requestWidthPx, logoRequestHeightPx) {
+        val logoModel = remember(cardLogo, logoRequestWidthPx, logoRequestHeightPx) {
             cardLogo?.let { logoUrl ->
                 ImageRequest.Builder(context)
                     .data(logoUrl)
                     .crossfade(false)
-                    .memoryCacheKey("${logoUrl}_${requestWidthPx}x${logoRequestHeightPx}")
-                    .size(width = requestWidthPx, height = logoRequestHeightPx)
+                    .memoryCacheKey("${logoUrl}_${logoRequestWidthPx}x${logoRequestHeightPx}")
+                    .size(width = logoRequestWidthPx, height = logoRequestHeightPx)
                     .build()
             }
         }
