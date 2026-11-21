@@ -1,6 +1,8 @@
 package com.nuvio.tv.core.tmdb
 
 import android.util.Log
+import com.nuvio.tv.data.repository.ImdbRatingCache
+import com.nuvio.tv.data.repository.ImdbRatingRepository
 import com.nuvio.tv.data.repository.MDBListRepository
 import com.nuvio.tv.domain.model.MDBListSettings
 import com.nuvio.tv.domain.model.Meta
@@ -23,7 +25,8 @@ private const val ENRICHMENT_CONCURRENCY = 4
 class MetaPreviewEnricher @Inject constructor(
     private val tmdbService: TmdbService,
     private val tmdbMetadataService: TmdbMetadataService,
-    private val mdbListRepository: MDBListRepository
+    private val mdbListRepository: MDBListRepository,
+    private val imdbRatingRepository: ImdbRatingRepository
 ) {
     suspend fun enrich(
         items: List<MetaPreview>,
@@ -59,10 +62,13 @@ class MetaPreviewEnricher @Inject constructor(
         settings: TmdbSettings,
         mdbSettings: MDBListSettings?
     ): MetaPreview = coroutineScope {
+        // Resolved while the TMDB id is looked up, so the Cinemeta call below can start right after.
+        var resolvedImdbId: String? = ImdbRatingCache.normalizeId(item.imdbId) ?: ImdbRatingCache.normalizeId(item.id)
         val tmdbDeferred = async {
             val tmdbId = tmdbService.ensureTmdbId(item.id, item.apiType) ?: return@async null
             tmdbId.toIntOrNull()?.let { numericId ->
-                runCatching { tmdbService.tmdbToImdb(numericId, item.apiType) }
+                runCatching { tmdbService.tmdbToImdb(numericId, item.apiType) }.getOrNull()
+                    ?.let { if (resolvedImdbId == null) resolvedImdbId = ImdbRatingCache.normalizeId(it) }
             }
             tmdbMetadataService.fetchEnrichment(
                 tmdbId = tmdbId,
@@ -92,6 +98,18 @@ class MetaPreviewEnricher @Inject constructor(
                 mdbListRatingOrder = mdbSettings.ratingOrder,
                 imdbRating = mdbResult.ratings.imdb?.toFloat() ?: enriched.imdbRating
             )
+        }
+
+        // Real IMDb score for the hero (Cinemeta, memory-cached, deduplicated). Only the hero
+        // path reaches this; catalog cards read the cache and never start a request.
+        val imdbId = resolvedImdbId
+        if (imdbId != null && mdbResult?.ratings?.imdb == null) {
+            val realImdb = runCatching { imdbRatingRepository.getRating(imdbId, item.apiType) }.getOrNull()
+            if (realImdb != null) enriched = enriched.copy(imdbRating = realImdb)
+        }
+        // Carry the TMDB score separately so the hero can label it when IMDb has none.
+        enrichment?.rating?.toFloat()?.takeIf { it > 0f }?.let { tmdb ->
+            enriched = enriched.copy(tmdbRating = tmdb)
         }
 
         if (enrichment == null) return@coroutineScope enriched

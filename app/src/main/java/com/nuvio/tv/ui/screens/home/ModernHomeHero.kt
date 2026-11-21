@@ -594,7 +594,8 @@ private fun HeroTitleContent(
                             textColor = NuvioTheme.colors.TextSecondary,
                             logoSize = NuvioTheme.spacing.xl * metaScale,
                             spacing = imdbMetaSpacing,
-                            visible = showImdbInPrimaryWithHighlight
+                            visible = showImdbInPrimaryWithHighlight,
+                            source = preview.ratingSource
                         )
                     }
                 }
@@ -661,7 +662,8 @@ private fun HeroTitleContent(
                         textColor = NuvioTheme.colors.TextSecondary,
                         logoSize = NuvioTheme.spacing.xl * metaScale,
                         spacing = imdbMetaSpacing,
-                        visible = showImdbInSecondary
+                        visible = showImdbInSecondary,
+                        source = preview.ratingSource
                     )
                 }
                 if (reserveImdbInSecondary && secondaryDetails.isNotEmpty()) {
@@ -720,7 +722,8 @@ private fun HeroImdbMeta(
     textColor: Color,
     logoSize: androidx.compose.ui.unit.Dp,
     spacing: androidx.compose.ui.unit.Dp,
-    visible: Boolean = true
+    visible: Boolean = true,
+    source: com.nuvio.tv.ui.components.RatingSource = com.nuvio.tv.ui.components.RatingSource.IMDB
 ) {
     Row(
         modifier = Modifier
@@ -732,7 +735,8 @@ private fun HeroImdbMeta(
         ImdbRatingSourceLabel(
             logoModifier = Modifier.size(logoSize),
             textStyle = textStyle,
-            textColor = textColor
+            textColor = textColor,
+            source = source
         )
         Text(
             text = imdbText,

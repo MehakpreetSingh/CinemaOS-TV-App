@@ -81,6 +81,7 @@ import javax.inject.Inject
 private const val TAG = "StreamScreenViewModel"
 private const val DIRECT_AUTOPLAY_HARD_TIMEOUT_MS = 60_000L
 private const val STREAM_FILTER_PAGE_SIZE = 100
+private const val CONTINUE_WATCHING_LINK_REUSE_MS = 7L * 24L * 60L * 60L * 1000L
 
 @HiltViewModel
 class StreamScreenViewModel @Inject constructor(
@@ -155,6 +156,9 @@ class StreamScreenViewModel @Inject constructor(
     private val playbackProfileId: Int = savedStateHandle.get<String>("profileId")?.toIntOrNull()
         ?: profileManager.activeProfileId.value
     private val manualSelection: Boolean = savedStateHandle.get<String>("manualSelection")
+        ?.toBooleanStrictOrNull()
+        ?: false
+    private val fromContinueWatching: Boolean = savedStateHandle.get<String>("fromContinueWatching")
         ?.toBooleanStrictOrNull()
         ?: false
     private val isAnimeContent: Boolean =
@@ -473,10 +477,19 @@ class StreamScreenViewModel @Inject constructor(
                 }
             }
 
-            if (!autoPlayHandledForSession && playerSettings.streamReuseLastLinkEnabled) {
+            if (!autoPlayHandledForSession && (playerSettings.streamReuseLastLinkEnabled || fromContinueWatching)) {
                 val cached = streamLinkCacheDataStore.getValid(
                     contentKey = streamCacheKey,
-                    maxAgeMs = playerSettings.streamReuseLastLinkCacheHours * 60L * 60L * 1000L
+                    maxAgeMs = if (fromContinueWatching) {
+                        // Resuming from Continue Watching: reuse the last picked source for up to a week,
+                        // regardless of the configured reuse window. Playback failure falls back to the list.
+                        maxOf(
+                            playerSettings.streamReuseLastLinkCacheHours * 60L * 60L * 1000L,
+                            CONTINUE_WATCHING_LINK_REUSE_MS
+                        )
+                    } else {
+                        playerSettings.streamReuseLastLinkCacheHours * 60L * 60L * 1000L
+                    }
                 )
                 if (cached != null) {
                     autoPlayHandledForSession = true

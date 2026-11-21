@@ -2687,6 +2687,11 @@
     <string name="cd_trakt_logo">Trakt Logo</string>
     <string name="cd_trakt_qr">Trakt activation QR</string>
     <string name="cd_imdb">IMDb</string>
+    <string name="cd_tmdb" translatable="false">TMDB</string>
+    <plurals name="movie_collection_movie_count" translatable="false">
+        <item quantity="one">%1$d movie</item>
+        <item quantity="other">%1$d movies</item>
+    </plurals>
     <string name="cd_open_discover">Open discover</string>
     <string name="cd_clear_search">Clear search</string>
     <string name="cd_voice_search">Voice search</string>

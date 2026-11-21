@@ -56,6 +56,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.domain.model.MetaPreview
+import com.nuvio.tv.ui.components.displayRating
 
 private val HeroButtonBg = Color.White.copy(alpha = 0.2f)
 
@@ -67,7 +68,9 @@ internal data class HeroDisplay(
     val logo: String?,
     val meta: String,
     val rating: Float?,
-    val synopsis: String?
+    val synopsis: String?,
+    /** Source label shown before [rating] when it is not an IMDb score (for example "TMDB"). */
+    val ratingLabel: String? = null
 )
 
 internal fun MetaPreview.toHeroDisplay(): HeroDisplay {
@@ -77,14 +80,16 @@ internal fun MetaPreview.toHeroDisplay(): HeroDisplay {
         addAll(genres.take(2))
         releaseInfo?.takeIf { it.isNotBlank() }?.let { add(it.take(4)) }
     }
+    val shownRating = displayRating()
     return HeroDisplay(
         key = "$id|$apiType",
         backdrops = listOfNotNull(background, landscapePoster, poster).filter { it.isNotBlank() }.distinct(),
         name = name,
         logo = logo,
         meta = parts.joinToString(" \u00b7 "),
-        rating = imdbRating,
-        synopsis = description
+        rating = shownRating?.value,
+        synopsis = description,
+        ratingLabel = shownRating?.takeUnless { it.isImdb }?.let { "TMDB" }
     )
 }
 
@@ -290,7 +295,8 @@ private fun HeroTextBlock(item: HeroDisplay) {
                         .padding(horizontal = 6.dp, vertical = 1.dp)
                 ) {
                     Text(
-                        text = String.format(java.util.Locale.US, "%.1f", rating),
+                        text = (item.ratingLabel?.let { "$it " } ?: "") +
+                            String.format(java.util.Locale.US, "%.1f", rating),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

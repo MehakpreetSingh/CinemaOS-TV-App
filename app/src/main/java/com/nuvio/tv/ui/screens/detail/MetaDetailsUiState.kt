@@ -77,6 +77,8 @@ data class MetaDetailsUiState(
     val moreLikeThisSource: MoreLikeThisSource? = null,
     val collection: List<MetaPreview> = emptyList(),
     val collectionName: String? = null,
+    /** TMDB collection id behind [collection]; lets the details row open the full collection page. */
+    val collectionId: Int? = null,
     val relatedWatchedStatus: Map<String, Boolean> = emptyMap(),
     val episodeImdbRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
     val isEpisodeRatingsLoading: Boolean = false,

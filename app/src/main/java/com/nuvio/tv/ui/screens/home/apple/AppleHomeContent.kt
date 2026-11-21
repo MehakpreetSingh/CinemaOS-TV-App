@@ -50,6 +50,7 @@ import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.components.displayRating
 import com.nuvio.tv.core.poster.CustomPosterScreen
 import com.nuvio.tv.core.poster.patternForScreen
 import com.nuvio.tv.core.poster.withCustomPosterUrls
@@ -725,6 +726,7 @@ private fun ApplePosterCard(
     val widthDp by androidx.compose.animation.core.animateDpAsState(targetWidth, androidx.compose.animation.core.tween(300), label = "posterExpand")
     val heightDp = (if (landscape) 135.dp else 195.dp) * s
     val url = if (landscape || expandedNow) (item.landscapePoster ?: item.background ?: item.poster) else item.poster
+    val appleRating = item.displayRating()
     AppleArtCard(
         width = widthDp,
         height = heightDp,
@@ -735,7 +737,8 @@ private fun ApplePosterCard(
         subtitle = null,
         overlay = (landscape || expandedNow) && style.showLabels,
         alwaysLogo = style.alwaysLogo,
-        rating = item.imdbRating.takeIf { style.showRatings },
+        rating = appleRating?.value?.takeIf { style.showRatings },
+        ratingLabel = appleRating?.takeUnless { it.isImdb }?.let { "TMDB" },
         progress = 0f,
         blur = false,
         belowLabel = if (!landscape && style.showLabels) item.name else null,
@@ -810,6 +813,7 @@ private fun AppleArtCard(
     overlay: Boolean,
     alwaysLogo: Boolean,
     rating: Float?,
+    ratingLabel: String? = null,
     progress: Float,
     blur: Boolean,
     belowLabel: String?,
@@ -907,7 +911,8 @@ private fun AppleArtCard(
                         .padding(horizontal = 5.dp, vertical = 1.dp)
                 ) {
                     Text(
-                        text = String.format(java.util.Locale.US, "%.1f", rating),
+                        text = (ratingLabel?.let { "$it " } ?: "") +
+                            String.format(java.util.Locale.US, "%.1f", rating),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White

@@ -303,11 +303,9 @@ private fun HeroCarouselSlide(
     val trailingMetadata = remember(runtimeText, releaseYear) {
         listOfNotNull(runtimeText, releaseYear)
     }
-    val ratingText = remember(item.imdbRating, showImdbRatings) {
-        item.imdbRating
-            ?.takeIf { showImdbRatings }
-            ?.let { String.format("%.1f", it) }
-    }
+    // Not remembered: reads the IMDb cache, so it must re-evaluate when a lookup lands.
+    val displayRating = if (showImdbRatings) item.displayRating() else null
+    val ratingText = displayRating?.text
 
     Box(
         modifier = Modifier
@@ -399,7 +397,8 @@ private fun HeroCarouselSlide(
                                         ImdbRatingSourceLabel(
                                             logoModifier = Modifier.size(NuvioTheme.spacing.xl),
                                             textStyle = MaterialTheme.typography.labelMedium,
-                                            textColor = NuvioTheme.colors.TextSecondary
+                                            textColor = NuvioTheme.colors.TextSecondary,
+                                            source = displayRating?.source ?: RatingSource.IMDB
                                         )
                                         Text(
                                             text = ratingText,

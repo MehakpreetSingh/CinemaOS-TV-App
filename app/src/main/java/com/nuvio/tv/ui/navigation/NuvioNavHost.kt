@@ -276,6 +276,7 @@ private fun PlaybackNavHost(
                         contentName = item.progress.name,
                         runtime = null,
                         manualSelection = manualSelection,
+                        fromContinueWatching = true,
                         returnToDetailOnBack = item.progress.contentType.equals("series", ignoreCase = true),
                         returnToHomeOnBack = true,
                         startFromBeginning = startFromBeginning,
@@ -297,6 +298,7 @@ private fun PlaybackNavHost(
                         contentName = item.info.name,
                         runtime = null,
                         manualSelection = manualSelection,
+                        fromContinueWatching = true,
                         returnToDetailOnBack = item.info.contentType.equals("series", ignoreCase = true),
                         returnToHomeOnBack = true,
                         startFromBeginning = startFromBeginning,
@@ -496,6 +498,9 @@ private fun PlaybackNavHost(
                         )
                     )
                 },
+                onNavigateToCollection = { collectionId, collectionName ->
+                    childNav.navigate(Screen.MovieCollection.createRoute(collectionId, collectionName))
+                },
                 onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
                     childNav.navigateNestedDetail(itemId, itemType, addonBaseUrl)
                 },
@@ -664,6 +669,11 @@ private fun PlaybackNavHost(
                     type = NavType.StringType
                     nullable = true
                     defaultValue = null
+                },
+                navArgument("fromContinueWatching") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = "false"
                 }
             )
         ) { backStackEntry ->

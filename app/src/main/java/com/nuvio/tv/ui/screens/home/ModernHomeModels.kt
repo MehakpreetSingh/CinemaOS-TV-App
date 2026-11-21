@@ -20,6 +20,7 @@ import com.nuvio.tv.ui.util.formatHeroRuntime
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.R
 import com.nuvio.tv.ui.components.formatContinueWatchingProgressLabel
+import com.nuvio.tv.ui.components.displayRating
 import com.nuvio.tv.ui.util.StableList
 import com.nuvio.tv.ui.util.StableMap
 import com.nuvio.tv.ui.util.StableSet
@@ -52,6 +53,8 @@ data class HeroPreview(
     val runtimeText: String? = null,
     val secondaryHighlightText: String? = null,
     val imdbText: String?,
+    /** Label for [imdbText]: IMDb unless only TMDB's score is known. */
+    val ratingSource: com.nuvio.tv.ui.components.RatingSource = com.nuvio.tv.ui.components.RatingSource.IMDB,
     val ageRatingText: String? = null,
     val statusText: String? = null,
     val countryText: String? = null,
@@ -503,6 +506,7 @@ internal fun buildCatalogItem(
     val frozenLogo = carriedLogo?.takeIf { it.isNotBlank() }
         ?: currentLogo
 
+    val itemDisplayRating = item.displayRating()
     val heroPreview = HeroPreview(
         title = item.name,
         logo = item.logo,
@@ -515,8 +519,8 @@ internal fun buildCatalogItem(
         isSeries = isSeriesType(item.apiType),
         yearText = extractYearText(item.type, item.releaseInfo, item.released, showFullReleaseDate),
         runtimeText = formatHeroRuntime(item.runtime),
-        imdbText = item.imdbRating
-            ?.let { String.format("%.1f", it) },
+        imdbText = itemDisplayRating?.text,
+        ratingSource = itemDisplayRating?.source ?: com.nuvio.tv.ui.components.RatingSource.IMDB,
         ageRatingText = item.ageRating,
         statusText = item.status,
         countryText = item.country,

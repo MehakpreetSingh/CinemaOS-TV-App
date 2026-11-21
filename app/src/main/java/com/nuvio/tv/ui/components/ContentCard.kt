@@ -196,7 +196,9 @@ fun ContentCard(
     }
     val metaTokensContext = LocalContext.current
     val metaTokens = if (isBackdropExpanded) {
-        remember(metaTokensContext, item.type, item.rawType, item.genres, item.releaseInfo, item.imdbRating, item.seasonCount, showImdbRatings) {
+        // Cache-only read of a fetched IMDb score; a miss falls back to the TMDB score, labelled.
+        val displayRating = if (showImdbRatings) item.displayRating() else null
+        remember(metaTokensContext, item.type, item.rawType, item.genres, item.releaseInfo, displayRating, item.seasonCount) {
             buildList {
                 add(
                     item.apiType
@@ -221,9 +223,7 @@ fun ContentCard(
                         }
                     }
                     ?.let { add(it) }
-                item.imdbRating
-                    ?.takeIf { showImdbRatings }
-                    ?.let { add(String.format(java.util.Locale.US, "%.1f", it)) }
+                displayRating?.let { add("${if (it.isImdb) "IMDb" else "TMDB"} ${it.text}") }
             }
         }
     } else {

@@ -6,6 +6,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -36,8 +37,24 @@ import androidx.tv.material3.Text
 import com.nuvio.tv.domain.model.MetaPreview
 import com.nuvio.tv.ui.components.GridContentCard
 import com.nuvio.tv.ui.components.PosterCardStyle
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.res.stringResource
+import androidx.tv.material3.Border
+import androidx.tv.material3.Card
+import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.ExperimentalTvMaterial3Api
+import androidx.tv.material3.Icon
+import com.nuvio.tv.R
 
-@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class, ExperimentalTvMaterial3Api::class)
 @Composable
 fun CollectionSection(
     items: List<MetaPreview>,
@@ -57,7 +74,9 @@ fun CollectionSection(
     onItemClick: (MetaPreview) -> Unit,
     onItemLongPress: (MetaPreview) -> Unit = {},
     isItemWatched: (MetaPreview) -> Boolean = { false },
-    windowResetKey: String? = null
+    windowResetKey: String? = null,
+    /** When set, a focusable "See all" card ends the row and opens the full collection page. */
+    onSeeAll: (() -> Unit)? = null
 ) {
     if (items.isEmpty()) return
 
@@ -203,6 +222,53 @@ fun CollectionSection(
                                 .width(landscapeStyle.width)
                                 .padding(start = NuvioTheme.spacing.xxs, end = NuvioTheme.spacing.xxs, top = NuvioTheme.spacing.xxs)
                         )
+                    }
+                }
+            }
+            if (onSeeAll != null) {
+                item(key = "collection_see_all") {
+                    val seeAllShape = RoundedCornerShape(landscapeStyle.cornerRadius)
+                    Card(
+                        onClick = onSeeAll,
+                        modifier = Modifier
+                            .width(landscapeStyle.width)
+                            .height(landscapeStyle.height)
+                            .focusProperties {
+                                if (upFocusRequester != null) up = upFocusRequester
+                                if (downFocusRequester != null) down = downFocusRequester
+                            },
+                        shape = CardDefaults.shape(shape = seeAllShape),
+                        colors = CardDefaults.colors(
+                            containerColor = NuvioTheme.colors.BackgroundCard,
+                            focusedContainerColor = NuvioTheme.colors.BackgroundCard
+                        ),
+                        border = CardDefaults.border(
+                            focusedBorder = Border(
+                                border = NuvioTheme.focusRing.border(landscapeStyle.focusedBorderWidth),
+                                shape = seeAllShape
+                            )
+                        ),
+                        scale = CardDefaults.scale(focusedScale = landscapeStyle.focusedScale)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(NuvioTheme.spacing.xxl),
+                                    tint = NuvioTheme.colors.TextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(NuvioTheme.spacing.sm))
+                                Text(
+                                    text = stringResource(R.string.action_see_all),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = NuvioTheme.colors.TextSecondary
+                                )
+                            }
+                        }
                     }
                 }
             }

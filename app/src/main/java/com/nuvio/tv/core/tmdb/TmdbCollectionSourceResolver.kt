@@ -193,7 +193,8 @@ class TmdbCollectionSourceResolver @Inject constructor(
                     description = it.overview?.takeIf { value -> value.isNotBlank() },
                     releaseInfo = it.releaseDate?.take(4),
                     released = it.releaseDate?.takeIf { value -> value.isNotBlank() },
-                    imdbRating = it.voteAverage?.toFloat(),
+                    imdbRating = null,
+                    tmdbRating = it.voteAverage?.toFloat(),
                     voteCount = it.voteCount,
                     genres = emptyList()
                 )
@@ -332,12 +333,12 @@ class TmdbCollectionSourceResolver @Inject constructor(
         return when (sortBy) {
             TmdbCollectionSort.ORIGINAL.value -> this
             TmdbCollectionSort.VOTE_AVERAGE_DESC.value -> sortedWith(
-                compareByDescending<MetaPreview> { it.imdbRating ?: -1f }
+                compareByDescending<MetaPreview> { it.imdbRating ?: it.tmdbRating ?: -1f }
                     .thenByDescending { it.releaseInfo ?: "" }
             )
             TmdbCollectionSort.VOTE_COUNT_DESC.value -> sortedWith(
                 compareByDescending<MetaPreview> { it.voteCount ?: -1 }
-                    .thenByDescending { it.imdbRating ?: -1f }
+                    .thenByDescending { it.imdbRating ?: it.tmdbRating ?: -1f }
             )
             TmdbCollectionSort.RELEASE_DATE_DESC.value,
             TmdbCollectionSort.FIRST_AIR_DATE_DESC.value -> sortedByDescending { it.releaseInfo ?: "" }
@@ -370,7 +371,8 @@ class TmdbCollectionSourceResolver @Inject constructor(
             description = overview?.takeIf { it.isNotBlank() },
             releaseInfo = (releaseDate ?: firstAirDate)?.take(4),
             released = (releaseDate ?: firstAirDate)?.takeIf { it.isNotBlank() },
-            imdbRating = voteAverage?.toFloat(),
+            imdbRating = null,
+            tmdbRating = voteAverage?.toFloat(),
             voteCount = voteCount,
             genres = emptyList()
         )
@@ -402,7 +404,8 @@ class TmdbCollectionSourceResolver @Inject constructor(
                 TmdbCollectionMediaType.MOVIE -> releaseDate?.takeIf { it.isNotBlank() }
                 TmdbCollectionMediaType.TV -> firstAirDate?.takeIf { it.isNotBlank() }
             },
-            imdbRating = voteAverage?.toFloat(),
+            imdbRating = null,
+            tmdbRating = voteAverage?.toFloat(),
             voteCount = voteCount,
             genres = emptyList()
         )
@@ -433,7 +436,8 @@ class TmdbCollectionSourceResolver @Inject constructor(
                 TmdbCollectionMediaType.MOVIE -> releaseDate?.takeIf { it.isNotBlank() }
                 TmdbCollectionMediaType.TV -> firstAirDate?.takeIf { it.isNotBlank() }
             },
-            imdbRating = voteAverage?.toFloat(),
+            imdbRating = null,
+            tmdbRating = voteAverage?.toFloat(),
             voteCount = voteCount,
             genres = emptyList()
         )
@@ -464,7 +468,8 @@ class TmdbCollectionSourceResolver @Inject constructor(
                 TmdbCollectionMediaType.MOVIE -> releaseDate?.takeIf { it.isNotBlank() }
                 TmdbCollectionMediaType.TV -> firstAirDate?.takeIf { it.isNotBlank() }
             },
-            imdbRating = voteAverage?.toFloat(),
+            imdbRating = null,
+            tmdbRating = voteAverage?.toFloat(),
             voteCount = voteCount,
             genres = emptyList()
         )

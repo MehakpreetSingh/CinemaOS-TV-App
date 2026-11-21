@@ -98,6 +98,7 @@ class MetaDetailsViewModel @Inject constructor(
     private val tmdbService: TmdbService,
     private val tmdbMetadataService: TmdbMetadataService,
     private val imdbEpisodeRatingsRepository: ImdbEpisodeRatingsRepository,
+    private val imdbRatingRepository: com.nuvio.tv.data.repository.ImdbRatingRepository,
     private val mdbListRepository: MDBListRepository,
     private val mdbListSettingsDataStore: MDBListSettingsDataStore,
     private val libraryRepository: LibraryRepository,
@@ -792,6 +793,7 @@ class MetaDetailsViewModel @Inject constructor(
                     moreLikeThisSource = null,
                     collection = emptyList(),
                     collectionName = null,
+                    collectionId = null,
                     comments = emptyList(),
                     commentsCurrentPage = 0,
                     commentsPageCount = 0,
@@ -913,7 +915,8 @@ class MetaDetailsViewModel @Inject constructor(
             description = enrichment.description,
             releaseInfo = enrichment.releaseInfo,
             status = enrichment.status,
-            imdbRating = enrichment.rating?.toFloat(),
+            // TMDB's vote_average is not an IMDb score; it is shown as a TMDB rating (uiState.tmdbRating).
+            imdbRating = null,
             genres = enrichment.genres,
             runtime = enrichment.runtimeMinutes?.toString(),
             director = enrichment.director,
@@ -1069,6 +1072,7 @@ class MetaDetailsViewModel @Inject constructor(
         if (!isServerItem) {
             loadEpisodeRatingsAsync(enriched)
             viewModelScope.launch { loadMDBListRatings(enriched) }
+            loadImdbRatingAsync(enriched)
         }
 
         // Wait for remote progress provider (Simkl/Trakt) to finish initial load.
@@ -1424,7 +1428,7 @@ class MetaDetailsViewModel @Inject constructor(
         collectionJob?.cancel()
         collectionJob = viewModelScope.launch {
             if (!settings.enabled || !settings.useCollections) {
-                _uiState.update { it.copy(collection = emptyList(), collectionName = null) }
+                _uiState.update { it.copy(collection = emptyList(), collectionName = null, collectionId = null) }
                 return@launch
             }
 
@@ -1452,8 +1456,32 @@ class MetaDetailsViewModel @Inject constructor(
             _uiState.update { state ->
                 state.copy(
                     collection = filteredItems,
-                    collectionName = collection.name ?: collectionName
+                    collectionName = collection.name ?: collectionName,
+                    collectionId = collectionId.takeIf { filteredItems.isNotEmpty() }
                 )
+            }
+        }
+    }
+
+    /**
+     * Fetches the real IMDb rating (Cinemeta) for the opened title and swaps it into [Meta.imdbRating].
+     * One request per title: results, including "no rating", are cached in [com.nuvio.tv.data.repository.ImdbRatingCache].
+     */
+    private fun loadImdbRatingAsync(meta: Meta) {
+        viewModelScope.launch {
+            val cache = com.nuvio.tv.data.repository.ImdbRatingCache
+            val imdbId = cache.normalizeId(meta.imdbId)
+                ?: cache.normalizeId(meta.id)
+                ?: cache.normalizeId(itemId)
+                ?: itemId.takeIf { it.startsWith("tmdb:", ignoreCase = true) }
+                    ?.substringAfter(':')?.substringBefore(':')?.toIntOrNull()
+                    ?.let { runCatching { tmdbService.tmdbToImdb(it, meta.apiType) }.getOrNull() }
+                    ?.let { cache.normalizeId(it) }
+                ?: return@launch
+            val rating = imdbRatingRepository.getRating(imdbId, meta.apiType) ?: return@launch
+            _uiState.update { state ->
+                val current = state.meta ?: return@update state
+                if (current.imdbRating == rating) state else state.copy(meta = current.copy(imdbRating = rating))
             }
         }
     }
@@ -1644,7 +1672,8 @@ class MetaDetailsViewModel @Inject constructor(
         }
 
         // Store TMDB rating separately so it can be shown with its own icon on the details screen.
-        if (enrichment?.rating != null && settings.useBasicInfo) {
+        // Also kept when TMDB basic info is off but the meta has no IMDb score, so the hero can fall back to it.
+        if (enrichment?.rating != null && (settings.useBasicInfo || meta.imdbRating == null)) {
             _uiState.update { it.copy(tmdbRating = enrichment.rating.toFloat()) }
         }
 

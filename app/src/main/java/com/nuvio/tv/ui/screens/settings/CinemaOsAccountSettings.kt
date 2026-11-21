@@ -5,6 +5,21 @@ package com.nuvio.tv.ui.screens.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Logout
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.tv.material3.Button
+import androidx.tv.material3.ButtonDefaults
+import androidx.tv.material3.Icon
+import com.nuvio.tv.ui.screens.account.AccountSignOutConfirmationDialog
+import com.nuvio.tv.ui.theme.NuvioPrimitives
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
@@ -131,6 +146,7 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
     val lastSynced by viewModel.lastSyncedAt.collectAsStateWithLifecycle()
     val syncing by viewModel.isSyncing.collectAsStateWithLifecycle()
     val signedIn = session != null
+    var showSignOutConfirmation by remember { mutableStateOf(false) }
     DisposableEffect(signedIn) {
         if (!signedIn) viewModel.startFlow()
         onDispose { viewModel.stopFlow() }
@@ -162,11 +178,34 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
                     } else "Last synced: never",
                     onClick = { if (!syncing) viewModel.syncNow() }
                 )
-                SettingsActionRow(
-                    title = "Sign out",
-                    subtitle = "Watch history stays on this device",
-                    onClick = { viewModel.signOut() }
-                )
+                Button(
+                    onClick = { showSignOutConfirmation = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.colors(
+                        containerColor = NuvioPrimitives.red600.copy(alpha = 0.2f),
+                        focusedContainerColor = NuvioPrimitives.red600.copy(alpha = 0.4f),
+                        contentColor = Color(0xFFF44336),
+                        focusedContentColor = Color(0xFFF44336)
+                    ),
+                    shape = ButtonDefaults.shape(RoundedCornerShape(NuvioTheme.radii.md))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(vertical = NuvioTheme.spacing.xs),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Logout,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(NuvioTheme.spacing.sm))
+                        Text(
+                            text = "Sign out",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             } else {
                 val code = ui.code
                 if (code != null) {
@@ -206,5 +245,15 @@ internal fun CinemaOsAccountSettingsContent(initialFocusRequester: FocusRequeste
                 Text(text = it, style = MaterialTheme.typography.bodySmall, color = NuvioTheme.colors.Error)
             }
         }
+    }
+
+    if (showSignOutConfirmation) {
+        AccountSignOutConfirmationDialog(
+            onConfirm = {
+                viewModel.signOut()
+                showSignOutConfirmation = false
+            },
+            onDismiss = { showSignOutConfirmation = false }
+        )
     }
 }

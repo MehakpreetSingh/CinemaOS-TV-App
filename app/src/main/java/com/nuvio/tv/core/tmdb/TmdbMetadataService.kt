@@ -769,7 +769,8 @@ class TmdbMetadataService(
                             logo = null,
                             description = rec.overview?.takeIf { it.isNotBlank() },
                             releaseInfo = releaseInfo,
-                            imdbRating = rec.voteAverage?.toFloat(),
+                            imdbRating = null,
+                            tmdbRating = rec.voteAverage?.toFloat(),
                             genres = emptyList(),
                             landscapePoster = backdrop,
                             rawPosterUrl = fallbackPoster
@@ -867,7 +868,9 @@ class TmdbMetadataService(
                             logo = null,
                             description = part.overview?.takeIf { it.isNotBlank() },
                             releaseInfo = releaseInfo,
-                            imdbRating = part.voteAverage?.toFloat(),
+                            released = part.releaseDate?.takeIf { it.isNotBlank() },
+                            imdbRating = null,
+                            tmdbRating = part.voteAverage?.toFloat(),
                             genres = emptyList(),
                             landscapePoster = backdrop,
                             rawPosterUrl = fallbackPoster
@@ -875,9 +878,14 @@ class TmdbMetadataService(
                     }
                 }.awaitAll().filterNotNull()
             }
+            val resolvedOverview = collectionResponse?.overview?.takeIf { it.isNotBlank() }
+                ?: englishCollection?.overview?.takeIf { it.isNotBlank() }
             val collection = TmdbMovieCollection(
                 name = resolvedCollectionName,
-                items = items
+                items = items,
+                overview = resolvedOverview,
+                backdrop = buildImageUrl(collectionResponse?.backdropPath, size = "w1280"),
+                poster = buildImageUrl(collectionResponse?.posterPath, size = "w500")
             )
             collectionCache[cacheKey] = collection
             collection
@@ -1151,7 +1159,8 @@ class TmdbMetadataService(
             logo = null,
             description = result.overview?.takeIf { it.isNotBlank() },
             releaseInfo = releaseInfo,
-            imdbRating = result.voteAverage?.toFloat(),
+            imdbRating = null,
+            tmdbRating = result.voteAverage?.toFloat(),
             genres = emptyList()
         )
     }
@@ -1451,7 +1460,8 @@ class TmdbMetadataService(
                     logo = null,
                     description = credit.overview?.takeIf { it.isNotBlank() },
                     releaseInfo = year,
-                    imdbRating = credit.voteAverage?.toFloat(),
+                    imdbRating = null,
+                    tmdbRating = credit.voteAverage?.toFloat(),
                     genres = emptyList()
                 )
             }
@@ -1485,7 +1495,8 @@ class TmdbMetadataService(
                     logo = null,
                     description = credit.overview?.takeIf { it.isNotBlank() },
                     releaseInfo = year,
-                    imdbRating = credit.voteAverage?.toFloat(),
+                    imdbRating = null,
+                    tmdbRating = credit.voteAverage?.toFloat(),
                     genres = emptyList()
                 )
             }
@@ -1519,7 +1530,8 @@ class TmdbMetadataService(
                     logo = null,
                     description = credit.overview?.takeIf { it.isNotBlank() },
                     releaseInfo = year,
-                    imdbRating = credit.voteAverage?.toFloat(),
+                    imdbRating = null,
+                    tmdbRating = credit.voteAverage?.toFloat(),
                     genres = emptyList()
                 )
             }
@@ -1553,7 +1565,8 @@ class TmdbMetadataService(
                     logo = null,
                     description = credit.overview?.takeIf { it.isNotBlank() },
                     releaseInfo = year,
-                    imdbRating = credit.voteAverage?.toFloat(),
+                    imdbRating = null,
+                    tmdbRating = credit.voteAverage?.toFloat(),
                     genres = emptyList()
                 )
             }
@@ -1647,7 +1660,10 @@ private fun selectTvAgeRating(
 
 data class TmdbMovieCollection(
     val name: String?,
-    val items: List<MetaPreview>
+    val items: List<MetaPreview>,
+    val overview: String? = null,
+    val backdrop: String? = null,
+    val poster: String? = null
 )
 
 data class TmdbEnrichment(

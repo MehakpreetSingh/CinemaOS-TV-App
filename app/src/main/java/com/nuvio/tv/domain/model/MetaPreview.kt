@@ -36,7 +36,12 @@ data class MetaPreview(
     val voteCount: Int? = null,
     val sourceAddonBaseUrl: String? = null,
     val mdbListRatings: MDBListRatings? = null,
-    val mdbListRatingOrder: List<String> = MDBListSettings.DEFAULT_RATING_ORDER
+    val mdbListRatingOrder: List<String> = MDBListSettings.DEFAULT_RATING_ORDER,
+    /**
+     * TMDB `vote_average` (0-10). Kept apart from [imdbRating], which only ever holds a real IMDb
+     * score, so a card or hero can label the number with the right source.
+     */
+    val tmdbRating: Float? = null
 ) {
     val apiType: String
         get() = type.toApiString(rawType)

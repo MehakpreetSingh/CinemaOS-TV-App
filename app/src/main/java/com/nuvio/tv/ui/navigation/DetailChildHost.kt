@@ -36,6 +36,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.nuvio.tv.ui.screens.cast.CastDetailScreen
+import com.nuvio.tv.ui.screens.collection.MovieCollectionScreen
 import java.util.WeakHashMap
 import com.nuvio.tv.ui.screens.detail.MetaDetailsScreen
 import com.nuvio.tv.ui.screens.tmdb.TmdbEntityBrowseScreen
@@ -189,6 +190,26 @@ internal fun DetailChildHost(
                     }
                 }
                 composable(
+                    route = Screen.MovieCollection.route,
+                    arguments = listOf(
+                        navArgument("collectionId") { type = NavType.IntType },
+                        navArgument("collectionName") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) {
+                    Box(modifier = Modifier.fillMaxSize().background(NuvioTheme.colors.Background)) {
+                        MovieCollectionScreen(
+                            onBackPress = { childNav.popBackStack() },
+                            onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
+                                childNav.navigateNestedDetail(itemId, itemType, addonBaseUrl)
+                            }
+                        )
+                    }
+                }
+                composable(
                     route = Screen.Detail.route,
                     arguments = listOf(
                         navArgument("itemId") { type = NavType.StringType },
@@ -251,6 +272,9 @@ internal fun DetailChildHost(
                                 )
                             )
                         },
+                        onNavigateToCollection = { collectionId, collectionName ->
+                            childNav.navigate(Screen.MovieCollection.createRoute(collectionId, collectionName))
+                        },
                         onNavigateToDetail = { itemId, itemType, addonBaseUrl ->
                             childNav.navigateNestedDetail(itemId, itemType, addonBaseUrl)
                         },
@@ -299,6 +323,13 @@ private fun NavBackStackEntry.toSavedChildRoute(): String? {
                 entityId = args.getInt("entityId"),
                 entityName = entityName,
                 sourceType = args.getString("sourceType") ?: "tv"
+            )
+        }
+        Screen.MovieCollection.route -> {
+            val collectionId = args.getInt("collectionId").takeIf { it > 0 } ?: return null
+            Screen.MovieCollection.createRoute(
+                collectionId = collectionId,
+                collectionName = args.getString("collectionName")?.takeIf { it.isNotBlank() }
             )
         }
         Screen.Detail.route -> {

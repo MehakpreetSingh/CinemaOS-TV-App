@@ -422,7 +422,8 @@ class DiscoverTmdbSource @Inject constructor(
             description = overview?.takeIf { it.isNotBlank() },
             releaseInfo = date?.take(4),
             released = date,
-            imdbRating = voteAverage?.toFloat()?.takeIf { it > 0f },
+            imdbRating = null,
+            tmdbRating = voteAverage?.toFloat()?.takeIf { it > 0f },
             voteCount = voteCount,
             genres = emptyList()
         )

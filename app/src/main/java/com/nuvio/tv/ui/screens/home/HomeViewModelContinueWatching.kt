@@ -2006,7 +2006,8 @@ private suspend fun HomeViewModel.enrichInProgressItem(
             debug = debug
         )
     } else null
-    val imdbRating = tmdbData?.rating?.toFloat() ?: meta.imdbRating
+    // TMDB's vote_average is not an IMDb score, so only the addon's (Cinemeta) rating is used here.
+    val imdbRating = meta.imdbRating
 
     // Fetch episode rating: external wins over addon (same as detail screen).
     val episodeRating = if (isSeriesTypeCW(item.progress.contentType) &&

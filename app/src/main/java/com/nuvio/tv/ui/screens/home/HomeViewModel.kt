@@ -91,10 +91,13 @@ class HomeViewModel @Inject constructor(
     internal val serverCatalog: ServerCatalog,
     internal val trailerPlayerPool: com.nuvio.tv.core.player.TrailerPlayerPool,
     internal val backgroundTrailerController: com.nuvio.tv.core.player.BackgroundTrailerController,
+    internal val imdbRatingRepository: com.nuvio.tv.data.repository.ImdbRatingRepository =
+        com.nuvio.tv.data.repository.ImdbRatingRepository(okhttp3.OkHttpClient()),
     internal val metaPreviewEnricher: MetaPreviewEnricher = MetaPreviewEnricher(
         tmdbService,
         tmdbMetadataService,
-        mdbListRepository
+        mdbListRepository,
+        imdbRatingRepository
     ),
     savedStateHandle: androidx.lifecycle.SavedStateHandle = androidx.lifecycle.SavedStateHandle()
 ) : ViewModel() {

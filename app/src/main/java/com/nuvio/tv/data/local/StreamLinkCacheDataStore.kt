@@ -39,6 +39,8 @@ class StreamLinkCacheDataStore @Inject constructor(
 ) {
     companion object {
         private const val FEATURE = "stream_link_cache"
+        // Entries are kept this long so Continue Watching can reuse them; callers apply their own max age.
+        const val RETENTION_MS = 7L * 24L * 60L * 60L * 1000L
     }
 
     private fun store(profileId: Int = profileManager.activeProfileId.value) =
@@ -106,7 +108,9 @@ class StreamLinkCacheDataStore @Inject constructor(
             val json = JSONObject(raw)
             val cachedAtMs = json.optLong("cachedAtMs", 0L)
             val age = System.currentTimeMillis() - cachedAtMs
-            if (cachedAtMs <= 0L || age > maxAgeMs) return@runCatching null
+            if (cachedAtMs <= 0L || age > RETENTION_MS) return@runCatching null
+            // Older than the caller's window but still retained: miss without pruning.
+            if (age > maxAgeMs) return null
 
             val headersJson = json.optJSONObject("headers")
             val headers = buildMap {

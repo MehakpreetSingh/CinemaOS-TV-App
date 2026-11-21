@@ -786,7 +786,7 @@ private fun PlayerRuntimeController.persistSelectedStreamForReuse(
     url: String,
     headers: Map<String, String>
 ) {
-    if (!streamReuseLastLinkEnabled || stream.serverTarget != null) return
+    if (stream.serverTarget != null) return
 
     val key = streamCacheKey ?: return
     val streamName = (stream.name?.takeIf { it.isNotBlank() } ?: stream.addonName)?.takeIf { it.isNotBlank() }
@@ -816,8 +816,6 @@ private fun PlayerRuntimeController.persistSelectedStreamForReuse(
 }
 
 private fun PlayerRuntimeController.persistTorrentStreamForReuse(stream: Stream) {
-    if (!streamReuseLastLinkEnabled) return
-
     val key = streamCacheKey ?: return
     val infoHash = stream.getEffectiveInfoHash() ?: return
     val streamName = (stream.name?.takeIf { it.isNotBlank() } ?: stream.addonName)?.takeIf { it.isNotBlank() }

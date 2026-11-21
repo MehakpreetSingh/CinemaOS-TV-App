@@ -415,6 +415,7 @@ fun MetaDetailsScreen(
     onReturnFocusConsumed: () -> Unit = {},
     onNavigateToCastDetail: (personId: Int, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
     onNavigateToTmdbEntityBrowse: (entityKind: String, entityId: Int, entityName: String, sourceType: String) -> Unit = { _, _, _, _ -> },
+    onNavigateToCollection: (collectionId: Int, collectionName: String?) -> Unit = { _, _ -> },
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit = { _, _, _ -> },
     onPlayClick: (
         videoId: String,
@@ -946,6 +947,7 @@ fun MetaDetailsScreen(
                     posterCardCornerRadiusDp = posterCardCornerRadiusDp,
                     collection = uiState.collection,
                     collectionName = uiState.collectionName,
+                    collectionId = uiState.collectionId,
                     relatedWatchedStatus = uiState.relatedWatchedStatus,
                     episodeImdbRatings = uiState.episodeImdbRatings,
                     isEpisodeRatingsLoading = uiState.isEpisodeRatingsLoading,
@@ -1145,6 +1147,7 @@ fun MetaDetailsScreen(
                     onSharedTrailerFocusRestored = { restoreSharedTrailerFocusToken = 0 },
                     onNavigateToCastDetail = onNavigateToCastDetail,
                     onNavigateToTmdbEntityBrowse = onNavigateToTmdbEntityBrowse,
+                    onNavigateToCollection = onNavigateToCollection,
                     onNavigateToDetail = onNavigateToDetail,
                     onPosterLongPress = { item -> viewModel.posterOptions.show(item, null) }
                 )
@@ -1290,6 +1293,7 @@ private fun MetaDetailsContent(
     posterCardCornerRadiusDp: Int = 12,
     collection: List<MetaPreview>,
     collectionName: String?,
+    collectionId: Int? = null,
     relatedWatchedStatus: Map<String, Boolean> = emptyMap(),
     episodeImdbRatings: Map<Pair<Int, Int>, Double>,
     isEpisodeRatingsLoading: Boolean,
@@ -1364,6 +1368,7 @@ private fun MetaDetailsContent(
     onSharedTrailerFocusRestored: () -> Unit,
     onNavigateToCastDetail: (personId: Int, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
     onNavigateToTmdbEntityBrowse: (entityKind: String, entityId: Int, entityName: String, sourceType: String) -> Unit = { _, _, _, _ -> },
+    onNavigateToCollection: (collectionId: Int, collectionName: String?) -> Unit = { _, _ -> },
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit = { _, _, _ -> },
     onPosterLongPress: (MetaPreview) -> Unit = {}
 ) {
@@ -2908,6 +2913,12 @@ private fun MetaDetailsContent(
                                     windowResetKey = meta.id,
                                     onItemLongPress = { item ->
                                         onPosterLongPress(item)
+                                    },
+                                    onSeeAll = collectionId?.let { id ->
+                                        {
+                                            lastFocusedCollectionItemId?.let { markCollectionRestore(it) }
+                                            onNavigateToCollection(id, collectionName)
+                                        }
                                     }
                                 )
                             }
@@ -2974,6 +2985,12 @@ private fun MetaDetailsContent(
                         windowResetKey = meta.id,
                         onItemLongPress = { item ->
                             onPosterLongPress(item)
+                        },
+                        onSeeAll = collectionId?.let { id ->
+                            {
+                                lastFocusedCollectionItemId?.let { markCollectionRestore(it) }
+                                onNavigateToCollection(id, collectionName)
+                            }
                         }
                     )
                 }
